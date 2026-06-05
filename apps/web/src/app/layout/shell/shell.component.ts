@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
-import { LucideReceiptText, LucideScrollText, LucideLayoutDashboard, LucideLogOut } from "@lucide/angular";
+import { LucideReceiptText, LucideLayoutDashboard, LucideLogOut } from "@lucide/angular";
 import { RouterLink, RouterLinkActive, RouterOutlet } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
-import { IsumiButtonComponent, IsumiNavItemDirective } from "../../shared/ui";
+import { IsumiAvatarComponent, IsumiButtonComponent, IsumiNavItemDirective } from "../../shared/ui";
 
 @Component({
   selector: "isumi-shell",
   standalone: true,
-  imports: [IsumiButtonComponent, IsumiNavItemDirective, LucideReceiptText, LucideScrollText, LucideLayoutDashboard, LucideLogOut, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [IsumiAvatarComponent, IsumiButtonComponent, IsumiNavItemDirective, LucideReceiptText, LucideLayoutDashboard, LucideLogOut, RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: "./shell.component.html",
   styleUrl: "./shell.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush

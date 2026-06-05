@@ -1,11 +1,15 @@
 import { ChangeDetectionStrategy, Component } from "@angular/core";
 import { RouterOutlet } from "@angular/router";
+import { IsumiModalHostComponent } from "./shared/ui";
 
 @Component({
   selector: "isumi-root",
   standalone: true,
-  imports: [RouterOutlet],
-  template: "<router-outlet />",
+  imports: [IsumiModalHostComponent, RouterOutlet],
+  template: `
+    <router-outlet />
+    <isumi-modal-host />
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent {}

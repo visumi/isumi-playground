@@ -10,7 +10,7 @@ Isumi Playground is primarily for the owner today, with a small group of friends
 
 ## Product Purpose
 
-The product is an authenticated playground for everyday tools. It starts with quick notes and can grow into a collection of small, useful workflows backed by a Cloudflare Worker API and persistent user data. Success means a user can sign in, understand what tools are available, and complete a small task quickly while feeling that the space is personal, calm, and still a little fun.
+The product is an authenticated playground for everyday tools. It starts with shared expense splitting and can grow into a collection of small, useful workflows backed by a Cloudflare Worker API and persistent user data. Success means a user can sign in, understand what tools are available, and complete a small task quickly while feeling that the space is personal, calm, and still a little fun.
 
 ## Brand Personality
 

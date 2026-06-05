@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable, inject } from "@angular/core";
 import { Observable } from "rxjs";
 import { environment } from "../../../environments/environment";
-import { CreateExpenseRoomRequest, ExpenseRoom, ExpenseRoomDetail, UpsertExpenseItemRequest, UpsertExpenseParticipantRequest } from "./api.types";
+import { CreateExpenseRoomRequest, ExpenseRoom, ExpenseRoomDetail, UpdateExpenseSettlementRequest, UpdateExpenseTipRequest, UpsertExpenseItemRequest, UpsertExpenseParticipantRequest } from "./api.types";
 
 @Injectable({ providedIn: "root" })
 export class ExpensesService {
@@ -21,8 +21,12 @@ export class ExpensesService {
     return this.http.get<ExpenseRoomDetail>(`${this.baseUrl}/${roomId}`);
   }
 
-  updateRoom(roomId: string, payload: CreateExpenseRoomRequest): Observable<ExpenseRoomDetail> {
-    return this.http.patch<ExpenseRoomDetail>(`${this.baseUrl}/${roomId}`, payload);
+  updateTip(roomId: string, payload: UpdateExpenseTipRequest): Observable<ExpenseRoomDetail> {
+    return this.http.patch<ExpenseRoomDetail>(`${this.baseUrl}/${roomId}/tip`, payload);
+  }
+
+  updateSettlement(roomId: string, payload: UpdateExpenseSettlementRequest): Observable<ExpenseRoomDetail> {
+    return this.http.patch<ExpenseRoomDetail>(`${this.baseUrl}/${roomId}/settlements`, payload);
   }
 
   createGuest(roomId: string, payload: UpsertExpenseParticipantRequest): Observable<ExpenseRoomDetail> {

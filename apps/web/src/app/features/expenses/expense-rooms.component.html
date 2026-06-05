@@ -43,8 +43,16 @@
 
   <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4 max-sm:grid-cols-1" aria-live="polite">
     @if (loading()) {
-      <isumi-skeleton label="Carregando salas" />
-      <isumi-skeleton />
+      @for (placeholder of [1, 2]; track placeholder) {
+        <div class="grid min-h-48 gap-4 rounded-lg bg-card p-5" aria-label="Carregando salas">
+          <div class="size-10 animate-pulse rounded-sm bg-muted"></div>
+          <div class="grid gap-2">
+            <div class="h-5 w-3/5 animate-pulse rounded-sm bg-muted"></div>
+            <div class="h-4 w-2/5 animate-pulse rounded-sm bg-muted"></div>
+          </div>
+          <div class="mt-auto h-4 w-24 animate-pulse rounded-sm bg-muted"></div>
+        </div>
+      }
     } @else if (rooms().length === 0) {
       <isumi-empty-state class="col-span-full" title="Nenhuma sala ainda" description="Crie uma sala para comecar a organizar os gastos.">
         <svg icon lucideReceiptText class="size-5" aria-hidden="true"></svg>

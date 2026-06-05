@@ -5,11 +5,10 @@ import { IsumiAlertComponent } from "./alert.component";
 import { IsumiButtonComponent } from "./button.component";
 import { IsumiEmptyStateComponent } from "./empty-state.component";
 import { IsumiInputDirective } from "./input.directive";
-import { IsumiSkeletonComponent } from "./skeleton.component";
 
 @Component({
   standalone: true,
-  imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSkeletonComponent],
+  imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective],
   template: `
     <isumi-button variant="secondary" size="sm" disabled>
       <span icon data-testid="icon"></span>
@@ -20,10 +19,10 @@ import { IsumiSkeletonComponent } from "./skeleton.component";
       <span icon data-testid="logout-icon"></span>
       Sair
     </isumi-button>
+    <isumi-button variant="ghost-destructive">Remover</isumi-button>
     <input isumiInput name="title" maxlength="120" autocomplete="off" placeholder="Titulo">
     <textarea isumiInput rows="4"></textarea>
     <isumi-alert>Falha ao salvar.</isumi-alert>
-    <isumi-skeleton label="Carregando notas" />
     <isumi-empty-state title="Nada aqui" description="Crie um item.">
       <span icon data-testid="empty-icon"></span>
     </isumi-empty-state>
@@ -74,6 +73,15 @@ describe("shared ui", () => {
     expect(iconButton.querySelector("[data-testid='logout-icon']")).not.toBeNull();
   });
 
+  it("supports ghost destructive buttons", () => {
+    const buttons = fixture.debugElement.queryAll(By.css("button"));
+    const button = buttons[3].nativeElement as HTMLButtonElement;
+
+    expect(button.classList).toContain("bg-transparent");
+    expect(button.classList).toContain("hover:bg-destructive/30");
+    expect(button.classList).toContain("hover:text-destructive");
+  });
+
   it("styles native inputs without removing their HTML attributes", () => {
     const input = fixture.debugElement.query(By.css("input")).nativeElement as HTMLInputElement;
     const textarea = fixture.debugElement.query(By.css("textarea")).nativeElement as HTMLTextAreaElement;
@@ -91,13 +99,6 @@ describe("shared ui", () => {
 
     expect(alert.getAttribute("role")).toBe("alert");
     expect(alert.classList).toContain("bg-destructive/15");
-  });
-
-  it("exposes skeleton loading labels when provided", () => {
-    const skeleton = fixture.debugElement.query(By.css("isumi-skeleton")).nativeElement as HTMLElement;
-
-    expect(skeleton.getAttribute("aria-label")).toBe("Carregando notas");
-    expect(skeleton.getAttribute("aria-hidden")).toBeNull();
   });
 
   it("projects custom empty state icons above the text", () => {

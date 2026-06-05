@@ -10,10 +10,6 @@
         <svg lucideLayoutDashboard class="size-4" aria-hidden="true"></svg>
         Dashboard
       </a>
-      <a isumiNavItem routerLink="/tools/notes" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25">
-        <svg lucideScrollText class="size-4" aria-hidden="true"></svg>
-        Notas rápidas
-      </a>
       <a isumiNavItem routerLink="/tools/expenses" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25">
         <svg lucideReceiptText class="size-4" aria-hidden="true"></svg>
         Dividir gastos
@@ -22,18 +18,7 @@
 
     <section class="mt-auto border-t border-sidebar-border pt-5 max-md:mt-0 max-md:border-t-0 max-md:pt-0" aria-label="Usuario logado">
       <div class="flex min-w-0 items-center gap-3 rounded-sm px-1 py-1 text-muted-foreground">
-        @if (auth.profile()?.picture) {
-          <img
-            class="size-8 rounded-full border border-sidebar-border object-cover opacity-90"
-            [src]="auth.profile()?.picture"
-            [alt]="auth.profile()?.name || auth.profile()?.email || 'Usuario'"
-            referrerpolicy="no-referrer"
-          >
-        } @else {
-          <span class="grid size-8 shrink-0 place-items-center rounded-full bg-sidebar-accent text-xs font-extrabold text-sidebar-accent-foreground" aria-hidden="true">
-            {{ (auth.profile()?.name || auth.profile()?.email || "U").charAt(0) }}
-          </span>
-        }
+        <isumi-avatar size="md" [src]="auth.profile()?.picture" [name]="auth.profile()?.name || auth.profile()?.email || 'Usuario'" />
         <div class="grid min-w-0 gap-0.5">
           <strong class="truncate text-sm font-bold text-foreground/85">{{ auth.profile()?.name || auth.profile()?.email || "Usuario" }}</strong>
           <span class="truncate text-xs">{{ auth.profile()?.email }}</span>

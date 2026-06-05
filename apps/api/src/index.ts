@@ -17,18 +17,11 @@ interface AuthUser {
   allowed: boolean;
 }
 
-interface NoteRow {
-  id: string;
-  title: string;
-  body: string;
-  created_at: string;
-  updated_at: string;
-}
-
 interface ExpenseRoomRow {
   id: string;
   owner_user_id: string;
   name: string;
+  tip_percent: number;
   created_at: string;
   updated_at: string;
 }
@@ -38,6 +31,7 @@ interface ExpenseParticipantRow {
   room_id: string;
   user_id: string | null;
   name: string;
+  picture: string | null;
   kind: "user" | "guest";
   role: "owner" | "member" | "guest";
   created_at: string;
@@ -61,6 +55,15 @@ interface ExpenseSplitRow {
   share_units: number;
 }
 
+interface ExpensePaidSettlementRow {
+  room_id: string;
+  from_participant_id: string;
+  to_participant_id: string;
+  amount_cents: number;
+  paid_at: string;
+  paid_by_user_id: string;
+}
+
 interface ExpenseItemSplitInput {
   participantId?: string;
   shareUnits?: number;
@@ -77,6 +80,16 @@ interface ExpenseParticipantInput {
   name?: string;
 }
 
+interface ExpenseTipInput {
+  tipPercent?: number;
+}
+
+interface ExpensePaidSettlementInput {
+  fromParticipantId?: string;
+  toParticipantId?: string;
+  paid?: boolean;
+}
+
 interface CalculatedSplit {
   participantId: string;
   shareUnits: number;
@@ -87,6 +100,16 @@ interface Settlement {
   fromParticipantId: string;
   toParticipantId: string;
   amountCents: number;
+  paid?: boolean;
+  paidAt?: string;
+  paidByUserId?: string;
+}
+
+interface ParticipantTotal {
+  participantId: string;
+  subtotalCents: number;
+  tipAmountCents: number;
+  totalCents: number;
 }
 
 type FirebaseKey = Awaited<ReturnType<typeof importX509>>;
@@ -148,10 +171,20 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         return json(await getExpenseRoomDetail(db, user, roomId), 200, corsHeaders);
       }
 
-      if (request.method === "PATCH") {
-        const payload = await readJson<{ name?: string }>(request);
-        return json(await updateExpenseRoom(db, user.uid, roomId, payload), 200, corsHeaders);
-      }
+    }
+
+    const expenseRoomTipMatch = url.pathname.match(/^\/tools\/expenses\/rooms\/([^/]+)\/tip$/);
+    if (expenseRoomTipMatch && request.method === "PATCH") {
+      const roomId = expenseRoomTipMatch[1];
+      const payload = await readJson<ExpenseTipInput>(request);
+      return json(await updateExpenseRoomTip(db, user.uid, roomId, payload), 200, corsHeaders);
+    }
+
+    const expensePaidSettlementMatch = url.pathname.match(/^\/tools\/expenses\/rooms\/([^/]+)\/settlements$/);
+    if (expensePaidSettlementMatch && request.method === "PATCH") {
+      const roomId = expensePaidSettlementMatch[1];
+      const payload = await readJson<ExpensePaidSettlementInput>(request);
+      return json(await updateExpensePaidSettlement(db, user.uid, roomId, payload), 200, corsHeaders);
     }
 
     const expenseParticipantMatch = url.pathname.match(/^\/tools\/expenses\/rooms\/([^/]+)\/participants(?:\/([^/]+))?$/);
@@ -192,36 +225,6 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
       if (request.method === "DELETE" && itemId) {
         await deleteExpenseItem(db, user.uid, roomId, itemId);
-        return new Response(null, { status: 204, headers: corsHeaders });
-      }
-    }
-
-    if (url.pathname === "/tools/notes") {
-      if (request.method === "GET") {
-        return json(await listNotes(db, user.uid), 200, corsHeaders);
-      }
-
-      if (request.method === "POST") {
-        const payload = await readJson<{ title?: string; body?: string }>(request);
-        const note = await createNote(db, user.uid, payload);
-        return json(note, 201, corsHeaders);
-      }
-    }
-
-    const noteMatch = url.pathname.match(/^\/tools\/notes\/([^/]+)$/);
-    if (noteMatch) {
-      const noteId = noteMatch[1];
-
-      if (request.method === "PATCH") {
-        const payload = await readJson<{ title?: string; body?: string }>(request);
-        const note = await updateNote(db, user.uid, noteId, payload);
-        return note
-          ? json(note, 200, corsHeaders)
-          : json({ error: "not_found" }, 404, corsHeaders);
-      }
-
-      if (request.method === "DELETE") {
-        await deleteNote(db, user.uid, noteId);
         return new Response(null, { status: 204, headers: corsHeaders });
       }
     }
@@ -345,92 +348,10 @@ async function upsertUser(db: Client, user: AuthUser): Promise<void> {
   });
 }
 
-async function listNotes(db: Client, userId: string) {
-  const result = await db.execute({
-    sql: `
-      SELECT id, title, body, created_at, updated_at
-      FROM tool_notes
-      WHERE user_id = ?
-      ORDER BY updated_at DESC
-    `,
-    args: [userId]
-  });
-
-  return result.rows.map(mapNote);
-}
-
-async function createNote(db: Client, userId: string, payload: { title?: string; body?: string }) {
-  const id = crypto.randomUUID();
-  const title = sanitizeTitle(payload.title);
-  const body = sanitizeBody(payload.body);
-
-  await db.execute({
-    sql: `
-      INSERT INTO tool_notes (id, user_id, title, body, created_at, updated_at)
-      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `,
-    args: [id, userId, title, body]
-  });
-
-  return findNote(db, userId, id);
-}
-
-async function updateNote(db: Client, userId: string, noteId: string, payload: { title?: string; body?: string }) {
-  const updates: string[] = [];
-  const args: Array<string> = [];
-
-  if (payload.title !== undefined) {
-    updates.push("title = ?");
-    args.push(sanitizeTitle(payload.title));
-  }
-
-  if (payload.body !== undefined) {
-    updates.push("body = ?");
-    args.push(sanitizeBody(payload.body));
-  }
-
-  if (updates.length === 0) {
-    return findNote(db, userId, noteId);
-  }
-
-  await db.execute({
-    sql: `
-      UPDATE tool_notes
-      SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND user_id = ?
-    `,
-    args: [...args, noteId, userId]
-  });
-
-  return findNote(db, userId, noteId);
-}
-
-async function deleteNote(db: Client, userId: string, noteId: string): Promise<void> {
-  await db.execute({
-    sql: "DELETE FROM tool_notes WHERE id = ? AND user_id = ?",
-    args: [noteId, userId]
-  });
-}
-
-async function findNote(db: Client, userId: string, noteId: string) {
-  const result = await db.execute({
-    sql: `
-      SELECT id, title, body, created_at, updated_at
-      FROM tool_notes
-      WHERE id = ? AND user_id = ?
-      LIMIT 1
-    `,
-    args: [noteId, userId]
-  });
-
-  const row = result.rows[0] as unknown as NoteRow | undefined;
-  return row ? mapNote(row) : null;
-}
-
 async function listExpenseRooms(db: Client, userId: string) {
   const result = await db.execute({
     sql: `
-      SELECT r.id, r.owner_user_id, r.name, r.created_at, r.updated_at
+      SELECT r.id, r.owner_user_id, r.name, r.tip_percent, r.created_at, r.updated_at
       FROM expense_rooms r
       INNER JOIN expense_participants p ON p.room_id = r.id
       WHERE p.user_id = ?
@@ -450,8 +371,8 @@ async function createExpenseRoom(db: Client, user: AuthUser, payload: { name?: s
 
   await db.execute({
     sql: `
-      INSERT INTO expense_rooms (id, owner_user_id, name, created_at, updated_at)
-      VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO expense_rooms (id, owner_user_id, name, tip_percent, created_at, updated_at)
+      VALUES (?, ?, ?, 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `,
     args: [roomId, user.uid, name]
   });
@@ -467,6 +388,66 @@ async function createExpenseRoom(db: Client, user: AuthUser, payload: { name?: s
   return buildExpenseRoomDetail(db, roomId);
 }
 
+async function updateExpenseRoomTip(db: Client, userId: string, roomId: string, payload: ExpenseTipInput) {
+  await assertExpenseRoomMember(db, roomId, userId);
+
+  await db.execute({
+    sql: `
+      UPDATE expense_rooms
+      SET tip_percent = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `,
+    args: [sanitizeTipPercent(payload.tipPercent), roomId]
+  });
+  await clearPaidSettlements(db, roomId);
+
+  return buildExpenseRoomDetail(db, roomId);
+}
+
+async function updateExpensePaidSettlement(db: Client, userId: string, roomId: string, payload: ExpensePaidSettlementInput) {
+  await assertExpenseRoomMember(db, roomId, userId);
+  const fromParticipantId = sanitizeRequiredId(payload.fromParticipantId, "missing_from_participant");
+  const toParticipantId = sanitizeRequiredId(payload.toParticipantId, "missing_to_participant");
+
+  if (fromParticipantId === toParticipantId) {
+    throw new HttpError(400, "invalid_settlement_pair");
+  }
+
+  if (!payload.paid) {
+    await db.execute({
+      sql: `
+        DELETE FROM expense_paid_settlements
+        WHERE room_id = ? AND from_participant_id = ? AND to_participant_id = ?
+      `,
+      args: [roomId, fromParticipantId, toParticipantId]
+    });
+    return buildExpenseRoomDetail(db, roomId);
+  }
+
+  const detail = await buildExpenseRoomDetail(db, roomId);
+  const settlement = detail.settlements.find((item) =>
+    item.fromParticipantId === fromParticipantId && item.toParticipantId === toParticipantId
+  );
+
+  if (!settlement) {
+    throw new HttpError(400, "invalid_settlement_pair");
+  }
+
+  await db.execute({
+    sql: `
+      INSERT INTO expense_paid_settlements (room_id, from_participant_id, to_participant_id, amount_cents, paid_at, paid_by_user_id)
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+      ON CONFLICT(room_id, from_participant_id, to_participant_id) DO UPDATE SET
+        amount_cents = excluded.amount_cents,
+        paid_at = CURRENT_TIMESTAMP,
+        paid_by_user_id = excluded.paid_by_user_id
+    `,
+    args: [roomId, fromParticipantId, toParticipantId, settlement.amountCents, userId]
+  });
+
+  return buildExpenseRoomDetail(db, roomId);
+}
+
 async function getExpenseRoomDetail(db: Client, user: AuthUser, roomId: string) {
   const room = await findExpenseRoom(db, roomId);
   if (!room) {
@@ -474,21 +455,6 @@ async function getExpenseRoomDetail(db: Client, user: AuthUser, roomId: string) 
   }
 
   await ensureUserParticipant(db, room, user);
-  return buildExpenseRoomDetail(db, roomId);
-}
-
-async function updateExpenseRoom(db: Client, userId: string, roomId: string, payload: { name?: string }) {
-  await assertExpenseRoomOwner(db, roomId, userId);
-
-  await db.execute({
-    sql: `
-      UPDATE expense_rooms
-      SET name = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `,
-    args: [sanitizeRoomName(payload.name), roomId]
-  });
-
   return buildExpenseRoomDetail(db, roomId);
 }
 
@@ -559,6 +525,7 @@ async function deleteGuestParticipant(db: Client, userId: string, roomId: string
     sql: "DELETE FROM expense_participants WHERE id = ? AND room_id = ?",
     args: [participantId, roomId]
   });
+  await clearPaidSettlements(db, roomId);
   await touchExpenseRoom(db, roomId);
 }
 
@@ -575,6 +542,7 @@ async function createExpenseItem(db: Client, userId: string, roomId: string, pay
     args: [itemId, roomId, item.payerParticipantId, item.description, item.amountCents, userId]
   });
   await replaceExpenseItemSplits(db, itemId, item.splits);
+  await clearPaidSettlements(db, roomId);
   await touchExpenseRoom(db, roomId);
 
   return buildExpenseRoomDetail(db, roomId);
@@ -594,6 +562,7 @@ async function updateExpenseItem(db: Client, userId: string, roomId: string, ite
     args: [item.payerParticipantId, item.description, item.amountCents, itemId, roomId]
   });
   await replaceExpenseItemSplits(db, itemId, item.splits);
+  await clearPaidSettlements(db, roomId);
   await touchExpenseRoom(db, roomId);
 
   return buildExpenseRoomDetail(db, roomId);
@@ -606,6 +575,7 @@ async function deleteExpenseItem(db: Client, userId: string, roomId: string, ite
     sql: "DELETE FROM expense_items WHERE id = ? AND room_id = ?",
     args: [itemId, roomId]
   });
+  await clearPaidSettlements(db, roomId);
   await touchExpenseRoom(db, roomId);
 }
 
@@ -618,6 +588,7 @@ async function buildExpenseRoomDetail(db: Client, roomId: string) {
   const participants = await listExpenseParticipants(db, roomId);
   const items = await listExpenseItems(db, roomId);
   const splits = await listExpenseSplits(db, roomId);
+  const paidSettlements = await listExpensePaidSettlements(db, roomId);
   const splitsByItem = groupSplitsByItem(splits);
   const detailedItems = items.map((item) => {
     const calculatedSplits = calculateItemSplits(
@@ -630,21 +601,46 @@ async function buildExpenseRoomDetail(db: Client, roomId: string) {
 
     return mapExpenseItem(item, calculatedSplits);
   });
-  const balances = calculateBalances(participants.map((participant) => participant.id), detailedItems);
+  const participantIds = participants.map((participant) => participant.id);
+  const subtotalCents = detailedItems.reduce((total, item) => total + item.amountCents, 0);
+  const tipPercent = Number(room.tip_percent ?? 10);
+  const tipAmountCents = calculateTipAmountCents(subtotalCents, tipPercent);
+  const participantTotals = calculateParticipantTotals(participantIds, detailedItems, tipAmountCents);
+  const balanceItems = applyTipToItems(detailedItems, tipAmountCents);
+  const balances = calculateBalances(participantIds, balanceItems);
+  const paidByPair = new Map(paidSettlements.map((settlement) => [
+    settlementKey(settlement.from_participant_id, settlement.to_participant_id),
+    settlement
+  ]));
+  const settlements = optimizeSettlements(balances).map((settlement) => {
+    const paid = paidByPair.get(settlementKey(settlement.fromParticipantId, settlement.toParticipantId));
+
+    return {
+      ...settlement,
+      paid: Boolean(paid && paid.amount_cents === settlement.amountCents),
+      paidAt: paid?.paid_at,
+      paidByUserId: paid?.paid_by_user_id
+    };
+  });
 
   return {
     room: mapExpenseRoom(room),
+    tipPercent,
+    subtotalCents,
+    tipAmountCents,
+    totalCents: subtotalCents + tipAmountCents,
     participants: participants.map(mapExpenseParticipant),
     items: detailedItems,
+    participantTotals,
     balances,
-    settlements: optimizeSettlements(balances)
+    settlements
   };
 }
 
 async function findExpenseRoom(db: Client, roomId: string): Promise<ExpenseRoomRow | null> {
   const result = await db.execute({
     sql: `
-      SELECT id, owner_user_id, name, created_at, updated_at
+      SELECT id, owner_user_id, name, tip_percent, created_at, updated_at
       FROM expense_rooms
       WHERE id = ?
       LIMIT 1
@@ -718,9 +714,10 @@ async function assertExpenseItemExists(db: Client, roomId: string, itemId: strin
 async function findExpenseParticipant(db: Client, roomId: string, participantId: string): Promise<ExpenseParticipantRow | null> {
   const result = await db.execute({
     sql: `
-      SELECT id, room_id, user_id, name, kind, role, created_at, updated_at
-      FROM expense_participants
-      WHERE id = ? AND room_id = ?
+      SELECT p.id, p.room_id, p.user_id, p.name, u.picture, p.kind, p.role, p.created_at, p.updated_at
+      FROM expense_participants p
+      LEFT JOIN users u ON u.id = p.user_id
+      WHERE p.id = ? AND p.room_id = ?
       LIMIT 1
     `,
     args: [participantId, roomId]
@@ -732,10 +729,11 @@ async function findExpenseParticipant(db: Client, roomId: string, participantId:
 async function listExpenseParticipants(db: Client, roomId: string): Promise<ExpenseParticipantRow[]> {
   const result = await db.execute({
     sql: `
-      SELECT id, room_id, user_id, name, kind, role, created_at, updated_at
-      FROM expense_participants
-      WHERE room_id = ?
-      ORDER BY kind DESC, created_at ASC
+      SELECT p.id, p.room_id, p.user_id, p.name, u.picture, p.kind, p.role, p.created_at, p.updated_at
+      FROM expense_participants p
+      LEFT JOIN users u ON u.id = p.user_id
+      WHERE p.room_id = ?
+      ORDER BY p.kind DESC, p.created_at ASC
     `,
     args: [roomId]
   });
@@ -755,6 +753,19 @@ async function listExpenseItems(db: Client, roomId: string): Promise<ExpenseItem
   });
 
   return result.rows as unknown as ExpenseItemRow[];
+}
+
+async function listExpensePaidSettlements(db: Client, roomId: string): Promise<ExpensePaidSettlementRow[]> {
+  const result = await db.execute({
+    sql: `
+      SELECT room_id, from_participant_id, to_participant_id, amount_cents, paid_at, paid_by_user_id
+      FROM expense_paid_settlements
+      WHERE room_id = ?
+    `,
+    args: [roomId]
+  });
+
+  return result.rows as unknown as ExpensePaidSettlementRow[];
 }
 
 async function listExpenseSplits(db: Client, roomId: string): Promise<ExpenseSplitRow[]> {
@@ -812,6 +823,13 @@ async function touchExpenseRoom(db: Client, roomId: string): Promise<void> {
   });
 }
 
+async function clearPaidSettlements(db: Client, roomId: string): Promise<void> {
+  await db.execute({
+    sql: "DELETE FROM expense_paid_settlements WHERE room_id = ?",
+    args: [roomId]
+  });
+}
+
 function groupSplitsByItem(splits: ExpenseSplitRow[]): Map<string, ExpenseSplitRow[]> {
   const grouped = new Map<string, ExpenseSplitRow[]>();
 
@@ -856,6 +874,90 @@ export function calculateItemSplits(amountCents: number, splits: Array<{ partici
     .map(({ participantId, shareUnits, amountCents }) => ({ participantId, shareUnits, amountCents }));
 }
 
+export function calculateTipAmountCents(subtotalCents: number, tipPercent: number): number {
+  if (subtotalCents <= 0 || tipPercent <= 0) {
+    return 0;
+  }
+
+  return Math.round((subtotalCents * tipPercent) / 100);
+}
+
+export function calculateParticipantTotals(
+  participantIds: string[],
+  items: Array<{ splits: CalculatedSplit[] }>,
+  tipAmountCents: number
+): ParticipantTotal[] {
+  const totals = participantIds.map((participantId) => ({
+    participantId,
+    subtotalCents: 0,
+    tipAmountCents: 0,
+    totalCents: 0
+  }));
+  const byParticipant = new Map(totals.map((total) => [total.participantId, total]));
+
+  for (const item of items) {
+    for (const split of item.splits) {
+      const total = byParticipant.get(split.participantId);
+      if (total) {
+        total.subtotalCents += split.amountCents;
+      }
+    }
+  }
+
+  const tipSplits = calculateItemSplits(
+    tipAmountCents,
+    totals
+      .filter((total) => total.subtotalCents > 0)
+      .map((total) => ({ participantId: total.participantId, shareUnits: total.subtotalCents }))
+  );
+
+  for (const tipSplit of tipSplits) {
+    const total = byParticipant.get(tipSplit.participantId);
+    if (total) {
+      total.tipAmountCents = tipSplit.amountCents;
+    }
+  }
+
+  for (const total of totals) {
+    total.totalCents = total.subtotalCents + total.tipAmountCents;
+  }
+
+  return totals;
+}
+
+export function applyTipToItems<T extends { payerParticipantId: string; amountCents: number; splits: CalculatedSplit[] }>(
+  items: T[],
+  tipAmountCents: number
+): Array<{ payerParticipantId: string; amountCents: number; splits: CalculatedSplit[] }> {
+  if (tipAmountCents <= 0 || items.length === 0) {
+    return items;
+  }
+
+  const itemTipSplits = calculateItemSplits(
+    tipAmountCents,
+    items.map((item, index) => ({ participantId: String(index), shareUnits: item.amountCents }))
+  );
+  const tipByIndex = new Map(itemTipSplits.map((split) => [Number(split.participantId), split.amountCents]));
+
+  return items.map((item, index) => {
+    const itemTipCents = tipByIndex.get(index) || 0;
+    const tipSplits = calculateItemSplits(
+      itemTipCents,
+      item.splits.map((split) => ({ participantId: split.participantId, shareUnits: split.shareUnits }))
+    );
+    const tipByParticipant = new Map(tipSplits.map((split) => [split.participantId, split.amountCents]));
+
+    return {
+      payerParticipantId: item.payerParticipantId,
+      amountCents: item.amountCents + itemTipCents,
+      splits: item.splits.map((split) => ({
+        ...split,
+        amountCents: split.amountCents + (tipByParticipant.get(split.participantId) || 0)
+      }))
+    };
+  });
+}
+
 export function calculateBalances(participantIds: string[], items: Array<{ payerParticipantId: string; amountCents: number; splits: CalculatedSplit[] }>) {
   const balances = participantIds.map((participantId) => ({ participantId, balanceCents: 0 }));
   const byParticipant = new Map(balances.map((balance) => [balance.participantId, balance]));
@@ -875,6 +977,10 @@ export function calculateBalances(participantIds: string[], items: Array<{ payer
   }
 
   return balances.filter((balance) => balance.balanceCents !== 0);
+}
+
+function settlementKey(fromParticipantId: string, toParticipantId: string): string {
+  return `${fromParticipantId}->${toParticipantId}`;
 }
 
 export function optimizeSettlements(balances: Array<{ participantId: string; balanceCents: number }>): Settlement[] {
@@ -918,22 +1024,12 @@ export function optimizeSettlements(balances: Array<{ participantId: string; bal
   return settlements;
 }
 
-function mapNote(row: unknown) {
-  const note = row as NoteRow;
-  return {
-    id: note.id,
-    title: note.title,
-    body: note.body,
-    createdAt: note.created_at,
-    updatedAt: note.updated_at
-  };
-}
-
 function mapExpenseRoom(row: ExpenseRoomRow) {
   return {
     id: row.id,
     ownerUserId: row.owner_user_id,
     name: row.name,
+    tipPercent: Number(row.tip_percent ?? 10),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -945,6 +1041,7 @@ function mapExpenseParticipant(row: ExpenseParticipantRow) {
     roomId: row.room_id,
     userId: row.user_id,
     name: row.name,
+    picture: row.picture,
     kind: row.kind,
     role: row.role,
     createdAt: row.created_at,
@@ -964,16 +1061,6 @@ function mapExpenseItem(row: ExpenseItemRow, splits: CalculatedSplit[]) {
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
-}
-
-function sanitizeTitle(value: unknown): string {
-  const title = typeof value === "string" ? value.trim() : "";
-  return (title || "Sem titulo").slice(0, 120);
-}
-
-function sanitizeBody(value: unknown): string {
-  const body = typeof value === "string" ? value.trim() : "";
-  return body.slice(0, 4000);
 }
 
 function sanitizeRoomName(value: unknown): string {
@@ -1002,6 +1089,14 @@ function sanitizeAmountCents(value: unknown): number {
   }
 
   return value;
+}
+
+function sanitizeTipPercent(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 100) {
+    throw new HttpError(400, "invalid_tip_percent");
+  }
+
+  return Math.round(value * 100) / 100;
 }
 
 function sanitizeRequiredId(value: unknown, error: string): string {

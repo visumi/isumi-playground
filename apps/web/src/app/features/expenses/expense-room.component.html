@@ -1,251 +1,340 @@
-<section class="grid gap-5" aria-labelledby="expense-room-title">
-  <a class="inline-flex w-fit items-center gap-2 text-sm font-extrabold text-muted-foreground no-underline hover:text-foreground" routerLink="/tools/expenses">
+<section class="grid gap-4" aria-labelledby="expense-room-title">
+  <a class="inline-flex w-fit items-center gap-2 text-sm font-extrabold text-muted-foreground no-underline hover:text-foreground"
+    routerLink="/tools/expenses">
     <svg lucideArrowLeft class="size-4" aria-hidden="true"></svg>
     Voltar para salas
   </a>
 
   @if (detail(); as state) {
-    <isumi-page-header eyebrow="Sala" title="{{ state.room.name }}" titleId="expense-room-title">
-      <isumi-button actions variant="secondary" mobileFull [loading]="loading()" (click)="loadRoom()">
-        <svg icon lucideRefreshCw class="size-4" aria-hidden="true"></svg>
-        Atualizar
-      </isumi-button>
-    </isumi-page-header>
-
-    @if (isOwner()) {
-      <form class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]" (ngSubmit)="saveRoomName()">
-        <input
-          isumiInput
-          name="roomName"
-          [ngModel]="roomName()"
-          (ngModelChange)="roomName.set($event)"
-          maxlength="120"
-          aria-label="Nome da sala"
-        >
-        <isumi-button type="submit" variant="secondary" [loading]="saving()" mobileFull>
-          <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
-          Renomear
-        </isumi-button>
-      </form>
-    }
-
-    @if (error()) {
-      <isumi-alert>{{ error() }}</isumi-alert>
-    }
-
-    <div class="grid grid-cols-[minmax(240px,0.85fr)_minmax(0,1.4fr)] gap-4 max-lg:grid-cols-1">
-      <div class="grid content-start gap-4">
-        <isumi-card class="grid gap-4">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <h2 class="mb-1.5 mt-0 inline-flex items-center gap-2 text-[1.15rem] font-black">
-                <svg lucideUsers class="size-5" aria-hidden="true"></svg>
-                Pessoas
-              </h2>
-              <p class="m-0 text-sm leading-6 text-muted-foreground">Logados entram pelo link. Convidados contam so no calculo.</p>
-            </div>
-            <isumi-badge variant="secondary">{{ state.participants.length }}</isumi-badge>
-          </div>
-
-          @if (isOwner()) {
-            <form class="grid gap-2" (ngSubmit)="addGuest()">
-              <label class="grid gap-2">
-                <span class="text-sm font-extrabold text-muted-foreground">Convidado sem login</span>
-                <input
-                  isumiInput
-                  size="sm"
-                  name="guestName"
-                  [ngModel]="guestName()"
-                  (ngModelChange)="guestName.set($event)"
-                  maxlength="80"
-                  autocomplete="off"
-                  placeholder="Nome da pessoa"
-                >
-              </label>
-              <isumi-button type="submit" size="sm" variant="secondary" [disabled]="!guestName().trim()" [loading]="saving()">
-                <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
-                Adicionar
-              </isumi-button>
-            </form>
-          }
-
-          <div class="grid gap-2">
-            @for (participant of state.participants; track participant.id) {
-              <div class="flex items-center justify-between gap-3 rounded-md bg-secondary px-3 py-2">
-                <div class="min-w-0">
-                  <strong class="block truncate text-sm">{{ participant.name }}</strong>
-                  <span class="text-xs text-muted-foreground">
-                    {{ participant.role === "owner" ? "Dono" : participant.kind === "guest" ? "Convidado" : "Membro" }}
-                  </span>
-                </div>
-                @if (isOwner() && participant.kind === "guest") {
-                  <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Remover convidado" (click)="removeGuest(participant)">
-                    <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
-                    Remover
-                  </isumi-button>
-                }
-              </div>
-            }
-          </div>
-        </isumi-card>
-
-        <isumi-card class="grid gap-4">
-          <h2 class="m-0 inline-flex items-center gap-2 text-[1.15rem] font-black">
-            <svg lucideScale class="size-5" aria-hidden="true"></svg>
-            Quem paga quem
-          </h2>
-
-          @if (state.settlements.length === 0) {
-            <p class="m-0 text-sm leading-6 text-muted-foreground">Sem pagamentos pendentes por enquanto.</p>
-          } @else {
-            <div class="grid gap-2">
-              @for (settlement of state.settlements; track settlement.fromParticipantId + settlement.toParticipantId) {
-                <div class="rounded-md bg-secondary px-3 py-2 text-sm leading-6">
-                  <strong>{{ participantName(settlement.fromParticipantId) }}</strong>
-                  paga
-                  <strong>{{ money(settlement.amountCents) }}</strong>
-                  para
-                  <strong>{{ participantName(settlement.toParticipantId) }}</strong>
-                </div>
-              }
-            </div>
-          }
-        </isumi-card>
+  <header class="rounded-lg bg-card p-5 text-card-foreground">
+    <div class="flex items-start justify-between gap-4 max-lg:flex-col">
+      <div class="min-w-0">
+        <h1 id="expense-room-title" class="m-0 text-[2rem] font-black leading-tight text-balance max-sm:text-[1.65rem]">
+          {{ state.room.name }}</h1>
+        <p class="m-0 mt-2 text-sm leading-6 text-muted-foreground">Registre itens como uma nota fiscal e acompanhe os
+          acertos em uma lista curta.</p>
       </div>
 
-      <div class="grid content-start gap-4">
-        <form class="grid gap-4" (ngSubmit)="saveItem()">
-          <isumi-card class="grid gap-4">
-            <div class="flex items-start justify-between gap-4 max-sm:flex-col">
-              <div>
-                <h2 class="mb-1.5 mt-0 inline-flex items-center gap-2 text-[1.15rem] font-black">
-                  <svg lucideReceiptText class="size-5" aria-hidden="true"></svg>
-                  {{ editingItemId() ? "Editar item" : "Novo item" }}
-                </h2>
-                <p class="m-0 text-sm leading-6 text-muted-foreground">Use partes para dividir proporcionalmente entre as pessoas marcadas.</p>
+      <div class="flex shrink-0 gap-2 max-sm:grid max-sm:w-full max-sm:grid-cols-2">
+        <isumi-button variant="secondary" [loading]="loading()" (click)="loadRoom()">
+          <svg icon lucideRefreshCw class="size-4" aria-hidden="true"></svg>
+          Atualizar
+        </isumi-button>
+        <isumi-button [loading]="saving()" [disabled]="state.participants.length === 0" (click)="openNewItemModal()">
+          <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
+          Adicionar item
+        </isumi-button>
+      </div>
+    </div>
+
+  </header>
+
+  <dl class="grid grid-cols-3 overflow-hidden rounded-lg bg-secondary text-sm max-lg:grid-cols-2 max-sm:grid-cols-1">
+    <div class="grid gap-1 border-r border-border p-4 max-lg:border-b max-sm:border-r-0">
+      <dt class="text-muted-foreground">Subtotal</dt>
+      <dd class="m-0 text-lg font-black">{{ money(state.subtotalCents) }}</dd>
+    </div>
+    <div class="grid gap-1 border-r border-border p-4 max-lg:border-b max-lg:border-r-0">
+      <dt class="text-muted-foreground">Gorjeta</dt>
+      <dd class="m-0 text-lg font-black">{{ money(state.tipAmountCents) }}</dd>
+    </div>
+    <div class="grid gap-1 border-border p-4 max-sm:border-b max-sm:border-r-0">
+      <dt class="text-muted-foreground">Total final</dt>
+      <dd class="m-0 text-lg font-black">{{ money(state.totalCents) }}</dd>
+    </div>
+  </dl>
+
+  @if (error()) {
+  <isumi-alert>{{ error() }}</isumi-alert>
+  }
+
+  <div class="grid grid-cols-[300px_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
+    <aside class="grid content-start gap-4">
+      <section class="rounded-lg bg-card p-4" aria-labelledby="participants-title">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h2 id="participants-title" class="m-0 inline-flex items-center gap-2 text-base font-black">
+            <svg lucideUsers class="size-4" aria-hidden="true"></svg>
+            Pessoas
+          </h2>
+          <isumi-badge variant="secondary">{{ state.participants.length }}</isumi-badge>
+        </div>
+
+        @if (isOwner()) {
+        <form class="mb-4 grid grid-cols-[minmax(0,1fr)_auto] gap-2 items-center" (ngSubmit)="addGuest()">
+          <input isumiInput size="sm" name="guestName" [ngModel]="guestName()" (ngModelChange)="guestName.set($event)"
+            maxlength="80" autocomplete="off" placeholder="Convidado sem login" aria-label="Nome do convidado">
+          <isumi-button type="submit" size="sm" variant="secondary" iconOnly ariaLabel="Adicionar convidado"
+            [disabled]="!guestName().trim()" [loading]="saving()">
+            <svg icon lucideUserPlus class="size-4" aria-hidden="true"></svg>
+            Adicionar convidado
+          </isumi-button>
+        </form>
+        }
+
+        <div class="divide-y divide-border">
+          @for (participant of state.participants; track participant.id) {
+          <div class="flex items-center justify-between gap-3 py-2.5">
+            <div class="flex min-w-0 items-center gap-2.5">
+              <isumi-avatar size="sm" [src]="participant.picture" [name]="participant.name" />
+              <div class="min-w-0">
+                <strong class="block truncate text-sm">{{ participant.name }}</strong>
+                <span class="text-xs text-muted-foreground">
+                  {{ participant.role === "owner" ? "Dono" : participant.kind === "guest" ? "Convidado" : "Membro" }}
+                </span>
               </div>
-              @if (editingItemId()) {
-                <isumi-button variant="ghost" size="sm" (click)="cancelEdit()">
-                  Cancelar edicao
-                </isumi-button>
+            </div>
+            @if (isOwner() && participant.kind === "guest") {
+            <isumi-button variant="ghost-destructive" size="sm" iconOnly ariaLabel="Remover convidado"
+              (click)="removeGuest(participant)">
+              <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
+              Remover
+            </isumi-button>
+            }
+          </div>
+          }
+        </div>
+      </section>
+
+      <section class="rounded-lg bg-card p-4" aria-labelledby="participant-totals-title">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h2 id="participant-totals-title" class="m-0 inline-flex items-center gap-2 text-base font-black">
+            <svg lucideReceipt class="size-4" aria-hidden="true"></svg>
+            Total por pessoa
+          </h2>
+          <isumi-badge variant="secondary">{{ state.participantTotals.length }}</isumi-badge>
+        </div>
+
+        <div class="divide-y divide-border">
+          @for (participant of state.participants; track participant.id) {
+          <div class="grid gap-1 py-2.5 text-sm">
+            <div class="flex items-center justify-between gap-3">
+              <span class="flex min-w-0 items-center gap-2.5">
+                <isumi-avatar size="sm" [src]="participant.picture" [name]="participant.name" />
+                <strong class="truncate">{{ participant.name }}</strong>
+              </span>
+              <strong>{{ money(participantTotal(participant.id).totalCents) }}</strong>
+            </div>
+            <div class="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+              <span>Itens {{ money(participantTotal(participant.id).subtotalCents) }}</span>
+              <span>Gorjeta {{ money(participantTotal(participant.id).tipAmountCents) }}</span>
+            </div>
+          </div>
+          }
+        </div>
+      </section>
+
+      <section class="rounded-lg bg-card p-4" aria-labelledby="settlements-title">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h2 id="settlements-title" class="m-0 inline-flex items-center gap-2 text-base font-black">
+            <svg lucideScale class="size-4" aria-hidden="true"></svg>
+            Quem paga quem
+          </h2>
+          <isumi-badge variant="secondary">{{ state.settlements.length }}</isumi-badge>
+        </div>
+
+        @if (state.settlements.length === 0) {
+        <p class="m-0 text-sm leading-6 text-muted-foreground">Tudo certo por enquanto.</p>
+        } @else {
+        <div class="divide-y divide-border">
+          @for (settlement of state.settlements; track settlement.fromParticipantId + settlement.toParticipantId) {
+          <div class="grid gap-1 py-2.5 text-sm" [class.opacity-60]="settlement.paid">
+            <isumi-checkbox [checked]="settlement.paid" [disabled]="saving()" ariaLabel="Marcar acerto como pago"
+              (checkedChange)="updateSettlementPaid(settlement, $event)">
+              <span class="truncate">
+                <strong>{{ participantName(settlement.fromParticipantId) }}</strong>
+                paga
+                <strong>{{ participantName(settlement.toParticipantId) }}</strong>
+              </span>
+            </isumi-checkbox>
+            <span class="ml-7 font-black" [class.text-primary]="!settlement.paid"
+              [class.text-muted-foreground]="settlement.paid">
+              {{ money(settlement.amountCents) }}{{ settlement.paid ? " quitado" : "" }}
+            </span>
+          </div>
+          }
+        </div>
+        }
+      </section>
+    </aside>
+
+    <section class="receipt-shell flex min-h-[520px] flex-col self-start overflow-hidden rounded-lg bg-popover text-popover-foreground"
+      aria-labelledby="receipt-title" aria-live="polite">
+      <div class="flex items-start justify-between gap-4 border-b border-dashed border-border p-5 max-sm:flex-col">
+        <div>
+          <h2 id="receipt-title" class="m-0 inline-flex items-center gap-2 text-[1.15rem] font-black">
+            <svg lucideReceiptText class="size-5" aria-hidden="true"></svg>
+            Nota da sala
+          </h2>
+          <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">Linhas compactas para conferir valor, pagador e
+            divisao sem abrir varios cards.</p>
+        </div>
+        <isumi-badge variant="secondary">{{ state.items.length }} item(s)</isumi-badge>
+      </div>
+
+      @if (state.items.length === 0) {
+      <div class="grid flex-1 place-items-center p-5">
+        <isumi-empty-state title="Nenhum gasto registrado"
+          description="Adicione o primeiro item para comecar a calcular a divisao.">
+          <svg icon lucideConciergeBell class="size-5" aria-hidden="true"></svg>
+        </isumi-empty-state>
+      </div>
+      } @else {
+      <div class="px-5 py-4 font-mono text-[0.82rem] leading-6">
+        <div class="grid gap-1 border-b border-dashed border-border pb-3 text-muted-foreground">
+          <span>{{ state.room.name }}</span>
+          <span>{{ state.participants.length }} pessoa(s), {{ state.items.length }} item(s)</span>
+        </div>
+
+        <div class="divide-y divide-dashed divide-border">
+          @for (item of state.items; track item.id) {
+          <article class="grid gap-2 py-3">
+            <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+              <div class="min-w-0">
+                <h3 class="m-0 truncate font-sans text-sm font-black">{{ item.description }}</h3>
+                <p class="m-0 truncate text-muted-foreground">
+                  Pago por {{ participantName(item.payerParticipantId) }} em {{ item.createdAt | date:'short' }}
+                </p>
+              </div>
+              <strong class="text-right font-sans text-base">{{ money(item.amountCents) }}</strong>
+            </div>
+
+            <div class="grid gap-1 text-muted-foreground">
+              @for (split of item.splits; track split.participantId) {
+              <div class="grid grid-cols-[minmax(0,1fr)_60px_90px] gap-2 max-sm:grid-cols-[minmax(0,1fr)_auto]">
+                <span class="truncate">{{ participantName(split.participantId) }}</span>
+                <span class="text-right max-sm:hidden">{{ split.shareUnits }}x</span>
+                <span class="text-right">{{ money(split.amountCents) }}</span>
+              </div>
               }
             </div>
 
-            <div class="grid grid-cols-[minmax(0,1fr)_150px] gap-3 max-sm:grid-cols-1">
-              <label class="grid gap-2">
-                <span class="text-sm font-extrabold text-muted-foreground">Descricao</span>
-                <input
-                  isumiInput
-                  name="description"
-                  [ngModel]="itemDescription()"
-                  (ngModelChange)="itemDescription.set($event)"
-                  maxlength="160"
-                  autocomplete="off"
-                  placeholder="Mercado, hospedagem, ingresso..."
-                >
-              </label>
-              <label class="grid gap-2">
-                <span class="text-sm font-extrabold text-muted-foreground">Valor</span>
-                <input
-                  isumiInput
-                  name="amount"
-                  inputmode="decimal"
-                  [ngModel]="itemAmount()"
-                  (ngModelChange)="itemAmount.set($event)"
-                  placeholder="0,00"
-                >
-              </label>
-            </div>
-
-            <label class="grid gap-2">
-              <span class="text-sm font-extrabold text-muted-foreground">Quem pagou</span>
-              <select
-                class="w-full rounded-sm border border-input bg-background px-3 py-3 text-foreground transition-colors hover:border-ring/60 focus-visible:border-primary/70 focus-visible:outline-none"
-                name="payer"
-                [ngModel]="payerParticipantId()"
-                (ngModelChange)="payerParticipantId.set($event)"
-              >
-                @for (participant of state.participants; track participant.id) {
-                  <option [value]="participant.id">{{ participant.name }}</option>
-                }
-              </select>
-            </label>
-
-            <div class="grid gap-2">
-              <span class="text-sm font-extrabold text-muted-foreground">Partes de cada pessoa</span>
-              <div class="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2">
-                @for (participant of state.participants; track participant.id) {
-                  <label class="grid gap-1 rounded-md bg-secondary p-3">
-                    <span class="truncate text-sm font-bold">{{ participant.name }}</span>
-                    <input
-                      isumiInput
-                      size="sm"
-                      type="number"
-                      min="0"
-                      step="1"
-                      [name]="'split-' + participant.id"
-                      [ngModel]="splitUnit(participant.id)"
-                      (ngModelChange)="setSplitUnit(participant.id, $event)"
-                      aria-label="Partes de {{ participant.name }}"
-                    >
-                  </label>
-                }
-              </div>
-            </div>
-
-            <isumi-button type="submit" mobileFull [loading]="saving()">
-              <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
-              {{ editingItemId() ? "Salvar edicao" : "Salvar item" }}
-            </isumi-button>
-          </isumi-card>
-        </form>
-
-        <div class="grid gap-3" aria-live="polite">
-          @if (state.items.length === 0) {
-            <isumi-empty-state title="Nenhum gasto registrado" description="Adicione o primeiro item para calcular a divisao.">
-              <svg icon lucideReceiptText class="size-5" aria-hidden="true"></svg>
-            </isumi-empty-state>
-          } @else {
-            @for (item of state.items; track item.id) {
-              <isumi-card padding="sm" class="grid gap-3">
-                <div class="flex items-start justify-between gap-3 max-sm:flex-col">
-                  <div>
-                    <h3 class="m-0 text-[1.05rem] font-black">{{ item.description }}</h3>
-                    <p class="m-0 mt-1 text-sm text-muted-foreground">
-                      Pago por {{ participantName(item.payerParticipantId) }} em {{ item.createdAt | date:'short' }}
-                    </p>
-                  </div>
-                  <strong class="text-[1.1rem]">{{ money(item.amountCents) }}</strong>
-                </div>
-
-                <div class="flex flex-wrap gap-2">
-                  @for (split of item.splits; track split.participantId) {
-                    <isumi-badge variant="secondary">
-                      {{ participantName(split.participantId) }}: {{ split.shareUnits }} parte(s), {{ money(split.amountCents) }}
-                    </isumi-badge>
-                  }
-                </div>
-
-                <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-2">
-                  <isumi-button variant="secondary" size="sm" (click)="editItem(item)">
-                    <svg icon lucidePencil class="size-4" aria-hidden="true"></svg>
-                    Editar
-                  </isumi-button>
-                  <isumi-button variant="destructive" size="sm" (click)="deleteItem(item)">
-                    <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
-                    Remover
-                  </isumi-button>
-                </footer>
-              </isumi-card>
-            }
+            <footer class="flex justify-end gap-1">
+              <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Editar item" (click)="editItem(item)">
+                <svg icon lucidePencil class="size-4" aria-hidden="true"></svg>
+                Editar
+              </isumi-button>
+              <isumi-button variant="ghost-destructive" size="sm" iconOnly ariaLabel="Remover item"
+                (click)="deleteItem(item)">
+                <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
+                Remover
+              </isumi-button>
+            </footer>
+          </article>
           }
+        </div>
+
+        <footer class="grid gap-3 border-t border-dashed border-border pt-4 font-sans">
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+            <span class="font-bold text-muted-foreground">Subtotal</span>
+            <strong>{{ money(state.subtotalCents) }}</strong>
+          </div>
+          <form class="grid grid-cols-[minmax(0,1fr)_80px_auto] items-end gap-2 max-sm:grid-cols-1"
+            (ngSubmit)="saveTipPercent()">
+            <label class="grid gap-1">
+              <span class="text-sm font-bold text-muted-foreground">Gorjeta</span>
+              <span class="text-xs text-muted-foreground">{{ money(state.tipAmountCents) }} sobre os itens</span>
+            </label>
+            <input isumiInput size="sm" name="tipPercent" inputmode="decimal" [ngModel]="tipPercent()"
+              (ngModelChange)="tipPercent.set($event)" aria-label="Percentual de gorjeta">
+            <isumi-button type="submit" size="sm" variant="secondary" [loading]="saving()">
+              <svg icon lucideHandCoins class="size-4" aria-hidden="true"></svg>
+              Atualizar</isumi-button>
+          </form>
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+            <span class="font-black">Total final</span>
+            <strong class="text-xl">{{ money(state.totalCents) }}</strong>
+          </div>
+        </footer>
+      </div>
+      }
+    </section>
+  </div>
+  } @else if (loading()) {
+  <div class="grid gap-4" aria-label="Carregando sala">
+    <div class="rounded-lg bg-card p-5">
+      <div class="flex items-start justify-between gap-4 max-lg:flex-col">
+        <div class="grid w-full max-w-xl gap-3">
+          <div class="h-8 w-2/3 animate-pulse rounded-sm bg-muted"></div>
+          <div class="h-4 w-full animate-pulse rounded-sm bg-muted"></div>
+          <div class="h-4 w-4/5 animate-pulse rounded-sm bg-muted"></div>
+        </div>
+        <div class="flex shrink-0 gap-2 max-sm:grid max-sm:w-full max-sm:grid-cols-2">
+          <div class="h-10 w-28 animate-pulse rounded-sm bg-muted max-sm:w-full"></div>
+          <div class="h-10 w-36 animate-pulse rounded-sm bg-muted max-sm:w-full"></div>
         </div>
       </div>
     </div>
-  } @else if (loading()) {
-    <isumi-skeleton label="Carregando sala" />
-    <isumi-skeleton />
+
+    <div class="grid grid-cols-3 overflow-hidden rounded-lg bg-secondary text-sm max-lg:grid-cols-2 max-sm:grid-cols-1">
+      @for (metric of [1, 2, 3]; track metric) {
+      <div class="grid gap-2 border-border p-4 max-lg:border-b max-sm:border-r-0">
+        <div class="h-3 w-20 animate-pulse rounded-sm bg-muted"></div>
+        <div class="h-6 w-28 animate-pulse rounded-sm bg-muted"></div>
+      </div>
+      }
+    </div>
+
+    <div class="grid grid-cols-[300px_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
+      <aside class="grid content-start gap-4">
+        @for (panel of [1, 2, 3]; track panel) {
+        <section class="rounded-lg bg-card p-4">
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <div class="h-5 w-36 animate-pulse rounded-sm bg-muted"></div>
+            <div class="h-6 w-10 animate-pulse rounded-sm bg-muted"></div>
+          </div>
+          <div class="divide-y divide-border">
+            @for (row of [1, 2, 3]; track row) {
+            <div class="grid gap-2 py-2.5">
+              <div class="h-4 w-4/5 animate-pulse rounded-sm bg-muted"></div>
+              <div class="h-3 w-2/5 animate-pulse rounded-sm bg-muted"></div>
+            </div>
+            }
+          </div>
+        </section>
+        }
+      </aside>
+
+      <section class="receipt-shell overflow-hidden rounded-lg bg-popover text-popover-foreground">
+        <div class="flex items-start justify-between gap-4 border-b border-dashed border-border p-5 max-sm:flex-col">
+          <div class="grid w-full max-w-md gap-2">
+            <div class="h-6 w-40 animate-pulse rounded-sm bg-muted"></div>
+            <div class="h-4 w-full animate-pulse rounded-sm bg-muted"></div>
+          </div>
+          <div class="h-6 w-20 animate-pulse rounded-sm bg-muted"></div>
+        </div>
+
+        <div class="px-5 py-4 font-mono text-[0.82rem] leading-6">
+          <div class="grid gap-2 border-b border-dashed border-border pb-3">
+            <div class="h-4 w-36 animate-pulse rounded-sm bg-muted"></div>
+            <div class="h-4 w-48 animate-pulse rounded-sm bg-muted"></div>
+          </div>
+          <div class="divide-y divide-dashed divide-border">
+            @for (item of [1, 2, 3, 4]; track item) {
+            <article class="grid gap-2 py-3">
+              <div class="grid grid-cols-[minmax(0,1fr)_90px] gap-3">
+                <div class="grid gap-2">
+                  <div class="h-4 w-3/5 animate-pulse rounded-sm bg-muted"></div>
+                  <div class="h-3 w-4/5 animate-pulse rounded-sm bg-muted"></div>
+                </div>
+                <div class="h-5 w-20 animate-pulse rounded-sm bg-muted justify-self-end"></div>
+              </div>
+              <div class="grid gap-1">
+                <div class="h-3 w-full animate-pulse rounded-sm bg-muted"></div>
+                <div class="h-3 w-5/6 animate-pulse rounded-sm bg-muted"></div>
+              </div>
+            </article>
+            }
+          </div>
+          <footer class="grid gap-3 border-t border-dashed border-border pt-4">
+            <div class="h-4 w-full animate-pulse rounded-sm bg-muted"></div>
+            <div class="h-4 w-4/5 animate-pulse rounded-sm bg-muted"></div>
+            <div class="h-6 w-2/3 animate-pulse rounded-sm bg-muted"></div>
+          </footer>
+        </div>
+      </section>
+    </div>
+  </div>
   } @else if (error()) {
-    <isumi-alert>{{ error() }}</isumi-alert>
+  <isumi-alert>{{ error() }}</isumi-alert>
   }
 </section>

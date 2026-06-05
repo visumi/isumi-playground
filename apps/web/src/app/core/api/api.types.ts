@@ -6,25 +6,11 @@ export interface MeResponse {
   allowed: boolean;
 }
 
-export interface Note {
-  id: string;
-  title: string;
-  body: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateNoteRequest {
-  title: string;
-  body: string;
-}
-
-export type UpdateNoteRequest = Partial<CreateNoteRequest>;
-
 export interface ExpenseRoom {
   id: string;
   ownerUserId: string;
   name: string;
+  tipPercent: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +20,7 @@ export interface ExpenseParticipant {
   roomId: string;
   userId: string | null;
   name: string;
+  picture: string | null;
   kind: "user" | "guest";
   role: "owner" | "member" | "guest";
   createdAt: string;
@@ -67,12 +54,27 @@ export interface ExpenseSettlement {
   fromParticipantId: string;
   toParticipantId: string;
   amountCents: number;
+  paid: boolean;
+  paidAt?: string;
+  paidByUserId?: string;
+}
+
+export interface ExpenseParticipantTotal {
+  participantId: string;
+  subtotalCents: number;
+  tipAmountCents: number;
+  totalCents: number;
 }
 
 export interface ExpenseRoomDetail {
   room: ExpenseRoom;
+  tipPercent: number;
+  subtotalCents: number;
+  tipAmountCents: number;
+  totalCents: number;
   participants: ExpenseParticipant[];
   items: ExpenseItem[];
+  participantTotals: ExpenseParticipantTotal[];
   balances: ExpenseBalance[];
   settlements: ExpenseSettlement[];
 }
@@ -93,4 +95,14 @@ export interface UpsertExpenseItemRequest {
     participantId: string;
     shareUnits: number;
   }>;
+}
+
+export interface UpdateExpenseTipRequest {
+  tipPercent: number;
+}
+
+export interface UpdateExpenseSettlementRequest {
+  fromParticipantId: string;
+  toParticipantId: string;
+  paid: boolean;
 }

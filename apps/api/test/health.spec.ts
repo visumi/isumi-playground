@@ -28,7 +28,7 @@ describe("API health", () => {
 
   it("handles CORS preflight for the configured local origin", async () => {
     const response = await handleRequest(
-      new Request("http://api.local/tools/notes", {
+      new Request("http://api.local/tools/expenses/rooms", {
         method: "OPTIONS",
         headers: { Origin: "http://localhost:4200" }
       }),

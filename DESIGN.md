@@ -145,7 +145,7 @@ States:
 
 - Authenticated pages use shell + sidebar + topbar.
 - Content width stays constrained, but tool screens may use dense two-column layouts when useful.
-- Mobile collapses structurally: sidebar becomes top navigation, actions stack, note/card grids become single column.
+- Mobile collapses structurally: sidebar becomes top navigation, actions stack, and tool/card grids become single column.
 - Product headings are fixed rem sizes. Avoid fluid `clamp()` display headings in task UI.
 
 ## Typography
@@ -165,7 +165,7 @@ States:
 ## Copy
 
 - Portuguese UI copy should be direct and friendly.
-- Button labels must describe the action: `Salvar nota`, `Atualizar lista`, `Remover`.
+- Button labels must describe the action: `Salvar divisão`, `Atualizar lista`, `Remover`.
 - Avoid generic productivity buzzwords. Name the thing the user can do.
 
 ## Accessibility

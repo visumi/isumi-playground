@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateBalances, calculateItemSplits, optimizeSettlements } from "../src/index";
+import { applyTipToItems, calculateBalances, calculateItemSplits, calculateParticipantTotals, calculateTipAmountCents, optimizeSettlements } from "../src/index";
 
 describe("expense calculations", () => {
   it("splits cents by share units with deterministic remainder distribution", () => {
@@ -48,6 +48,39 @@ describe("expense calculations", () => {
 
     expect(optimizeSettlements(balances)).toEqual([
       { fromParticipantId: "caio", toParticipantId: "ana", amountCents: 4000 }
+    ]);
+  });
+
+  it("calculates subtotal-free tips as zero", () => {
+    expect(calculateTipAmountCents(0, 10)).toBe(0);
+    expect(calculateParticipantTotals(["ana"], [], 0)).toEqual([
+      { participantId: "ana", subtotalCents: 0, tipAmountCents: 0, totalCents: 0 }
+    ]);
+  });
+
+  it("adds tips to participant totals and settlements", () => {
+    const items = [
+      {
+        payerParticipantId: "ana",
+        amountCents: 1000,
+        splits: [
+          { participantId: "ana", shareUnits: 1, amountCents: 500 },
+          { participantId: "bruno", shareUnits: 1, amountCents: 500 }
+        ]
+      }
+    ];
+    const tipAmountCents = calculateTipAmountCents(1000, 10);
+
+    expect(tipAmountCents).toBe(100);
+    expect(calculateParticipantTotals(["ana", "bruno"], items, tipAmountCents)).toEqual([
+      { participantId: "ana", subtotalCents: 500, tipAmountCents: 50, totalCents: 550 },
+      { participantId: "bruno", subtotalCents: 500, tipAmountCents: 50, totalCents: 550 }
+    ]);
+
+    const balances = calculateBalances(["ana", "bruno"], applyTipToItems(items, tipAmountCents));
+
+    expect(optimizeSettlements(balances)).toEqual([
+      { fromParticipantId: "bruno", toParticipantId: "ana", amountCents: 550 }
     ]);
   });
 });

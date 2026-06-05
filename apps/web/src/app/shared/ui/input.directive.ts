@@ -3,7 +3,7 @@ import { splitClasses } from "./class-list";
 
 export type IsumiInputSize = "sm" | "md";
 
-const BASE_CLASSES = "w-full rounded-sm border border-input bg-background text-foreground transition-colors placeholder:text-muted-foreground hover:border-ring/60 focus-visible:border-primary/70 focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-60";
+const BASE_CLASSES = "w-full rounded-sm border border-input bg-zinc-950/50 text-foreground transition-colors placeholder:text-muted-foreground hover:border-ring/60 focus-visible:border-primary/70 focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-60";
 
 const SIZE_CLASSES: Record<IsumiInputSize, string> = {
   sm: "px-3 py-2 text-sm",
