@@ -1,0 +1,24 @@
+<main class="login-page">
+  <section class="brand-panel" aria-labelledby="login-title">
+    <p class="eyebrow">Isumi Playground</p>
+    <h1 id="login-title">Ferramentas internas para explorar ideias e trabalho do dia a dia.</h1>
+    <p class="summary">
+      Entre com sua conta Google autorizada para acessar o painel e salvar suas ferramentas.
+    </p>
+  </section>
+
+  <section class="login-panel" aria-label="Entrar">
+    <div class="mark" aria-hidden="true">I</div>
+    <h2>Entrar</h2>
+    <p>O acesso e os dados sao protegidos pela API do playground.</p>
+
+    <button type="button" class="google-button" [disabled]="loading()" (click)="login()">
+      <span class="google-icon" aria-hidden="true">G</span>
+      <span>{{ loading() ? "Conectando..." : "Continuar com Google" }}</span>
+    </button>
+
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+  </section>
+</main>

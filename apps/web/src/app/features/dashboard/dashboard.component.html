@@ -1,0 +1,13 @@
+<section class="dashboard" aria-labelledby="dashboard-title">
+  <div class="intro">
+    <p>Bem-vindo</p>
+    <h1 id="dashboard-title">{{ auth.profile()?.name || "Playground" }}</h1>
+    <span>Escolha uma ferramenta para continuar.</span>
+  </div>
+
+  <a class="tool-card" routerLink="/tools/notes">
+    <span class="badge">MVP</span>
+    <h2>Notas rápidas</h2>
+    <p>Salve ideias curtas, rascunhos e lembretes vinculados ao seu usuario.</p>
+  </a>
+</section>

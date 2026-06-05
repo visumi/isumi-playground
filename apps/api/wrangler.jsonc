@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "isumi-playground-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-05",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "ALLOWED_ORIGIN": "http://localhost:4200"
+  },
+  "secrets": {
+    "required": [
+      "TURSO_URL",
+      "TURSO_AUTH_TOKEN",
+      "FIREBASE_PROJECT_ID",
+      "ALLOWED_EMAILS"
+    ]
+  },
+  "routes": [
+    {
+      "pattern": "playground-api.isumi.com.br",
+      "custom_domain": true
+    }
+  ]
+}

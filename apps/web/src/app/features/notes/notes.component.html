@@ -1,0 +1,72 @@
+<section class="notes" aria-labelledby="notes-title">
+  <div class="header">
+    <div>
+      <p>Ferramenta</p>
+      <h1 id="notes-title">Notas rápidas</h1>
+    </div>
+    <button type="button" (click)="loadNotes()" [disabled]="loading()">Atualizar</button>
+  </div>
+
+  <form class="composer" (ngSubmit)="createNote()">
+    <label>
+      <span>Titulo</span>
+      <input
+        name="title"
+        [ngModel]="title()"
+        (ngModelChange)="title.set($event)"
+        maxlength="120"
+        autocomplete="off"
+        placeholder="Ideia, tarefa ou rascunho"
+      >
+    </label>
+
+    <label>
+      <span>Conteudo</span>
+      <textarea
+        name="body"
+        [ngModel]="body()"
+        (ngModelChange)="body.set($event)"
+        rows="5"
+        maxlength="4000"
+        placeholder="Escreva algo que valha persistir..."
+      ></textarea>
+    </label>
+
+    <button type="submit" [disabled]="saving() || !hasContent()">
+      {{ saving() ? "Salvando..." : "Salvar nota" }}
+    </button>
+  </form>
+
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+
+  <div class="list" aria-live="polite">
+    @if (loading()) {
+      <p class="empty">Carregando notas...</p>
+    } @else if (notes().length === 0) {
+      <p class="empty">Nenhuma nota salva ainda.</p>
+    } @else {
+      @for (note of notes(); track note.id) {
+        <article class="note">
+          <input
+            class="note-title"
+            [ngModel]="note.title"
+            (blur)="updateNote(note, 'title', $any($event.target).value)"
+            aria-label="Titulo da nota"
+          >
+          <textarea
+            [ngModel]="note.body"
+            (blur)="updateNote(note, 'body', $any($event.target).value)"
+            aria-label="Conteudo da nota"
+            rows="4"
+          ></textarea>
+          <footer>
+            <time [dateTime]="note.updatedAt">Atualizada {{ note.updatedAt | date:'short' }}</time>
+            <button type="button" (click)="deleteNote(note)">Remover</button>
+          </footer>
+        </article>
+      }
+    }
+  </div>
+</section>

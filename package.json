@@ -1,0 +1,55 @@
+{
+  "name": "isumi-playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "web:env": "node scripts/write-web-env.mjs",
+    "web:start": "npm run web:env && ng serve isumi-playground",
+    "web:build": "npm run web:env && ng build isumi-playground",
+    "web:test": "ng test isumi-playground --watch=false",
+    "api:dev": "wrangler dev --config apps/api/wrangler.jsonc",
+    "api:deploy": "wrangler deploy --config apps/api/wrangler.jsonc",
+    "api:test": "vitest run --config apps/api/vitest.config.ts",
+    "db:migrate": "node scripts/apply-migrations.mjs",
+    "test": "npm run web:test && npm run api:test",
+    "build": "npm run web:build"
+  },
+  "dependencies": {
+    "@angular/animations": "^21.0.0",
+    "@angular/common": "^21.0.0",
+    "@angular/compiler": "^21.0.0",
+    "@angular/core": "^21.0.0",
+    "@angular/forms": "^21.0.0",
+    "@angular/platform-browser": "^21.0.0",
+    "@angular/platform-browser-dynamic": "^21.0.0",
+    "@angular/router": "^21.0.0",
+    "@libsql/client": "^0.15.0",
+    "firebase": "^12.13.0",
+    "jose": "^6.1.0",
+    "rxjs": "~7.8.2",
+    "tslib": "^2.8.1",
+    "zone.js": "~0.16.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.0.0",
+    "@angular/cli": "^21.0.0",
+    "@angular/compiler-cli": "^21.0.0",
+    "@cloudflare/vitest-pool-workers": "^0.13.0",
+    "@cloudflare/workers-types": "^4.20260531.0",
+    "@types/jasmine": "^5.1.9",
+    "@types/node": "^24.0.0",
+    "jasmine-core": "^5.10.0",
+    "karma": "^6.4.4",
+    "karma-chrome-launcher": "^3.2.0",
+    "karma-coverage": "^2.2.1",
+    "karma-jasmine": "^5.1.0",
+    "karma-jasmine-html-reporter": "^2.1.0",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

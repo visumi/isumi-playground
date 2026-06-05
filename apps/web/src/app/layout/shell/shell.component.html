@@ -1,0 +1,31 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" routerLink="/dashboard" aria-label="Isumi Playground">
+      <span aria-hidden="true">I</span>
+      <strong>Playground</strong>
+    </a>
+
+    <nav aria-label="Ferramentas">
+      <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+        Dashboard
+      </a>
+      <a routerLink="/tools/notes" routerLinkActive="active">
+        Notas rápidas
+      </a>
+    </nav>
+  </aside>
+
+  <div class="workspace">
+    <header class="topbar">
+      <div>
+        <strong>{{ auth.profile()?.name || auth.profile()?.email || "Usuario" }}</strong>
+        <span>{{ auth.profile()?.email }}</span>
+      </div>
+      <button type="button" (click)="auth.logout()">Sair</button>
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>
