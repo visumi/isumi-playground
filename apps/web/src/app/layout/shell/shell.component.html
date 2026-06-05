@@ -1,8 +1,11 @@
 <div class="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] bg-background text-foreground max-md:grid-cols-1">
   <aside class="sticky top-0 flex h-screen flex-col gap-7 overflow-y-auto border-r border-sidebar-border bg-sidebar px-5 py-5 max-md:relative max-md:h-auto max-md:border-r-0 max-md:border-b max-md:px-4">
     <div class="mb-4 inline-flex items-center gap-3">
-      <span class="relative left-0.5 grid h-8 w-8 place-items-center rounded-sm bg-purple-700 font-slab text-lg font-bold text-purple-100" aria-hidden="true">泉</span>
-      <strong class="font-extrabold font-slab text-lg text-purple-200">playground.</strong>
+      <span class="relative left-0.5 grid h-10 w-10 place-items-center rounded-sm bg-purple-700 font-slab text-2xl font-bold text-purple-100" aria-hidden="true">泉</span>
+      <div class="flex flex-col">
+        <strong class="font-extrabold font-slab text-lg text-purple-200">playground.</strong>
+        <span class="text-xs font-bold text-muted-foreground">v{{ appVersion }}</span>
+      </div>
     </div>
 
     <nav class="grid gap-1.5 max-md:grid-cols-2" aria-label="Ferramentas">

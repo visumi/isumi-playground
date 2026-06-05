@@ -177,7 +177,7 @@ export class ExpenseItemModalComponent {
 @Component({
   selector: "isumi-expense-room",
   standalone: true,
-  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowLeft, LucideReceiptText, LucideHandCoins, LucidePencil, LucidePlus, LucideReceipt, LucideConciergeBell, LucideRefreshCw, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, RouterLink],
+  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowLeft, LucideReceiptText, LucideHandCoins, LucidePencil, LucidePlus, LucideReceipt, LucideConciergeBell, LucideRefreshCw, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, RouterLink],
   templateUrl: "./expense-room.component.html",
   styleUrl: "./expense-room.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush

@@ -26,8 +26,23 @@ for (const file of files) {
     .filter(Boolean);
 
   for (const statement of statements) {
-    await client.execute(statement);
+    try {
+      await client.execute(statement);
+    } catch (error) {
+      if (isAlreadyAppliedAlter(statement, error)) {
+        continue;
+      }
+
+      throw error;
+    }
   }
 
   console.log(`Applied ${file}`);
+}
+
+function isAlreadyAppliedAlter(statement, error) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return /^ALTER\s+TABLE\b[\s\S]+\bADD\s+COLUMN\b/i.test(statement)
+    && /duplicate column name/i.test(message);
 }

@@ -1,12 +1,14 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { loadDotEnv } from "./load-env.mjs";
+import packageJson from "../package.json" with { type: "json" };
 
 loadDotEnv();
 
 const target = resolve("apps/web/src/environments/environment.ts");
 const env = {
   production: process.env.NODE_ENV === "production",
+  appVersion: packageJson.version,
   apiBaseUrl: process.env.API_BASE_URL || "http://localhost:8787",
   firebase: {
     apiKey: process.env.FIREBASE_API_KEY || "",
