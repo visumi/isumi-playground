@@ -6,12 +6,17 @@ on:
       - main
     paths:
       - "apps/api/**"
+      - "db/migrations/**"
+      - "scripts/apply-migrations.mjs"
+      - "scripts/load-env.mjs"
       - "package*.json"
       - ".github/workflows/deploy-api.yml"
   workflow_dispatch:
 
 jobs:
   deploy:
+    environment:
+      name: production
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
