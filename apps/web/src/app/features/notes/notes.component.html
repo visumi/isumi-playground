@@ -1,16 +1,34 @@
-<section class="notes" aria-labelledby="notes-title">
-  <div class="header">
+<section class="grid gap-5" aria-labelledby="notes-title">
+  <div class="flex items-end justify-between gap-4 border-b border-border pb-5 max-sm:flex-col max-sm:items-start">
     <div>
-      <p>Ferramenta</p>
-      <h1 id="notes-title">Notas rápidas</h1>
+      <p class="mb-2 text-sm font-extrabold text-primary">Ferramenta</p>
+      <h1 class="m-0 text-[2.35rem] font-black leading-[1.04] tracking-[-0.035em] max-sm:text-[2rem]" id="notes-title">Notas rapidas</h1>
     </div>
-    <button type="button" (click)="loadNotes()" [disabled]="loading()">Atualizar</button>
+    <button type="button" class="inline-flex min-h-10 items-center justify-center gap-2 rounded-sm bg-secondary px-3.5 text-sm font-extrabold text-secondary-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-60 max-sm:w-full" (click)="loadNotes()" [disabled]="loading()">
+      <svg lucideRefreshCw class="size-4" aria-hidden="true"></svg>
+      Atualizar lista
+    </button>
   </div>
 
-  <form class="composer" (ngSubmit)="createNote()">
-    <label>
-      <span>Titulo</span>
+  <form class="grid gap-4 rounded-lg border border-border bg-card p-5 text-card-foreground" (ngSubmit)="createNote()">
+    <div class="flex items-start justify-between gap-4 max-sm:flex-col">
+      <div>
+        <h2 class="mb-1.5 mt-0 inline-flex items-center gap-2 text-[1.2rem] font-black tracking-[-0.02em]">
+          <svg lucideSquarePen class="size-5" aria-hidden="true"></svg>
+          Nova nota
+        </h2>
+        <p class="m-0 leading-6 text-muted-foreground">Guarde uma ideia curta sem abrir outro aplicativo.</p>
+      </div>
+      <button type="submit" class="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-sm bg-primary px-3.5 text-sm font-extrabold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 max-sm:w-full" [disabled]="saving() || !hasContent()">
+        <svg lucideFileCheck class="size-4" aria-hidden="true"></svg>
+        {{ saving() ? "Salvando..." : "Salvar nota" }}
+      </button>
+    </div>
+
+    <label class="grid gap-2">
+      <span class="text-sm font-extrabold text-muted-foreground">Titulo</span>
       <input
+        class="w-full rounded-sm border border-input bg-background px-3 py-3 text-foreground transition-colors hover:border-ring/60"
         name="title"
         [ngModel]="title()"
         (ngModelChange)="title.set($event)"
@@ -20,9 +38,10 @@
       >
     </label>
 
-    <label>
-      <span>Conteudo</span>
+    <label class="grid gap-2">
+      <span class="text-sm font-extrabold text-muted-foreground">Conteudo</span>
       <textarea
+        class="w-full resize-y rounded-sm border border-input bg-background px-3 py-3 text-foreground transition-colors hover:border-ring/60"
         name="body"
         [ngModel]="body()"
         (ngModelChange)="body.set($event)"
@@ -31,39 +50,44 @@
         placeholder="Escreva algo que valha persistir..."
       ></textarea>
     </label>
-
-    <button type="submit" [disabled]="saving() || !hasContent()">
-      {{ saving() ? "Salvando..." : "Salvar nota" }}
-    </button>
   </form>
 
   @if (error()) {
-    <p class="error" role="alert">{{ error() }}</p>
+    <p class="m-0 rounded-md bg-destructive/15 px-4 py-3 text-sm font-semibold text-destructive" role="alert">{{ error() }}</p>
   }
 
-  <div class="list" aria-live="polite">
+  <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4 max-sm:grid-cols-1" aria-live="polite">
     @if (loading()) {
-      <p class="empty">Carregando notas...</p>
+      <div class="min-h-48 animate-pulse rounded-md border border-border bg-muted" aria-label="Carregando notas"></div>
+      <div class="min-h-48 animate-pulse rounded-md border border-border bg-muted" aria-hidden="true"></div>
+      <div class="min-h-48 animate-pulse rounded-md border border-border bg-muted" aria-hidden="true"></div>
     } @else if (notes().length === 0) {
-      <p class="empty">Nenhuma nota salva ainda.</p>
+      <section class="col-span-full rounded-md border border-dashed border-border bg-secondary p-5 text-muted-foreground">
+        <h2 class="mb-2 mt-0 text-[1.15rem] font-black text-foreground">Nenhuma nota salva ainda</h2>
+        <p class="m-0 max-w-[58ch] leading-6">Crie a primeira nota acima. Ela fica vinculada ao seu usuario e aparece aqui para edicao rapida.</p>
+      </section>
     } @else {
       @for (note of notes(); track note.id) {
-        <article class="note">
+        <article class="grid gap-3 rounded-md border border-border bg-card p-4 text-card-foreground">
           <input
-            class="note-title"
+            class="w-full border-0 border-b border-border bg-transparent px-0 py-2 text-[1.08rem] font-black text-foreground outline-none"
             [ngModel]="note.title"
             (blur)="updateNote(note, 'title', $any($event.target).value)"
             aria-label="Titulo da nota"
           >
           <textarea
+            class="w-full resize-y rounded-sm border-0 bg-muted px-3 py-3 text-foreground outline-none"
             [ngModel]="note.body"
             (blur)="updateNote(note, 'body', $any($event.target).value)"
             aria-label="Conteudo da nota"
             rows="4"
           ></textarea>
-          <footer>
-            <time [dateTime]="note.updatedAt">Atualizada {{ note.updatedAt | date:'short' }}</time>
-            <button type="button" (click)="deleteNote(note)">Remover</button>
+          <footer class="flex items-center justify-between gap-3">
+            <time class="text-xs text-muted-foreground" [dateTime]="note.updatedAt">Atualizada {{ note.updatedAt | date:'short' }}</time>
+            <button class="inline-flex min-h-9 items-center justify-center gap-2 rounded-sm bg-secondary px-3 text-sm font-extrabold text-secondary-foreground transition-colors hover:bg-destructive/15 hover:text-destructive" type="button" (click)="deleteNote(note)">
+              <svg lucideTrash2 class="size-4" aria-hidden="true"></svg>
+              Remover
+            </button>
           </footer>
         </article>
       }

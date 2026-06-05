@@ -1,24 +1,38 @@
-<main class="login-page">
-  <section class="brand-panel" aria-labelledby="login-title">
-    <p class="eyebrow">Isumi Playground</p>
-    <h1 id="login-title">Ferramentas internas para explorar ideias e trabalho do dia a dia.</h1>
-    <p class="summary">
-      Entre com sua conta Google autorizada para acessar o painel e salvar suas ferramentas.
+<main class="mx-auto grid min-h-screen w-[min(1120px,calc(100%_-_40px))] grid-cols-[minmax(0,1fr)_minmax(320px,410px)] items-center gap-10 py-14 max-lg:grid-cols-1 max-lg:py-8 max-sm:w-[min(100%_-_32px,1120px)]">
+  <section class="max-w-[680px]" aria-labelledby="login-title">
+    <div class="mb-6 inline-flex items-center gap-3">
+      <span class="grid h-10 w-10 place-items-center rounded-sm bg-primary text-sm font-black text-primary-foreground" aria-hidden="true">I</span>
+      <strong class="font-extrabold">Isumi Playground</strong>
+    </div>
+    <h1 class="m-0 max-w-[660px] text-[3.2rem] font-black leading-none tracking-[-0.035em] text-balance max-lg:text-[2.65rem] max-sm:text-[2.2rem]" id="login-title">Um lugar leve para guardar ideias e testar ferramentas pessoais.</h1>
+    <p class="mt-6 max-w-[560px] text-[1.04rem] leading-7 text-muted-foreground text-pretty">
+      Entre com sua conta Google autorizada para acessar notas rapidas e os proximos utilitarios do playground.
     </p>
+
+    <div class="mt-8 grid max-w-[560px] grid-cols-2 gap-3 max-sm:grid-cols-1" aria-label="O que existe no playground">
+      <div class="grid gap-1.5 rounded-md border border-border bg-card p-4 text-card-foreground">
+        <strong class="text-[0.98rem] font-extrabold">Notas</strong>
+        <span class="text-sm leading-6 text-muted-foreground">Rascunhos pequenos salvos por usuario.</span>
+      </div>
+      <div class="grid gap-1.5 rounded-md border border-border bg-secondary p-4 text-secondary-foreground">
+        <strong class="text-[0.98rem] font-extrabold">Ferramentas</strong>
+        <span class="text-sm leading-6 text-muted-foreground">Um painel simples para novos experimentos.</span>
+      </div>
+    </div>
   </section>
 
-  <section class="login-panel" aria-label="Entrar">
-    <div class="mark" aria-hidden="true">I</div>
-    <h2>Entrar</h2>
-    <p>O acesso e os dados sao protegidos pela API do playground.</p>
+  <section class="rounded-lg border border-border bg-card p-7 text-card-foreground" aria-label="Entrar">
+    <div class="grid h-11 w-11 place-items-center rounded-sm bg-primary text-sm font-black text-primary-foreground" aria-hidden="true">I</div>
+    <h2 class="mb-2 mt-7 text-[1.8rem] font-black tracking-[-0.02em]">Entrar</h2>
+    <p class="m-0 leading-6 text-muted-foreground">O acesso e os dados ficam vinculados a sua conta autorizada.</p>
 
-    <button type="button" class="google-button" [disabled]="loading()" (click)="login()">
-      <span class="google-icon" aria-hidden="true">G</span>
+    <button type="button" class="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-sm bg-primary px-4 font-extrabold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60" [disabled]="loading()" (click)="login()">
+      <svg lucideKey class="size-5" aria-hidden="true"></svg>
       <span>{{ loading() ? "Conectando..." : "Continuar com Google" }}</span>
     </button>
 
     @if (error()) {
-      <p class="error" role="alert">{{ error() }}</p>
+      <p class="mt-5 rounded-sm bg-destructive/15 p-3 text-sm font-semibold text-destructive" role="alert">{{ error() }}</p>
     }
   </section>
 </main>

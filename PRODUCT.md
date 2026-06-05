@@ -19,11 +19,12 @@ Modern, calm, and playful. The interface should feel capable and current, but no
 ## References
 
 - Bento box layouts: grouped tools and information should feel modular, tidy, and easy to scan, with each block earning its space.
-- Apple-style product design: quiet confidence, generous breathing room, careful hierarchy, polished details, and restrained motion. Use the spirit of clarity and craft, not direct imitation.
+- visumi/toolbox: dark utility UI, compact tool-first screens, deep green identity, and surfaces that feel like a personal control room rather than a public marketing site.
+- shadcn/ui create preset `b2BVmR1GK`: dark zinc-like canvas, muted neutral surfaces, restrained emerald primary, Lucide icons, semantic Tailwind tokens, clear focus states, familiar controls, and dark-mode patterns with strong foreground/background pairs.
 
 ## Anti-references
 
-Avoid enterprise dashboards, heavy SaaS admin styling, overly serious productivity suites, generic corporate polish, and cold B2B surfaces. The product should not look like compliance software, a sales CRM, or a dense internal operations console.
+Avoid light SaaS dashboards, beige or cream app backgrounds, heavy enterprise admin styling, overly serious productivity suites, generic corporate polish, and cold B2B surfaces. The product should not look like compliance software, a sales CRM, or a dense internal operations console.
 
 ## Design Principles
 
@@ -32,7 +33,8 @@ Avoid enterprise dashboards, heavy SaaS admin styling, overly serious productivi
 - Use modular grouping with intent: bento-like blocks should clarify choices and relationships, not become decorative tiles.
 - Use playfulness as seasoning, not noise: delightful touches should help the product feel approachable without slowing workflows.
 - Let growth stay coherent: every new tool should reuse the same shell, action vocabulary, and state patterns.
-- Prefer relaxed clarity over corporate polish: copy should be direct, friendly, and specific.
+- Prefer dark utility clarity over corporate polish: copy should be direct, friendly, and specific.
+- Use the preset's emerald primary as the product color. It should drive selected states, primary actions, focus accents, chart emphasis, and the product mark, not become decorative glow everywhere.
 
 ## Accessibility & Inclusion
 

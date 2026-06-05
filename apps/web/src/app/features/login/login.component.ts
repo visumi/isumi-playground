@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
+import { LucideKey } from "@lucide/angular";
 import { AuthService } from "../../core/auth/auth.service";
 
 @Component({
   selector: "isumi-login",
   standalone: true,
+  imports: [LucideKey],
   templateUrl: "./login.component.html",
   styleUrl: "./login.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush

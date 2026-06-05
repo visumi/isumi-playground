@@ -1,13 +1,14 @@
 import { DatePipe } from "@angular/common";
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
+import { LucideFileCheck, LucideRefreshCw, LucideSquarePen, LucideTrash2 } from "@lucide/angular";
 import { NotesService } from "../../core/api/notes.service";
 import { Note } from "../../core/api/api.types";
 
 @Component({
   selector: "isumi-notes",
   standalone: true,
-  imports: [DatePipe, FormsModule],
+  imports: [DatePipe, FormsModule, LucideFileCheck, LucideRefreshCw, LucideSquarePen, LucideTrash2],
   templateUrl: "./notes.component.html",
   styleUrl: "./notes.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush

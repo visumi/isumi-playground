@@ -1,30 +1,35 @@
-<div class="app-shell">
-  <aside class="sidebar">
-    <a class="brand" routerLink="/dashboard" aria-label="Isumi Playground">
-      <span aria-hidden="true">I</span>
-      <strong>Playground</strong>
+<div class="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] bg-background text-foreground max-md:grid-cols-1">
+  <aside class="flex flex-col gap-7 border-r border-sidebar-border bg-sidebar px-5 py-5 max-md:border-r-0 max-md:border-b max-md:px-4">
+    <a class="inline-flex items-center gap-3 rounded-md text-sidebar-foreground no-underline outline-none transition-colors hover:text-sidebar-primary" routerLink="/dashboard" aria-label="Isumi Playground">
+      <span class="grid h-9 w-9 place-items-center rounded-sm bg-sidebar-primary text-sm font-black text-sidebar-primary-foreground" aria-hidden="true">I</span>
+      <strong class="text-[0.98rem] font-extrabold tracking-[-0.01em]">Playground</strong>
     </a>
 
-    <nav aria-label="Ferramentas">
-      <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+    <nav class="grid gap-1.5 max-md:grid-cols-2" aria-label="Ferramentas">
+      <a class="inline-flex items-center gap-2.5 rounded-sm px-3 py-2.5 font-bold text-muted-foreground no-underline transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground max-md:justify-center" routerLink="/dashboard" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25" [routerLinkActiveOptions]="{ exact: true }">
+        <svg lucideHome class="size-4" aria-hidden="true"></svg>
         Dashboard
       </a>
-      <a routerLink="/tools/notes" routerLinkActive="active">
-        Notas rápidas
+      <a class="inline-flex items-center gap-2.5 rounded-sm px-3 py-2.5 font-bold text-muted-foreground no-underline transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground max-md:justify-center" routerLink="/tools/notes" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25">
+        <svg lucideBookOpen class="size-4" aria-hidden="true"></svg>
+        Notas rapidas
       </a>
     </nav>
   </aside>
 
-  <div class="workspace">
-    <header class="topbar">
-      <div>
-        <strong>{{ auth.profile()?.name || auth.profile()?.email || "Usuario" }}</strong>
-        <span>{{ auth.profile()?.email }}</span>
+  <div class="min-w-0">
+    <header class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-border bg-background/90 px-7 py-4 backdrop-blur-md max-md:px-4">
+      <div class="grid min-w-0 gap-0.5">
+        <strong class="truncate text-sm font-extrabold">{{ auth.profile()?.name || auth.profile()?.email || "Usuario" }}</strong>
+        <span class="truncate text-sm text-muted-foreground">{{ auth.profile()?.email }}</span>
       </div>
-      <button type="button" (click)="auth.logout()">Sair</button>
+      <button class="inline-flex min-h-10 items-center gap-2 rounded-sm bg-secondary px-4 text-sm font-extrabold text-secondary-foreground transition-colors hover:bg-accent hover:text-accent-foreground" type="button" (click)="auth.logout()">
+        <svg lucideLogOut class="size-4" aria-hidden="true"></svg>
+        Sair
+      </button>
     </header>
 
-    <main class="content">
+    <main class="mx-auto w-[min(1120px,calc(100%_-_48px))] py-8 pb-14 max-md:w-[min(100%_-_32px,1120px)] max-md:py-6">
       <router-outlet />
     </main>
   </div>
