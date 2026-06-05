@@ -1,34 +1,49 @@
 <div class="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] bg-background text-foreground max-md:grid-cols-1">
-  <aside class="flex flex-col gap-7 border-r border-sidebar-border bg-sidebar px-5 py-5 max-md:border-r-0 max-md:border-b max-md:px-4">
-    <a class="inline-flex items-center gap-3 rounded-md text-sidebar-foreground no-underline outline-none transition-colors hover:text-sidebar-primary" routerLink="/dashboard" aria-label="Isumi Playground">
-      <span class="grid h-9 w-9 place-items-center rounded-sm bg-sidebar-primary text-sm font-black text-sidebar-primary-foreground" aria-hidden="true">I</span>
-      <strong class="text-[0.98rem] font-extrabold tracking-[-0.01em]">Playground</strong>
-    </a>
+  <aside class="sticky top-0 flex h-screen flex-col gap-7 overflow-y-auto border-r border-sidebar-border bg-sidebar px-5 py-5 max-md:relative max-md:h-auto max-md:border-r-0 max-md:border-b max-md:px-4">
+    <div class="mb-4 inline-flex items-center gap-3">
+      <span class="relative left-0.5 grid h-8 w-8 place-items-center rounded-sm bg-purple-700 font-slab text-lg font-bold text-purple-100" aria-hidden="true">泉</span>
+      <strong class="font-extrabold font-slab text-lg text-purple-200">playground.</strong>
+    </div>
 
     <nav class="grid gap-1.5 max-md:grid-cols-2" aria-label="Ferramentas">
-      <a class="inline-flex items-center gap-2.5 rounded-sm px-3 py-2.5 font-bold text-muted-foreground no-underline transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground max-md:justify-center" routerLink="/dashboard" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25" [routerLinkActiveOptions]="{ exact: true }">
-        <svg lucideHome class="size-4" aria-hidden="true"></svg>
+      <a isumiNavItem routerLink="/dashboard" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25" [routerLinkActiveOptions]="{ exact: true }">
+        <svg lucideLayoutDashboard class="size-4" aria-hidden="true"></svg>
         Dashboard
       </a>
-      <a class="inline-flex items-center gap-2.5 rounded-sm px-3 py-2.5 font-bold text-muted-foreground no-underline transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground max-md:justify-center" routerLink="/tools/notes" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25">
-        <svg lucideBookOpen class="size-4" aria-hidden="true"></svg>
-        Notas rapidas
+      <a isumiNavItem routerLink="/tools/notes" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25">
+        <svg lucideScrollText class="size-4" aria-hidden="true"></svg>
+        Notas rápidas
       </a>
     </nav>
+
+    <section class="mt-auto border-t border-sidebar-border pt-5 max-md:mt-0 max-md:border-t-0 max-md:pt-0" aria-label="Usuario logado">
+      <div class="flex min-w-0 items-center gap-3 rounded-sm px-1 py-1 text-muted-foreground">
+        @if (auth.profile()?.picture) {
+          <img
+            class="size-8 rounded-full border border-sidebar-border object-cover opacity-90"
+            [src]="auth.profile()?.picture"
+            [alt]="auth.profile()?.name || auth.profile()?.email || 'Usuario'"
+            referrerpolicy="no-referrer"
+          >
+        } @else {
+          <span class="grid size-8 shrink-0 place-items-center rounded-full bg-sidebar-accent text-xs font-extrabold text-sidebar-accent-foreground" aria-hidden="true">
+            {{ (auth.profile()?.name || auth.profile()?.email || "U").charAt(0) }}
+          </span>
+        }
+        <div class="grid min-w-0 gap-0.5">
+          <strong class="truncate text-sm font-bold text-foreground/85">{{ auth.profile()?.name || auth.profile()?.email || "Usuario" }}</strong>
+          <span class="truncate text-xs">{{ auth.profile()?.email }}</span>
+        </div>
+
+        <isumi-button class="ml-auto shrink-0" variant="ghost" size="sm" iconOnly ariaLabel="Sair" title="Sair" (click)="auth.logout()">
+          <svg icon lucideLogOut class="size-4" aria-hidden="true"></svg>
+          Sair
+        </isumi-button>
+      </div>
+    </section>
   </aside>
 
   <div class="min-w-0">
-    <header class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-border bg-background/90 px-7 py-4 backdrop-blur-md max-md:px-4">
-      <div class="grid min-w-0 gap-0.5">
-        <strong class="truncate text-sm font-extrabold">{{ auth.profile()?.name || auth.profile()?.email || "Usuario" }}</strong>
-        <span class="truncate text-sm text-muted-foreground">{{ auth.profile()?.email }}</span>
-      </div>
-      <button class="inline-flex min-h-10 items-center gap-2 rounded-sm bg-secondary px-4 text-sm font-extrabold text-secondary-foreground transition-colors hover:bg-accent hover:text-accent-foreground" type="button" (click)="auth.logout()">
-        <svg lucideLogOut class="size-4" aria-hidden="true"></svg>
-        Sair
-      </button>
-    </header>
-
     <main class="mx-auto w-[min(1120px,calc(100%_-_48px))] py-8 pb-14 max-md:w-[min(100%_-_32px,1120px)] max-md:py-6">
       <router-outlet />
     </main>

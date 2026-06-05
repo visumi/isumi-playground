@@ -20,7 +20,7 @@ Modern, calm, and playful. The interface should feel capable and current, but no
 
 - Bento box layouts: grouped tools and information should feel modular, tidy, and easy to scan, with each block earning its space.
 - visumi/toolbox: dark utility UI, compact tool-first screens, deep green identity, and surfaces that feel like a personal control room rather than a public marketing site.
-- shadcn/ui create preset `b2BVmR1GK`: dark zinc-like canvas, muted neutral surfaces, restrained emerald primary, Lucide icons, semantic Tailwind tokens, clear focus states, familiar controls, and dark-mode patterns with strong foreground/background pairs.
+- shadcn/ui create preset `b2BVmR1GK`: dark zinc-like canvas, muted neutral surfaces, restrained purple primary, Lucide icons, semantic Tailwind tokens, clear focus states, familiar controls, and dark-mode patterns with strong foreground/background pairs.
 
 ## Anti-references
 
@@ -34,7 +34,7 @@ Avoid light SaaS dashboards, beige or cream app backgrounds, heavy enterprise ad
 - Use playfulness as seasoning, not noise: delightful touches should help the product feel approachable without slowing workflows.
 - Let growth stay coherent: every new tool should reuse the same shell, action vocabulary, and state patterns.
 - Prefer dark utility clarity over corporate polish: copy should be direct, friendly, and specific.
-- Use the preset's emerald primary as the product color. It should drive selected states, primary actions, focus accents, chart emphasis, and the product mark, not become decorative glow everywhere.
+- Use the preset's purple primary as the product color. It should drive selected states, primary actions, focus accents, chart emphasis, and the product mark, not become decorative glow everywhere.
 
 ## Accessibility & Inclusion
 

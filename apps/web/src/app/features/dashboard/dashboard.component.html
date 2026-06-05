@@ -1,32 +1,28 @@
 <section class="grid gap-6" aria-labelledby="dashboard-title">
-  <div class="flex items-end justify-between gap-6 border-b border-border pb-6 max-md:flex-col max-md:items-start">
-    <div>
-      <p class="mb-2 text-sm font-extrabold text-primary">Playground pessoal</p>
-      <h1 class="m-0 text-[2.45rem] font-black leading-[1.04] tracking-[-0.035em] text-balance max-md:text-[2rem]" id="dashboard-title">Oi, {{ auth.profile()?.name || "vamos comecar" }}</h1>
-    </div>
-    <span class="max-w-[28ch] text-sm leading-6 text-muted-foreground">Escolha uma ferramenta e continue de onde parou.</span>
-  </div>
+  <isumi-page-header eyebrow="Bem-vindo" title="{{ auth.profile()?.name || 'vamos comecar' }}" titleId="dashboard-title" />
 
   <div class="grid grid-cols-[minmax(0,1.25fr)_minmax(260px,0.75fr)] gap-4 max-md:grid-cols-1">
-    <a class="grid min-h-60 content-start rounded-lg border border-border bg-card p-6 text-card-foreground no-underline transition-colors hover:border-primary/45" routerLink="/tools/notes">
-      <span class="inline-flex w-fit items-center gap-1.5 rounded-full bg-accent px-2.5 py-1.5 text-xs font-black text-accent-foreground">
-        <svg lucideSparkles class="size-3.5" aria-hidden="true"></svg>
-        Disponivel agora
-      </span>
-      <h2 class="mb-2.5 mt-5 text-[1.35rem] font-black tracking-[-0.02em]">Notas rapidas</h2>
-      <p class="m-0 max-w-[58ch] leading-6 text-muted-foreground">Salve ideias curtas, rascunhos e lembretes vinculados ao seu usuario.</p>
-      <strong class="mt-10 inline-flex items-center gap-2 self-end text-sm font-black text-primary">
-        Abrir notas
-        <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
-      </strong>
-    </a>
+    <isumi-card padding="lg" [interactive]="true" class="grid min-h-60 content-start">
+      <a class="grid content-start text-card-foreground no-underline" routerLink="/tools/notes">
+        <isumi-badge variant="primary">
+          <svg lucideSparkles class="size-3.5" aria-hidden="true"></svg>
+          Disponível agora
+        </isumi-badge>
+        <h2 class="mb-2.5 mt-5 text-[1.35rem] font-black tracking-[-0.02em]">Notas rápidas</h2>
+        <p class="m-0 max-w-[58ch] leading-6 text-muted-foreground">Salve ideias curtas, rascunhos e lembretes vinculados ao seu usuario.</p>
+        <strong class="mt-10 inline-flex items-center gap-2 self-end text-sm font-black text-foreground">
+          Abrir notas
+          <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
+        </strong>
+      </a>
+    </isumi-card>
 
-    <section class="rounded-lg border border-border bg-secondary p-6 text-secondary-foreground" aria-label="Proximos espacos">
+    <isumi-card variant="secondary" padding="lg" aria-label="Proximos espacos">
       <span class="grid h-10 w-10 place-items-center rounded-sm bg-accent text-accent-foreground" aria-hidden="true">
         <svg lucideWrench class="size-5"></svg>
       </span>
       <h2 class="mb-2.5 mt-4 text-[1.35rem] font-black tracking-[-0.02em]">Em construcao</h2>
       <p class="m-0 leading-6 text-muted-foreground">Novas ferramentas entram aqui usando o mesmo shell, estados e linguagem visual.</p>
-    </section>
+    </isumi-card>
   </div>
 </section>

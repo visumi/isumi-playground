@@ -4,14 +4,14 @@
 
 Isumi Playground is a dark, personal utility workspace. It should feel like a compact toolbox for trusted tools: calm, capable, slightly playful, and private. The interface serves tasks first. It is not a landing page, a SaaS admin dashboard, or a decorative portfolio surface.
 
-The visual reference is the shadcn/ui create preset `b2BVmR1GK`, adapted to Angular and Tailwind v4: dark zinc-like canvas, muted neutral surfaces, restrained emerald primary, crisp borders, Lucide icons, familiar controls, and compact surfaces that make tools easy to scan.
+The visual reference is the shadcn/ui create preset `b2BVmR1GK`, adapted to Angular and Tailwind v4: dark zinc-like canvas, muted neutral surfaces, restrained purple primary, crisp borders, Lucide icons, familiar controls, and compact surfaces that make tools easy to scan.
 
 Physical scene: the owner is using the app late at night or between tasks, likely on a laptop, under low ambient light, wanting a private tool that feels calm and ready rather than bright, public, or corporate.
 
 ## Visual Principles
 
 - Dark-first by default. Light mode is not the baseline visual identity.
-- Primary emerald is deep, grounded, and functional. Use it for selected navigation, primary actions, focus accents, charts, and the product mark.
+- Primary purple is deep, grounded, and functional. Use it for selected navigation, primary actions, focus accents, charts, and the product mark.
 - Surfaces are layered by luminance, not by heavy shadows. Prefer borders, subtle contrast, and small elevation shifts.
 - Components should feel shadcn-like in discipline: Tailwind semantic tokens, consistent radii, predictable states, and restrained styling.
 - Bento grouping is allowed when it clarifies tool choices or related work. Avoid identical decorative card grids.
@@ -110,7 +110,7 @@ Buttons:
 - Primary: `bg-primary text-primary-foreground`, 40-44px height.
 - Secondary: `bg-secondary text-secondary-foreground`, no border by default.
 - Ghost: transparent until hover, then `hover:bg-accent hover:text-accent-foreground`.
-- Destructive: use `bg-destructive` or `text-destructive`, never reuse orange or emerald as a generic warning color.
+- Destructive: use `bg-destructive` or `text-destructive`, never reuse orange or purple as a generic warning color.
 - Button hover should not move the control. Use background, foreground, border, and ring changes instead of translate or scale.
 - Buttons should be borderless by default. Do not use bordered buttons for routine actions like refresh, logout, save, delete, navigation, or OAuth sign-in.
 - If a button needs separation, prefer background contrast, subtle shadow, text/icon color, or focus ring. A border is reserved for rare contexts where the button sits on an indistinguishable surface and no other affordance is sufficient.

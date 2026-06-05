@@ -1,38 +1,55 @@
 <main class="mx-auto grid min-h-screen w-[min(1120px,calc(100%_-_40px))] grid-cols-[minmax(0,1fr)_minmax(320px,410px)] items-center gap-10 py-14 max-lg:grid-cols-1 max-lg:py-8 max-sm:w-[min(100%_-_32px,1120px)]">
   <section class="max-w-[680px]" aria-labelledby="login-title">
     <div class="mb-6 inline-flex items-center gap-3">
-      <span class="grid h-10 w-10 place-items-center rounded-sm bg-primary text-sm font-black text-primary-foreground" aria-hidden="true">I</span>
-      <strong class="font-extrabold">Isumi Playground</strong>
+      <span class="relative left-0.5 grid h-10 w-10 place-items-center rounded-sm bg-purple-700 font-slab text-2xl font-bold text-purple-100" aria-hidden="true">泉</span>
+      <strong class="font-extrabold font-slab text-2xl text-purple-200">playground.</strong>
     </div>
-    <h1 class="m-0 max-w-[660px] text-[3.2rem] font-black leading-none tracking-[-0.035em] text-balance max-lg:text-[2.65rem] max-sm:text-[2.2rem]" id="login-title">Um lugar leve para guardar ideias e testar ferramentas pessoais.</h1>
+    <h1 class="m-0 max-w-[660px] text-[3.2rem] font-black leading-none tracking-[-0.035em] text-balance max-lg:text-[2.65rem] max-sm:text-[2.2rem]" id="login-title">Uma coleção de ferramentas para facilitar</h1>
     <p class="mt-6 max-w-[560px] text-[1.04rem] leading-7 text-muted-foreground text-pretty">
-      Entre com sua conta Google autorizada para acessar notas rapidas e os proximos utilitarios do playground.
+      Desde pequenas conveniências a controles complexos, tudo gratuito e em um só lugar.
     </p>
 
     <div class="mt-8 grid max-w-[560px] grid-cols-2 gap-3 max-sm:grid-cols-1" aria-label="O que existe no playground">
-      <div class="grid gap-1.5 rounded-md border border-border bg-card p-4 text-card-foreground">
+      <isumi-card padding="sm" class="grid gap-1.5">
         <strong class="text-[0.98rem] font-extrabold">Notas</strong>
         <span class="text-sm leading-6 text-muted-foreground">Rascunhos pequenos salvos por usuario.</span>
-      </div>
-      <div class="grid gap-1.5 rounded-md border border-border bg-secondary p-4 text-secondary-foreground">
+      </isumi-card>
+      <isumi-card padding="sm" class="grid gap-1.5">
         <strong class="text-[0.98rem] font-extrabold">Ferramentas</strong>
         <span class="text-sm leading-6 text-muted-foreground">Um painel simples para novos experimentos.</span>
-      </div>
+      </isumi-card>
     </div>
   </section>
 
-  <section class="rounded-lg border border-border bg-card p-7 text-card-foreground" aria-label="Entrar">
-    <div class="grid h-11 w-11 place-items-center rounded-sm bg-primary text-sm font-black text-primary-foreground" aria-hidden="true">I</div>
-    <h2 class="mb-2 mt-7 text-[1.8rem] font-black tracking-[-0.02em]">Entrar</h2>
-    <p class="m-0 leading-6 text-muted-foreground">O acesso e os dados ficam vinculados a sua conta autorizada.</p>
+  <isumi-card padding="xl" aria-label="Entrar">
+    <h2 class="mb-2 text-[1.8rem] font-black tracking-[-0.02em]">Entrar</h2>
+    <p class="m-0 leading-6 text-muted-foreground">O acesso e os dados ficam vinculados a sua conta do Google.</p>
 
-    <button type="button" class="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-sm bg-primary px-4 font-extrabold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60" [disabled]="loading()" (click)="login()">
-      <svg lucideKey class="size-5" aria-hidden="true"></svg>
-      <span>{{ loading() ? "Conectando..." : "Continuar com Google" }}</span>
+    <button
+      type="button"
+      class="group relative mt-5 flex h-12 w-full items-center justify-center overflow-hidden rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 transition-[background-color,box-shadow,opacity] hover:cursor-pointer hover:bg-zinc-100 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-55"
+      [disabled]="loading()"
+      [attr.aria-busy]="loading() ? true : null"
+      (click)="login()"
+    >
+      <span class="pointer-events-none absolute inset-0 bg-zinc-950 opacity-0 transition-opacity group-hover:opacity-5"></span>
+      <span class="relative flex items-center justify-center gap-3">
+        <span class="grid size-5 place-items-center" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="size-5">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+            <path fill="none" d="M0 0h48v48H0z" />
+          </svg>
+        </span>
+        <span>{{ loading() ? "Conectando..." : "Continuar com Google" }}</span>
+        <span class="hidden">Continuar com Google</span>
+      </span>
     </button>
 
     @if (error()) {
-      <p class="mt-5 rounded-sm bg-destructive/15 p-3 text-sm font-semibold text-destructive" role="alert">{{ error() }}</p>
+      <isumi-alert class="mt-5">{{ error() }}</isumi-alert>
     }
-  </section>
+  </isumi-card>
 </main>

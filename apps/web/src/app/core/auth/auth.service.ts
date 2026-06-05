@@ -62,7 +62,7 @@ export class AuthService {
       return;
     }
 
-    this.authErrorState.set("Seu e-mail ainda nao esta autorizado para acessar o playground.");
+    this.authErrorState.set("Seu e-mail ainda não está autorizado para acessar o playground.");
   }
 
   async logout(): Promise<void> {
@@ -105,7 +105,7 @@ export class AuthService {
       this.authErrorState.set(profile.allowed ? null : "Seu e-mail ainda nao esta autorizado.");
     } catch {
       this.profileState.set(null);
-      this.authErrorState.set("Nao foi possivel confirmar sua autorizacao agora.");
+      this.authErrorState.set("Não foi possível confirmar sua autorizacão agora.");
     }
   }
 }
