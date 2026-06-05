@@ -1,7 +1,7 @@
 import { DatePipe } from "@angular/common";
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { LucideSave, LucideRefreshCw, LucideSquarePen, LucideTrash2 } from "@lucide/angular";
+import { LucideSave, LucideRefreshCw, LucideSquarePen, LucideScroll, LucideTrash2 } from "@lucide/angular";
 import { NotesService } from "../../core/api/notes.service";
 import { Note } from "../../core/api/api.types";
 import { IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, IsumiSkeletonComponent } from "../../shared/ui";
@@ -9,7 +9,7 @@ import { IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent, IsumiEmp
 @Component({
   selector: "isumi-notes",
   standalone: true,
-  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, IsumiSkeletonComponent, LucideSave, LucideRefreshCw, LucideSquarePen, LucideTrash2],
+  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, IsumiSkeletonComponent, LucideSave, LucideRefreshCw, LucideSquarePen, LucideScroll, LucideTrash2],
   templateUrl: "./notes.component.html",
   styleUrl: "./notes.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush

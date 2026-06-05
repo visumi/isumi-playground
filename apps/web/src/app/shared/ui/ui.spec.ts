@@ -3,12 +3,13 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { IsumiAlertComponent } from "./alert.component";
 import { IsumiButtonComponent } from "./button.component";
+import { IsumiEmptyStateComponent } from "./empty-state.component";
 import { IsumiInputDirective } from "./input.directive";
 import { IsumiSkeletonComponent } from "./skeleton.component";
 
 @Component({
   standalone: true,
-  imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiInputDirective, IsumiSkeletonComponent],
+  imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSkeletonComponent],
   template: `
     <isumi-button variant="secondary" size="sm" disabled>
       <span icon data-testid="icon"></span>
@@ -23,6 +24,9 @@ import { IsumiSkeletonComponent } from "./skeleton.component";
     <textarea isumiInput rows="4"></textarea>
     <isumi-alert>Falha ao salvar.</isumi-alert>
     <isumi-skeleton label="Carregando notas" />
+    <isumi-empty-state title="Nada aqui" description="Crie um item.">
+      <span icon data-testid="empty-icon"></span>
+    </isumi-empty-state>
   `
 })
 class UiSpecHostComponent {}
@@ -94,5 +98,12 @@ describe("shared ui", () => {
 
     expect(skeleton.getAttribute("aria-label")).toBe("Carregando notas");
     expect(skeleton.getAttribute("aria-hidden")).toBeNull();
+  });
+
+  it("projects custom empty state icons above the text", () => {
+    const emptyState = fixture.debugElement.query(By.css("isumi-empty-state")).nativeElement as HTMLElement;
+
+    expect(emptyState.querySelector("[data-testid='empty-icon']")).not.toBeNull();
+    expect(emptyState.textContent).toContain("Nada aqui");
   });
 });
