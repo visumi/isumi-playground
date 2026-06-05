@@ -20,8 +20,8 @@ describe("auth guards", () => {
       ]
     });
 
-    const result = await TestBed.runInInjectionContext(() => authGuard({} as never, {} as never));
-    expect(TestBed.inject(Router).serializeUrl(result as never)).toBe("/login");
+    const result = await TestBed.runInInjectionContext(() => authGuard({} as never, { url: "/tools/expenses/abc" } as never));
+    expect(TestBed.inject(Router).serializeUrl(result as never)).toBe("/login?returnUrl=%2Ftools%2Fexpenses%2Fabc");
   });
 
   it("keeps authenticated allowed users out of the public login route", async () => {

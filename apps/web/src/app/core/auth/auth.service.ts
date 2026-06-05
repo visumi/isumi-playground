@@ -52,13 +52,13 @@ export class AuthService {
     });
   }
 
-  async login(): Promise<void> {
+  async login(returnUrl = "/dashboard"): Promise<void> {
     this.authErrorState.set(null);
     await signInWithPopup(this.auth, this.provider);
     await this.refreshProfile();
 
     if (this.isAllowed()) {
-      await this.router.navigateByUrl("/dashboard");
+      await this.router.navigateByUrl(returnUrl.startsWith("/") ? returnUrl : "/dashboard");
       return;
     }
 

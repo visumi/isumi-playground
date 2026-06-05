@@ -43,10 +43,10 @@ export class IsumiButtonComponent {
 
   readonly buttonClasses = computed(() => {
     const variantClasses: Record<IsumiButtonVariant, string> = {
-      primary: "bg-primary text-primary-foreground hover:bg-chart-5 hover:text-primary-foreground",
-      secondary: "bg-secondary text-secondary-foreground hover:bg-ring/45 hover:text-foreground",
-      ghost: "bg-transparent text-muted-foreground hover:bg-ring/30 hover:text-foreground",
-      destructive: "bg-secondary text-secondary-foreground hover:bg-destructive/30 hover:text-destructive"
+      primary: "bg-primary text-primary-foreground hover:bg-chart-5 hover:text-primary-foreground disabled:hover:bg-primary disabled:hover:text-primary-foreground",
+      secondary: "bg-secondary text-secondary-foreground hover:bg-ring/45 hover:text-foreground disabled:hover:bg-secondary disabled:hover:text-secondary-foreground",
+      ghost: "bg-transparent text-muted-foreground hover:bg-ring/30 hover:text-foreground disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
+      destructive: "bg-secondary text-secondary-foreground hover:bg-destructive/30 hover:text-destructive disabled:hover:bg-secondary disabled:hover:text-secondary-foreground"
     };
     const sizeClasses: Record<IsumiButtonSize, string> = {
       sm: "min-h-9 px-3",
@@ -61,6 +61,6 @@ export class IsumiButtonComponent {
     const widthClass = this.fullWidth() ? "w-full" : this.mobileFull() ? "max-sm:w-full" : "";
     const shapeClass = this.iconOnly() ? iconSizeClasses[this.size()] : sizeClasses[this.size()];
 
-    return `inline-flex items-center justify-center gap-2 rounded-sm text-sm font-extrabold no-underline transition-[background-color,color,filter] hover:cursor-pointer hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-40 disabled:saturate-50 disabled:hover:brightness-100 ${variantClasses[this.variant()]} ${shapeClass} ${widthClass}`;
+    return `inline-flex items-center justify-center gap-2 rounded-sm text-sm font-extrabold no-underline transition-colors hover:cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-40 disabled:saturate-50 ${variantClasses[this.variant()]} ${shapeClass} ${widthClass}`;
   });
 }

@@ -1,7 +1,7 @@
 <section class="grid gap-6" aria-labelledby="dashboard-title">
   <isumi-page-header eyebrow="Bem-vindo" title="{{ auth.profile()?.name || 'vamos comecar' }}" titleId="dashboard-title" />
 
-  <div class="grid grid-cols-[minmax(0,1.25fr)_minmax(260px,0.75fr)] gap-4 max-md:grid-cols-1">
+  <div class="grid grid-cols-[repeat(3,minmax(0,1fr))] gap-4 max-lg:grid-cols-[repeat(2,minmax(0,1fr))] max-md:grid-cols-1">
     <isumi-card padding="lg" [interactive]="true" class="grid min-h-60 content-start">
       <a class="grid content-start text-card-foreground no-underline" routerLink="/tools/notes">
         <isumi-badge variant="primary">
@@ -12,6 +12,21 @@
         <p class="m-0 max-w-[58ch] leading-6 text-muted-foreground">Salve ideias curtas, rascunhos e lembretes vinculados ao seu usuario.</p>
         <strong class="mt-10 inline-flex items-center gap-2 self-end text-sm font-black text-foreground">
           Abrir notas
+          <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
+        </strong>
+      </a>
+    </isumi-card>
+
+    <isumi-card padding="lg" [interactive]="true" class="grid min-h-60 content-start">
+      <a class="grid content-start text-card-foreground no-underline" routerLink="/tools/expenses">
+        <isumi-badge variant="primary">
+          <svg lucideReceiptText class="size-3.5" aria-hidden="true"></svg>
+          Novo
+        </isumi-badge>
+        <h2 class="mb-2.5 mt-5 text-[1.35rem] font-black tracking-[-0.02em]">Dividir gastos</h2>
+        <p class="m-0 max-w-[58ch] leading-6 text-muted-foreground">Crie uma sala, registre despesas e veja quem paga quem com menos transferencias.</p>
+        <strong class="mt-10 inline-flex items-center gap-2 self-end text-sm font-black text-foreground">
+          Abrir divisoes
           <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
         </strong>
       </a>
