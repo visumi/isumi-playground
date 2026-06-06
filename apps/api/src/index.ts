@@ -168,7 +168,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const roomId = expenseRoomMatch[1];
 
       if (request.method === "GET") {
-        return json(await getExpenseRoomDetail(db, user, roomId), 200, corsHeaders);
+        return json(await getExpenseRoomDetail(db, user, roomId, url.searchParams.get("accept") === "1"), 200, corsHeaders);
       }
 
     }
@@ -323,9 +323,9 @@ async function getFirebaseKey(kid: string): Promise<FirebaseKey> {
   return key;
 }
 
-function isEmailAllowed(email: string, allowedEmails: string): boolean {
+export function isEmailAllowed(email: string, allowedEmails: string): boolean {
   const allowlist = allowedEmails
-    .split(",")
+    .split(/[,\s;]+/)
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
 
@@ -448,13 +448,18 @@ async function updateExpensePaidSettlement(db: Client, userId: string, roomId: s
   return buildExpenseRoomDetail(db, roomId);
 }
 
-async function getExpenseRoomDetail(db: Client, user: AuthUser, roomId: string) {
+async function getExpenseRoomDetail(db: Client, user: AuthUser, roomId: string, acceptInvite = false) {
   const room = await findExpenseRoom(db, roomId);
   if (!room) {
     throw new HttpError(404, "not_found");
   }
 
-  await ensureUserParticipant(db, room, user);
+  if (acceptInvite) {
+    await ensureUserParticipant(db, room, user);
+  } else {
+    await assertExpenseRoomMember(db, roomId, user.uid);
+  }
+
   return buildExpenseRoomDetail(db, roomId);
 }
 
@@ -1164,11 +1169,12 @@ function buildCorsHeaders(request: Request, env: Env): Headers {
   const headers = new Headers();
   const origin = request.headers.get("Origin");
   const allowedOrigins = new Set([
+    "http://playground.isumi.com.br",
     "https://playground.isumi.com.br",
     "http://localhost:4200",
     "http://127.0.0.1:4200",
-    env.ALLOWED_ORIGIN
-  ].filter(Boolean) as string[]);
+    ...parseAllowedOrigins(env.ALLOWED_ORIGIN)
+  ]);
 
   if (origin && allowedOrigins.has(origin)) {
     headers.set("Access-Control-Allow-Origin", origin);
@@ -1179,6 +1185,13 @@ function buildCorsHeaders(request: Request, env: Env): Headers {
   headers.set("Access-Control-Allow-Headers", "Authorization,Content-Type");
   headers.set("Access-Control-Max-Age", "86400");
   return headers;
+}
+
+function parseAllowedOrigins(value: string | undefined): string[] {
+  return (value || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 }
 
 function json(body: unknown, status: number, headers?: Headers): Response {

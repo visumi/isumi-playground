@@ -37,7 +37,6 @@ export class AuthService {
   constructor() {
     const app = initializeApp(environment.firebase);
     this.auth = getAuth(app);
-    this.provider.setCustomParameters({ prompt: "select_account" });
 
     onIdTokenChanged(this.auth, async (user) => {
       this.firebaseUserState.set(user);

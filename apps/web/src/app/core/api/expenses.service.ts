@@ -21,6 +21,10 @@ export class ExpensesService {
     return this.http.get<ExpenseRoomDetail>(`${this.baseUrl}/${roomId}`);
   }
 
+  acceptRoom(roomId: string): Observable<ExpenseRoomDetail> {
+    return this.http.get<ExpenseRoomDetail>(`${this.baseUrl}/${roomId}?accept=1`);
+  }
+
   updateTip(roomId: string, payload: UpdateExpenseTipRequest): Observable<ExpenseRoomDetail> {
     return this.http.patch<ExpenseRoomDetail>(`${this.baseUrl}/${roomId}/tip`, payload);
   }

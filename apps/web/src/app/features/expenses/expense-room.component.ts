@@ -1,4 +1,5 @@
 import { DatePipe } from "@angular/common";
+import { HttpErrorResponse } from "@angular/common/http";
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { RouterLink } from "@angular/router";
@@ -254,15 +255,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
 
     this.expenses.getRoom(this.roomId()).subscribe({
       next: (detail) => this.setDetail(detail),
-      error: () => {
-        if (!options.silent) {
-          this.error.set("Nao foi possivel carregar esta sala.");
-        }
-        if (showLoading) {
-          this.loading.set(false);
-        }
-        this.refreshingRoom = false;
-      },
+      error: (error: unknown) => this.handleRoomLoadError(error, { showLoading, silent: options.silent ?? false }),
       complete: () => {
         if (showLoading) {
           this.loading.set(false);
@@ -409,6 +402,22 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   private setDetail(detail: ExpenseRoomDetail): void {
     this.detail.set(detail);
     this.tipPercent.set(this.formatPercent(detail.tipPercent));
+  }
+
+  private handleRoomLoadError(error: unknown, options: { showLoading: boolean; silent: boolean }): void {
+    if (error instanceof HttpErrorResponse && error.status === 403) {
+      this.detail.set(null);
+      this.error.set("Voce nao participa mais desta sala. Aceite um novo convite para entrar de novo.");
+      this.stopAutoRefresh();
+    } else if (!options.silent) {
+      this.error.set("Nao foi possivel carregar esta sala.");
+    }
+
+    if (options.showLoading) {
+      this.loading.set(false);
+    }
+
+    this.refreshingRoom = false;
   }
 
   private settlementKey(settlement: ExpenseSettlement): string {

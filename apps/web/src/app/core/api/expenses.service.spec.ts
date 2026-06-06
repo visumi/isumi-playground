@@ -53,6 +53,14 @@ describe("ExpensesService", () => {
     });
   });
 
+  it("accepts a room invite explicitly", () => {
+    service.acceptRoom("room-1").subscribe();
+
+    const request = http.expectOne("http://localhost:8787/tools/expenses/rooms/room-1?accept=1");
+    expect(request.request.method).toBe("GET");
+    request.flush({});
+  });
+
   it("updates the room tip", () => {
     service.updateTip("room-1", { tipPercent: 12.5 }).subscribe();
 
