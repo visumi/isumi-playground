@@ -1,8 +1,8 @@
 import { DatePipe } from "@angular/common";
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from "@angular/core";
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { RouterLink } from "@angular/router";
-import { LucideArrowLeft, LucideHandCoins, LucideConciergeBell, LucidePencil, LucidePlus, LucideReceipt, LucideReceiptText, LucideRefreshCw, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, LucideX } from "@lucide/angular";
+import { LucideArrowLeft, LucideArrowRight, LucideHandCoins, LucideConciergeBell, LucidePencil, LucidePlus, LucideReceiptText, LucideRefreshCw, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, LucideX } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
 import { ExpenseItem, ExpenseParticipant, ExpenseParticipantTotal, ExpenseRoomDetail, ExpenseSettlement, UpsertExpenseItemRequest } from "../../core/api/api.types";
 import { AuthService } from "../../core/auth/auth.service";
@@ -177,14 +177,18 @@ export class ExpenseItemModalComponent {
 @Component({
   selector: "isumi-expense-room",
   standalone: true,
-  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowLeft, LucideReceiptText, LucideHandCoins, LucidePencil, LucidePlus, LucideReceipt, LucideConciergeBell, LucideRefreshCw, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, RouterLink],
+  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowLeft, LucideArrowRight, LucideReceiptText, LucideHandCoins, LucidePencil, LucidePlus, LucideConciergeBell, LucideRefreshCw, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, RouterLink],
   templateUrl: "./expense-room.component.html",
   styleUrl: "./expense-room.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ExpenseRoomComponent implements OnInit {
+export class ExpenseRoomComponent implements OnInit, OnDestroy {
   private readonly expenses = inject(ExpensesService);
   private readonly modal = inject(IsumiModalService);
+  private readonly autoRefreshMs = 5000;
+  private autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  private refreshingRoom = false;
+  private readonly handleVisibilityChange = (): void => this.syncAutoRefreshWithVisibility();
   readonly auth = inject(AuthService);
 
   readonly roomId = input.required<string>();
@@ -194,6 +198,7 @@ export class ExpenseRoomComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly guestName = signal("");
   readonly tipPercent = signal("10");
+  readonly savingSettlementKey = signal<string | null>(null);
   readonly participants = computed(() => this.detail()?.participants || []);
   readonly isOwner = computed(() => this.detail()?.room.ownerUserId === this.auth.profile()?.uid);
   readonly unpaidSettlementCents = computed(() =>
@@ -201,19 +206,69 @@ export class ExpenseRoomComponent implements OnInit {
       .filter((settlement) => !settlement.paid)
       .reduce((total, settlement) => total + settlement.amountCents, 0)
   );
+  readonly paidSettlementCents = computed(() =>
+    (this.detail()?.settlements || [])
+      .filter((settlement) => settlement.paid)
+      .reduce((total, settlement) => total + settlement.amountCents, 0)
+  );
+  readonly pendingSettlements = computed(() =>
+    (this.detail()?.settlements || []).filter((settlement) => !settlement.paid)
+  );
+  readonly paidSettlements = computed(() =>
+    (this.detail()?.settlements || []).filter((settlement) => settlement.paid)
+  );
+  readonly settlementProgressLabel = computed(() => {
+    const total = this.detail()?.settlements.length || 0;
+    const paid = this.paidSettlements().length;
+
+    return `${paid} de ${total} quitados`;
+  });
 
   ngOnInit(): void {
     this.loadRoom();
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
+    this.startAutoRefresh();
+  }
+
+  ngOnDestroy(): void {
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange);
+    this.stopAutoRefresh();
   }
 
   loadRoom(): void {
-    this.loading.set(true);
-    this.error.set(null);
+    this.refreshRoom({ showLoading: true });
+  }
+
+  private refreshRoom(options: { showLoading?: boolean; silent?: boolean } = {}): void {
+    if (this.saving() || this.refreshingRoom) {
+      return;
+    }
+
+    const showLoading = options.showLoading ?? false;
+    this.refreshingRoom = true;
+
+    if (showLoading) {
+      this.loading.set(true);
+      this.error.set(null);
+    }
 
     this.expenses.getRoom(this.roomId()).subscribe({
       next: (detail) => this.setDetail(detail),
-      error: () => this.error.set("Nao foi possivel carregar esta sala."),
-      complete: () => this.loading.set(false)
+      error: () => {
+        if (!options.silent) {
+          this.error.set("Nao foi possivel carregar esta sala.");
+        }
+        if (showLoading) {
+          this.loading.set(false);
+        }
+        this.refreshingRoom = false;
+      },
+      complete: () => {
+        if (showLoading) {
+          this.loading.set(false);
+        }
+        this.refreshingRoom = false;
+      }
     });
   }
 
@@ -230,7 +285,10 @@ export class ExpenseRoomComponent implements OnInit {
     this.error.set(null);
     this.expenses.updateTip(detail.room.id, { tipPercent }).subscribe({
       next: (updated) => this.setDetail(updated),
-      error: () => this.error.set("Nao foi possivel atualizar a gorjeta."),
+      error: () => {
+        this.error.set("Nao foi possivel atualizar a gorjeta.");
+        this.saving.set(false);
+      },
       complete: () => this.saving.set(false)
     });
   }
@@ -247,7 +305,10 @@ export class ExpenseRoomComponent implements OnInit {
         this.guestName.set("");
         this.setDetail(updated);
       },
-      error: () => this.error.set("Nao foi possivel adicionar a pessoa."),
+      error: () => {
+        this.error.set("Nao foi possivel adicionar a pessoa.");
+        this.saving.set(false);
+      },
       complete: () => this.saving.set(false)
     });
   }
@@ -256,8 +317,14 @@ export class ExpenseRoomComponent implements OnInit {
     this.saving.set(true);
     this.error.set(null);
     this.expenses.deleteParticipant(this.roomId(), participant.id).subscribe({
-      next: () => this.loadRoom(),
-      error: () => this.error.set("Nao foi possivel remover esta pessoa. Ela ja esta em gastos, divisoes ou acertos."),
+      next: () => {
+        this.saving.set(false);
+        this.loadRoom();
+      },
+      error: () => {
+        this.error.set("Nao foi possivel remover esta pessoa. Ela ja esta em gastos, divisoes ou acertos.");
+        this.saving.set(false);
+      },
       complete: () => this.saving.set(false)
     });
   }
@@ -300,7 +367,9 @@ export class ExpenseRoomComponent implements OnInit {
   }
 
   updateSettlementPaid(settlement: ExpenseSettlement, paid: boolean): void {
+    const key = this.settlementKey(settlement);
     this.saving.set(true);
+    this.savingSettlementKey.set(key);
     this.error.set(null);
     this.expenses.updateSettlement(this.roomId(), {
       fromParticipantId: settlement.fromParticipantId,
@@ -308,9 +377,16 @@ export class ExpenseRoomComponent implements OnInit {
       paid
     }).subscribe({
       next: (updated) => this.setDetail(updated),
-      error: () => this.error.set("Nao foi possivel atualizar o acerto."),
-      complete: () => this.saving.set(false)
+      error: () => {
+        this.error.set("Nao foi possivel atualizar o acerto.");
+        this.finishSavingSettlement();
+      },
+      complete: () => this.finishSavingSettlement()
     });
+  }
+
+  isSettlementSaving(settlement: ExpenseSettlement): boolean {
+    return this.savingSettlementKey() === this.settlementKey(settlement);
   }
 
   participantName(participantId: string): string {
@@ -335,6 +411,42 @@ export class ExpenseRoomComponent implements OnInit {
     this.tipPercent.set(this.formatPercent(detail.tipPercent));
   }
 
+  private settlementKey(settlement: ExpenseSettlement): string {
+    return `${settlement.fromParticipantId}:${settlement.toParticipantId}`;
+  }
+
+  private finishSavingSettlement(): void {
+    this.saving.set(false);
+    this.savingSettlementKey.set(null);
+  }
+
+  private startAutoRefresh(): void {
+    if (document.visibilityState !== "visible" || this.autoRefreshTimer) {
+      return;
+    }
+
+    this.autoRefreshTimer = setInterval(() => {
+      this.refreshRoom({ silent: true });
+    }, this.autoRefreshMs);
+  }
+
+  private stopAutoRefresh(): void {
+    if (this.autoRefreshTimer) {
+      clearInterval(this.autoRefreshTimer);
+      this.autoRefreshTimer = null;
+    }
+  }
+
+  private syncAutoRefreshWithVisibility(): void {
+    if (document.visibilityState === "visible") {
+      this.refreshRoom({ silent: true });
+      this.startAutoRefresh();
+      return;
+    }
+
+    this.stopAutoRefresh();
+  }
+
   private saveItemPayload(payload: UpsertExpenseItemRequest, itemId?: string): void {
     const request = itemId
       ? this.expenses.updateItem(this.roomId(), itemId, payload)
@@ -344,7 +456,10 @@ export class ExpenseRoomComponent implements OnInit {
     this.error.set(null);
     request.subscribe({
       next: (updated) => this.setDetail(updated),
-      error: () => this.error.set("Nao foi possivel salvar o item. Confira valor, pagador e partes."),
+      error: () => {
+        this.error.set("Nao foi possivel salvar o item. Confira valor, pagador e partes.");
+        this.saving.set(false);
+      },
       complete: () => this.saving.set(false)
     });
   }

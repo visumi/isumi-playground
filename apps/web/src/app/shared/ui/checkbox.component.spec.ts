@@ -7,8 +7,11 @@ import { IsumiCheckboxComponent } from "./checkbox.component";
   standalone: true,
   imports: [IsumiCheckboxComponent],
   template: `
-    <isumi-checkbox [checked]="checked()" ariaLabel="Marcar acerto" (checkedChange)="checked.set($event)">
+    <isumi-checkbox variant="secondary" [checked]="checked()" ariaLabel="Marcar acerto" (checkedChange)="checked.set($event)">
       Pago
+    </isumi-checkbox>
+    <isumi-checkbox [loading]="true" ariaLabel="Salvando">
+      Salvando
     </isumi-checkbox>
   `
 })
@@ -34,5 +37,20 @@ describe("IsumiCheckboxComponent", () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.checked()).toBeTrue();
+  });
+
+  it("supports the secondary variant", () => {
+    fixture.componentInstance.checked.set(true);
+    fixture.detectChanges();
+
+    const box = fixture.debugElement.query(By.css("label > span")).nativeElement as HTMLElement;
+
+    expect(box.className).toContain("bg-secondary");
+  });
+
+  it("shows a loading indicator", () => {
+    const spinner = fixture.debugElement.query(By.css(".animate-spin"));
+
+    expect(spinner).not.toBeNull();
   });
 });

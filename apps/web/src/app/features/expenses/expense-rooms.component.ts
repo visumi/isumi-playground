@@ -47,7 +47,7 @@ export class ExpenseRoomsComponent implements OnInit {
     this.expenses.createRoom({ name: this.roomName().trim() || "Nova divisao" }).subscribe({
       next: (detail) => {
         this.roomName.set("");
-        void this.router.navigate(["/tools/expenses", detail.room.id]);
+        void this.router.navigate(["/tools/expenses", detail.room.id, "room"]);
       },
       error: () => this.error.set("Nao foi possivel criar a sala."),
       complete: () => this.saving.set(false)

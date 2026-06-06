@@ -1,5 +1,6 @@
 import { Routes } from "@angular/router";
 import { authGuard, publicOnlyGuard } from "./core/auth/auth.guard";
+import { ExpenseInviteComponent } from "./features/expenses/expense-invite.component";
 import { DashboardComponent } from "./features/dashboard/dashboard.component";
 import { ExpenseRoomComponent } from "./features/expenses/expense-room.component";
 import { ExpenseRoomsComponent } from "./features/expenses/expense-rooms.component";
@@ -20,7 +21,8 @@ export const routes: Routes = [
       { path: "", pathMatch: "full", redirectTo: "dashboard" },
       { path: "dashboard", component: DashboardComponent },
       { path: "tools/expenses", component: ExpenseRoomsComponent },
-      { path: "tools/expenses/:roomId", component: ExpenseRoomComponent }
+      { path: "tools/expenses/:roomId", component: ExpenseInviteComponent },
+      { path: "tools/expenses/:roomId/room", component: ExpenseRoomComponent }
     ]
   },
   { path: "**", redirectTo: "dashboard" }

@@ -11,8 +11,8 @@
       <div class="min-w-0">
         <h1 id="expense-room-title" class="m-0 text-[2rem] font-black leading-tight text-balance max-sm:text-[1.65rem]">
           {{ state.room.name }}</h1>
-        <p class="m-0 mt-2 text-sm leading-6 text-muted-foreground">Registre itens como uma nota fiscal e acompanhe os
-          acertos em uma lista curta.</p>
+        <p class="m-0 mt-2 text-sm leading-6 text-muted-foreground">Confira a nota, acompanhe os acertos e marque o que
+          ja foi pago.</p>
       </div>
 
       <div class="flex shrink-0 gap-2 max-sm:grid max-sm:w-full max-sm:grid-cols-2">
@@ -26,45 +26,93 @@
         </isumi-button>
       </div>
     </div>
-
   </header>
-
-  <dl class="grid grid-cols-4 overflow-hidden rounded-lg bg-secondary text-sm max-lg:grid-cols-2 max-sm:grid-cols-1">
-    <div class="grid gap-1 border-r border-border p-4 max-lg:border-b max-sm:border-r-0">
-      <dt class="text-muted-foreground">Subtotal</dt>
-      <dd class="m-0 text-lg font-black">{{ money(state.subtotalCents) }}</dd>
-    </div>
-    <div class="grid gap-1 border-r border-border p-4 max-lg:border-b max-lg:border-r-0">
-      <dt class="text-muted-foreground">Gorjeta</dt>
-      <dd class="m-0 text-lg font-black">{{ money(state.tipAmountCents) }}</dd>
-    </div>
-    <div class="grid gap-1 border-r border-border p-4 max-lg:border-r max-sm:border-b max-sm:border-r-0">
-      <dt class="text-muted-foreground">Total final</dt>
-      <dd class="m-0 text-lg font-black">{{ money(state.totalCents) }}</dd>
-    </div>
-    <div class="grid gap-1 border-border p-4">
-      <dt class="text-muted-foreground">Ainda falta pagar</dt>
-      <dd class="m-0 text-lg font-black text-primary">{{ money(unpaidSettlementCents()) }}</dd>
-    </div>
-  </dl>
 
   @if (error()) {
   <isumi-alert>{{ error() }}</isumi-alert>
   }
 
-  <div class="grid grid-cols-[300px_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
+  <div class="grid grid-cols-[minmax(340px,380px)_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
     <aside class="grid content-start gap-4">
-      <section class="rounded-lg bg-card p-4" aria-labelledby="participants-title">
-        <div class="mb-3 flex items-center justify-between gap-3">
+      <section class="rounded-lg bg-card p-5" aria-labelledby="settlements-title">
+        <div class="mb-4 grid gap-3">
+          <div class="flex items-center justify-between gap-3">
+            <h2 id="settlements-title" class="m-0 inline-flex items-center gap-2 text-base font-black">
+              <svg lucideScale class="size-4" aria-hidden="true"></svg>
+              Quem paga quem
+            </h2>
+            @if (pendingSettlements()) {
+            <isumi-badge variant="secondary">{{ pendingSettlements().length }} pendente(s)</isumi-badge>
+            } @else {
+            <span class="inline-flex w-fit items-center rounded-full bg-green-500/10 px-2.5 py-1.5 text-xs font-black text-green-200">
+              Tudo pago
+            </span>
+            }
+          </div>
+
+          <div class="grid grid-cols-2 overflow-hidden rounded-md bg-secondary text-sm">
+            <div class="grid gap-1 bg-red-400/10 p-3">
+              <span class="text-xs font-bold text-red-100/80">Resta pagar</span>
+              <strong class="text-lg text-red-200">{{ money(unpaidSettlementCents()) }}</strong>
+            </div>
+            <div class="grid gap-1 bg-green-500/10 p-3">
+              <span class="text-xs font-bold text-green-100/80">Pago</span>
+              <strong class="text-green-200">{{ money(paidSettlementCents()) }}</strong>
+            </div>
+          </div>
+        </div>
+
+        @if (state.settlements.length === 0) {
+        <p class="m-0 rounded-md bg-secondary p-3 text-sm leading-6 text-muted-foreground">Tudo acertado por enquanto.</p>
+        } @else {
+        <div class="grid gap-2">
+          @for (settlement of state.settlements; track settlement.fromParticipantId + settlement.toParticipantId) {
+          <div class="grid gap-2 rounded-md bg-secondary p-3 text-sm transition-colors"
+            [class.settlement-row-paid]="settlement.paid">
+            <div class="flex items-start justify-between gap-3">
+              <isumi-checkbox variant="secondary" [checked]="settlement.paid" [disabled]="saving() && !isSettlementSaving(settlement)"
+                [loading]="isSettlementSaving(settlement)" ariaLabel="Marcar acerto como pago"
+                (checkedChange)="updateSettlementPaid(settlement, $event)">
+                <span class="sr-only">Marcar acerto como pago</span>
+              </isumi-checkbox>
+
+              <strong class="text-base" [class.text-yellow-200]="!settlement.paid"
+                [class.text-green-200]="settlement.paid">
+                {{ money(settlement.amountCents) }}
+              </strong>
+            </div>
+
+            <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+              <strong class="truncate">{{ participantName(settlement.fromParticipantId) }}</strong>
+              <span class="grid size-7 place-items-center rounded-full text-muted-foreground">
+                <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
+              </span>
+              <strong class="truncate text-right">{{ participantName(settlement.toParticipantId) }}</strong>
+            </div>
+
+            <div class="flex items-center justify-between gap-3 text-xs font-bold">
+              <span class="text-muted-foreground">Acerto entre pessoas</span>
+              <span [class.text-yellow-100]="!settlement.paid" [class.text-green-200]="settlement.paid">
+                {{ isSettlementSaving(settlement) ? "Salvando..." : settlement.paid ? "Pago" : "Pendente" }}
+              </span>
+            </div>
+          </div>
+          }
+        </div>
+        }
+      </section>
+
+      <section class="rounded-lg bg-card p-5" aria-labelledby="participants-title">
+        <div class="mb-4 flex items-center justify-between gap-3">
           <h2 id="participants-title" class="m-0 inline-flex items-center gap-2 text-base font-black">
             <svg lucideUsers class="size-4" aria-hidden="true"></svg>
-            Pessoas
+            Participantes
           </h2>
           <isumi-badge variant="secondary">{{ state.participants.length }}</isumi-badge>
         </div>
 
         @if (isOwner()) {
-        <form class="mb-4 grid grid-cols-[minmax(0,1fr)_auto] gap-2 items-center" (ngSubmit)="addGuest()">
+        <form class="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2" (ngSubmit)="addGuest()">
           <input isumiInput size="sm" name="guestName" [ngModel]="guestName()" (ngModelChange)="guestName.set($event)"
             maxlength="80" autocomplete="off" placeholder="Convidado sem login" aria-label="Nome do convidado">
           <isumi-button type="submit" size="sm" variant="secondary" iconOnly ariaLabel="Adicionar convidado"
@@ -77,91 +125,36 @@
 
         <div class="divide-y divide-border">
           @for (participant of state.participants; track participant.id) {
-          <div class="flex items-center justify-between gap-3 py-2.5">
-            <div class="flex min-w-0 items-center gap-2.5">
-              <isumi-avatar size="sm" [src]="participant.picture" [name]="participant.name" />
-              <div class="min-w-0">
-                <strong class="block truncate text-sm">{{ participant.name }}</strong>
-                <span class="text-xs text-muted-foreground">
-                  {{ participant.role === "owner" ? "Dono" : participant.kind === "guest" ? "Convidado" : "Membro" }}
-                </span>
+          <div class="py-4 text-sm">
+            <div class="grid grid-cols-[minmax(0,1fr)_auto_32px] items-start gap-3 max-[380px]:grid-cols-[minmax(0,1fr)_32px]">
+              <div class="flex min-w-0 items-center gap-3">
+                <isumi-avatar size="sm" [src]="participant.picture" [name]="participant.name" />
+                <div class="min-w-0">
+                  <strong class="block truncate text-sm">{{ participant.name }}</strong>
+                  <span class="text-xs text-muted-foreground">
+                    {{ participant.role === "owner" ? "Dono" : participant.kind === "guest" ? "Convidado" : "Membro" }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="grid justify-items-end gap-0.5 max-[380px]:col-start-1 max-[380px]:row-start-2 max-[380px]:mt-2 max-[380px]:justify-items-start">
+                <strong class="whitespace-nowrap text-right text-base">{{ money(participantTotal(participant.id).totalCents) }}</strong>
+                <span class="whitespace-nowrap text-xs text-muted-foreground">Gorjeta {{ money(participantTotal(participant.id).tipAmountCents) }}</span>
+              </div>
+
+              <div class="flex size-8 items-start justify-end max-[380px]:col-start-2 max-[380px]:row-span-2">
+                @if (canRemoveParticipant(participant)) {
+                <isumi-button variant="ghost-destructive" size="sm" iconOnly ariaLabel="Remover participante"
+                  [loading]="saving()" (click)="removeParticipant(participant)">
+                  <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
+                  Remover
+                </isumi-button>
+                }
               </div>
             </div>
-            @if (canRemoveParticipant(participant)) {
-            <isumi-button variant="ghost-destructive" size="sm" iconOnly ariaLabel="Remover participante"
-              [loading]="saving()" (click)="removeParticipant(participant)">
-              <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
-              Remover
-            </isumi-button>
-            }
           </div>
           }
         </div>
-      </section>
-
-      <section class="rounded-lg bg-card p-4" aria-labelledby="participant-totals-title">
-        <div class="mb-3 flex items-center justify-between gap-3">
-          <h2 id="participant-totals-title" class="m-0 inline-flex items-center gap-2 text-base font-black">
-            <svg lucideReceipt class="size-4" aria-hidden="true"></svg>
-            Total por pessoa
-          </h2>
-          <isumi-badge variant="secondary">{{ state.participantTotals.length }}</isumi-badge>
-        </div>
-
-        <div class="divide-y divide-border">
-          @for (participant of state.participants; track participant.id) {
-          <div class="grid gap-1 py-2.5 text-sm">
-            <div class="flex items-center justify-between gap-3">
-              <span class="flex min-w-0 items-center gap-2.5">
-                <isumi-avatar size="sm" [src]="participant.picture" [name]="participant.name" />
-                <strong class="truncate">{{ participant.name }}</strong>
-              </span>
-              <strong>{{ money(participantTotal(participant.id).totalCents) }}</strong>
-            </div>
-            <div class="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-              <span>Itens {{ money(participantTotal(participant.id).subtotalCents) }}</span>
-              <span>Gorjeta {{ money(participantTotal(participant.id).tipAmountCents) }}</span>
-            </div>
-          </div>
-          }
-        </div>
-      </section>
-
-      <section class="rounded-lg bg-card p-4" aria-labelledby="settlements-title">
-        <div class="mb-3 flex items-center justify-between gap-3">
-          <h2 id="settlements-title" class="m-0 inline-flex items-center gap-2 text-base font-black">
-            <svg lucideScale class="size-4" aria-hidden="true"></svg>
-            Quem paga quem
-          </h2>
-          <isumi-badge variant="secondary">{{ state.settlements.length }}</isumi-badge>
-        </div>
-        <div class="mb-3 rounded-md bg-secondary p-3 text-sm">
-          <span class="block text-xs font-bold text-muted-foreground">Ainda falta pagar</span>
-          <strong class="text-base text-primary">{{ money(unpaidSettlementCents()) }}</strong>
-        </div>
-
-        @if (state.settlements.length === 0) {
-        <p class="m-0 text-sm leading-6 text-muted-foreground">Tudo certo por enquanto.</p>
-        } @else {
-        <div class="divide-y divide-border">
-          @for (settlement of state.settlements; track settlement.fromParticipantId + settlement.toParticipantId) {
-          <div class="grid gap-1 py-2.5 text-sm" [class.opacity-60]="settlement.paid">
-            <isumi-checkbox [checked]="settlement.paid" [disabled]="saving()" ariaLabel="Marcar acerto como pago"
-              (checkedChange)="updateSettlementPaid(settlement, $event)">
-              <span class="truncate">
-                <strong>{{ participantName(settlement.fromParticipantId) }}</strong>
-                paga
-                <strong>{{ participantName(settlement.toParticipantId) }}</strong>
-              </span>
-            </isumi-checkbox>
-            <span class="ml-7 font-black" [class.text-primary]="!settlement.paid"
-              [class.text-muted-foreground]="settlement.paid">
-              {{ money(settlement.amountCents) }}{{ settlement.paid ? " quitado" : "" }}
-            </span>
-          </div>
-          }
-        </div>
-        }
       </section>
     </aside>
 
@@ -171,10 +164,9 @@
         <div>
           <h2 id="receipt-title" class="m-0 inline-flex items-center gap-2 text-[1.15rem] font-black">
             <svg lucideReceiptText class="size-5" aria-hidden="true"></svg>
-            Nota da sala
+            Nota
           </h2>
-          <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">Linhas compactas para conferir valor, pagador e
-            divisao sem abrir varios cards.</p>
+          <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">Registre os gastos e adicione quem pagou.</p>
         </div>
         <isumi-badge variant="secondary">{{ state.items.length }} item(s)</isumi-badge>
       </div>
@@ -188,11 +180,6 @@
       </div>
       } @else {
       <div class="px-5 py-4 font-mono text-[0.82rem] leading-6">
-        <div class="grid gap-1 border-b border-dashed border-border pb-3 text-muted-foreground">
-          <span>{{ state.room.name }}</span>
-          <span>{{ state.participants.length }} pessoa(s), {{ state.items.length }} item(s)</span>
-        </div>
-
         <div class="divide-y divide-dashed divide-border">
           @for (item of state.items; track item.id) {
           <article class="grid gap-2 py-3">
@@ -271,35 +258,77 @@
           <div class="h-10 w-36 animate-pulse rounded-sm bg-muted max-sm:w-full"></div>
         </div>
       </div>
+
     </div>
 
-    <div class="grid grid-cols-3 overflow-hidden rounded-lg bg-secondary text-sm max-lg:grid-cols-2 max-sm:grid-cols-1">
-      @for (metric of [1, 2, 3]; track metric) {
-      <div class="grid gap-2 border-border p-4 max-lg:border-b max-sm:border-r-0">
-        <div class="h-3 w-20 animate-pulse rounded-sm bg-muted"></div>
-        <div class="h-6 w-28 animate-pulse rounded-sm bg-muted"></div>
-      </div>
-      }
-    </div>
-
-    <div class="grid grid-cols-[300px_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
+    <div class="grid grid-cols-[minmax(340px,380px)_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
       <aside class="grid content-start gap-4">
-        @for (panel of [1, 2, 3]; track panel) {
-        <section class="rounded-lg bg-card p-4">
+        <section class="rounded-lg bg-card p-5">
           <div class="mb-4 flex items-center justify-between gap-3">
-            <div class="h-5 w-36 animate-pulse rounded-sm bg-muted"></div>
-            <div class="h-6 w-10 animate-pulse rounded-sm bg-muted"></div>
+            <div class="h-5 w-40 animate-pulse rounded-sm bg-muted"></div>
+            <div class="h-7 w-28 animate-pulse rounded-full bg-muted"></div>
           </div>
-          <div class="divide-y divide-border">
+          <div class="mb-4 grid grid-cols-2 overflow-hidden rounded-md bg-secondary">
+            <div class="grid gap-2 p-3">
+              <div class="h-3 w-20 animate-pulse rounded-sm bg-muted"></div>
+              <div class="h-6 w-28 animate-pulse rounded-sm bg-muted"></div>
+            </div>
+            <div class="grid gap-2 p-3">
+              <div class="h-3 w-14 animate-pulse rounded-sm bg-muted"></div>
+              <div class="h-5 w-24 animate-pulse rounded-sm bg-muted"></div>
+            </div>
+          </div>
+          <div class="grid gap-2">
             @for (row of [1, 2, 3]; track row) {
-            <div class="grid gap-2 py-2.5">
-              <div class="h-4 w-4/5 animate-pulse rounded-sm bg-muted"></div>
-              <div class="h-3 w-2/5 animate-pulse rounded-sm bg-muted"></div>
+            <div class="grid gap-3 rounded-md bg-secondary p-3">
+              <div class="flex items-start justify-between gap-3">
+                <div class="size-5 animate-pulse rounded-sm bg-muted"></div>
+                <div class="h-5 w-28 animate-pulse rounded-sm bg-muted"></div>
+              </div>
+              <div class="grid grid-cols-[minmax(0,1fr)_28px_minmax(0,1fr)] items-center gap-2">
+                <div class="h-4 w-full animate-pulse rounded-sm bg-muted"></div>
+                <div class="size-7 animate-pulse rounded-full bg-muted"></div>
+                <div class="h-4 w-full animate-pulse rounded-sm bg-muted"></div>
+              </div>
+              <div class="flex items-center justify-between gap-3">
+                <div class="h-3 w-32 animate-pulse rounded-sm bg-muted"></div>
+                <div class="h-3 w-16 animate-pulse rounded-sm bg-muted"></div>
+              </div>
             </div>
             }
           </div>
         </section>
-        }
+
+        <section class="rounded-lg bg-card p-5">
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <div class="h-5 w-32 animate-pulse rounded-sm bg-muted"></div>
+            <div class="h-6 w-10 animate-pulse rounded-full bg-muted"></div>
+          </div>
+          <div class="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <div class="h-9 animate-pulse rounded-sm bg-muted"></div>
+            <div class="size-9 animate-pulse rounded-sm bg-muted"></div>
+          </div>
+          <div class="divide-y divide-border">
+            @for (row of [1, 2, 3]; track row) {
+            <div class="py-4">
+              <div class="grid grid-cols-[minmax(0,1fr)_auto_32px] items-start gap-3 max-[380px]:grid-cols-[minmax(0,1fr)_32px]">
+                <div class="flex min-w-0 items-center gap-3">
+                  <div class="size-8 animate-pulse rounded-full bg-muted"></div>
+                  <div class="grid min-w-0 gap-2">
+                    <div class="h-4 w-28 animate-pulse rounded-sm bg-muted"></div>
+                    <div class="h-3 w-16 animate-pulse rounded-sm bg-muted"></div>
+                  </div>
+                </div>
+                <div class="grid justify-items-end gap-2 max-[380px]:col-start-1 max-[380px]:row-start-2 max-[380px]:mt-2 max-[380px]:justify-items-start">
+                  <div class="h-5 w-24 animate-pulse rounded-sm bg-muted"></div>
+                  <div class="h-3 w-28 animate-pulse rounded-sm bg-muted"></div>
+                </div>
+                <div class="size-8 animate-pulse rounded-sm bg-muted"></div>
+              </div>
+            </div>
+            }
+          </div>
+        </section>
       </aside>
 
       <section class="receipt-shell overflow-hidden rounded-lg bg-popover text-popover-foreground">
@@ -312,10 +341,6 @@
         </div>
 
         <div class="px-5 py-4 font-mono text-[0.82rem] leading-6">
-          <div class="grid gap-2 border-b border-dashed border-border pb-3">
-            <div class="h-4 w-36 animate-pulse rounded-sm bg-muted"></div>
-            <div class="h-4 w-48 animate-pulse rounded-sm bg-muted"></div>
-          </div>
           <div class="divide-y divide-dashed divide-border">
             @for (item of [1, 2, 3, 4]; track item) {
             <article class="grid gap-2 py-3">

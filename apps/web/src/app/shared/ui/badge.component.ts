@@ -34,7 +34,7 @@ export class IsumiBadgeComponent implements OnChanges, OnInit {
       primary: "bg-purple-500/10 text-purple-400",
       secondary: "bg-secondary text-secondary-foreground"
     };
-    this.appliedClasses = splitClasses(`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-black ${variantClasses[this.variant()]}`);
+    this.appliedClasses = splitClasses(`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs ${variantClasses[this.variant()]}`);
 
     for (const className of this.appliedClasses) {
       this.renderer.addClass(this.element.nativeElement, className);

@@ -60,7 +60,7 @@
     } @else {
       @for (room of rooms(); track room.id) {
         <isumi-card [interactive]="true" class="grid gap-4">
-          <a class="grid gap-3 text-card-foreground no-underline" [routerLink]="['/tools/expenses', room.id]">
+          <a class="grid gap-3 text-card-foreground no-underline" [routerLink]="['/tools/expenses', room.id, 'room']">
             <span class="grid size-10 place-items-center rounded-sm bg-accent text-accent-foreground" aria-hidden="true">
               <svg lucideReceiptText class="size-5"></svg>
             </span>
