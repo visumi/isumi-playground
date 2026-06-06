@@ -8,7 +8,7 @@ import { IsumiModalEntry, IsumiModalService } from "./modal.service";
   imports: [NgComponentOutlet],
   template: `
     @for (entry of modal.entries(); track entry.id) {
-      <div class="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4 backdrop-blur-sm" [style.z-index]="50 + $index">
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm max-sm:items-end max-sm:p-0" [style.z-index]="50 + $index">
         <button
           type="button"
           class="absolute inset-0 cursor-default"
@@ -50,7 +50,7 @@ export class IsumiModalHostComponent {
 
   panelClasses(entry: IsumiModalEntry): string {
     return [
-      "relative z-10 max-h-[min(720px,calc(100dvh_-_32px))] w-[min(100%,560px)] overflow-y-auto rounded-lg bg-popover p-5 text-popover-foreground shadow-2xl shadow-black/40 outline-none",
+      "relative z-10 max-h-[min(720px,calc(100dvh_-_32px))] w-[min(100%,560px)] overscroll-contain overflow-y-auto rounded-lg bg-popover p-5 text-popover-foreground shadow-2xl shadow-black/40 outline-none max-sm:max-h-[calc(100dvh_-_24px)] max-sm:w-full max-sm:rounded-b-none max-sm:rounded-t-lg max-sm:border-t max-sm:border-border max-sm:p-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]",
       entry.panelClass
     ].filter(Boolean).join(" ");
   }

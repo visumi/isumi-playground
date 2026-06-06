@@ -1,0 +1,18 @@
+{
+  "tailwindCSS.experimental.configFile": "apps/web/src/styles.scss",
+  "tailwindCSS.includeLanguages": {
+    "html": "html",
+    "typescript": "typescript"
+  },
+  "tailwindCSS.classAttributes": [
+    "class",
+    "className",
+    "ngClass",
+    "routerLinkActive"
+  ],
+  "tailwindCSS.experimental.classRegex": [
+    ["[a-zA-Z0-9_-]*Classes\\s*=\\s*[\"'`]([^\"'`]*)[\"'`]"],
+    ["return\\s+`([^`]*)`"]
+  ],
+  "scss.validate": false
+}

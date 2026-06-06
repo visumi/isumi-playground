@@ -19,7 +19,7 @@
             Confira a nota, acompanhe os acertos e marque o que ja foi pago.
           </p>
         </div>
-        <isumi-button [loading]="saving()" [disabled]="state.participants.length === 0" (click)="openNewItemModal()">
+        <isumi-button mobileFull [loading]="saving()" [disabled]="state.participants.length === 0" (click)="openNewItemModal()">
           <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
           Adicionar item
         </isumi-button>
@@ -52,7 +52,7 @@
   }
 
   <div class="grid grid-cols-[minmax(340px,380px)_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
-    <aside class="grid content-start gap-4">
+    <aside class="grid content-start gap-4 max-lg:order-2">
       <section class="rounded-lg bg-card p-5" aria-labelledby="settlements-title">
         <div class="mb-4 grid gap-3">
           <div class="flex items-center justify-between gap-3">
@@ -185,7 +185,7 @@
     </aside>
 
     <section
-      class="receipt-shell flex min-h-[520px] flex-col self-start overflow-hidden rounded-lg bg-popover text-popover-foreground"
+      class="receipt-shell flex min-h-[520px] flex-col self-start overflow-hidden rounded-lg bg-popover text-popover-foreground max-lg:order-1"
       aria-labelledby="receipt-title" aria-live="polite">
       <div class="flex items-start justify-between gap-4 border-b border-dashed border-border p-5 max-sm:flex-col">
         <div>
@@ -369,7 +369,7 @@
     </header>
 
     <div class="grid grid-cols-[minmax(340px,380px)_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
-      <aside class="grid content-start gap-4">
+      <aside class="grid content-start gap-4 max-lg:order-2">
         <section class="rounded-lg bg-card p-5">
           <div class="mb-4 flex items-center justify-between gap-3">
             <div class="h-5 w-40 animate-pulse rounded-sm bg-muted"></div>
@@ -440,7 +440,7 @@
         </section>
       </aside>
 
-      <section class="receipt-shell overflow-hidden rounded-lg bg-popover text-popover-foreground">
+      <section class="receipt-shell overflow-hidden rounded-lg bg-popover text-popover-foreground max-lg:order-1">
         <div class="flex items-start justify-between gap-4 border-b border-dashed border-border p-5 max-sm:flex-col">
           <div class="grid w-full max-w-md gap-2">
             <div class="h-6 w-40 animate-pulse rounded-sm bg-muted"></div>

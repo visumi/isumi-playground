@@ -10,7 +10,7 @@ import { IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent } from ".
   imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent, LucideArrowRight, LucideShieldCheck, LucideUsers],
   template: `
     <section class="grid min-h-screen place-items-center bg-background px-4 py-8 text-foreground" aria-labelledby="invite-title">
-      <div class="grid w-full max-w-[560px] gap-6">
+      <div class="grid w-full max-w-140 gap-6">
         <div class="inline-flex items-center justify-center gap-3">
           <span class="relative left-0.5 grid h-10 w-10 place-items-center rounded-sm bg-purple-700 font-slab text-2xl font-bold text-purple-100" aria-hidden="true">泉</span>
           <strong class="font-extrabold font-slab text-2xl text-purple-200">playground.</strong>
@@ -23,7 +23,7 @@ import { IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent } from ".
                 <svg lucideUsers class="size-6"></svg>
               </span>
 
-              <div class="grid gap-3">
+              <div class="grid gap-3 ">
                 <p class="m-0 text-sm font-extrabold text-primary">Convite para dividir gastos</p>
                 <h1 id="invite-title" class="m-0 text-[2.15rem] font-black leading-tight tracking-[-0.03em] text-balance max-sm:text-[1.9rem]">
                   Entrar nesta sala?

@@ -1,42 +1,73 @@
 <div class="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] bg-background text-foreground max-md:grid-cols-1">
-  <aside class="sticky top-0 flex h-screen flex-col gap-7 overflow-y-auto border-r border-sidebar-border bg-sidebar px-5 py-5 max-md:relative max-md:h-auto max-md:border-r-0 max-md:border-b max-md:px-4">
-    <div class="mb-4 inline-flex items-center gap-3">
-      <span class="relative left-0.5 grid h-10 w-10 place-items-center rounded-sm bg-purple-700 font-slab text-2xl font-bold text-purple-100" aria-hidden="true">泉</span>
+  <aside class="sticky top-0 z-40 flex h-screen flex-col gap-7 overflow-y-auto border-r border-sidebar-border bg-sidebar px-5 py-5 max-md:h-16 max-md:min-h-0 max-md:flex-row max-md:items-center max-md:gap-3 max-md:overflow-visible max-md:border-r-0 max-md:border-b max-md:px-4 max-md:py-0">
+    <div class="mb-4 inline-flex items-center gap-3 max-md:mb-0 max-md:min-w-0 max-md:pr-20">
+      <span class="relative left-0.5 grid h-10 w-10 place-items-center rounded-sm bg-purple-700 font-slab text-2xl font-bold text-purple-100 max-md:size-9 max-md:text-xl" aria-hidden="true">泉</span>
       <div class="flex flex-col">
-        <strong class="font-extrabold font-slab text-lg text-purple-200">playground.</strong>
+        <strong class="font-extrabold font-slab text-lg text-purple-200 max-md:text-base">playground.</strong>
         <span class="text-xs font-bold text-muted-foreground">v{{ appVersion }}</span>
       </div>
     </div>
 
-    <nav class="grid gap-1.5 max-md:grid-cols-2" aria-label="Ferramentas">
-      <a isumiNavItem routerLink="/dashboard" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25" [routerLinkActiveOptions]="{ exact: true }">
+    <nav class="grid gap-1.5 max-md:fixed max-md:bottom-3 max-md:left-4 max-md:right-4 max-md:z-50 max-md:grid-cols-2 max-md:gap-1 max-md:rounded-lg max-md:border max-md:border-sidebar-border max-md:bg-sidebar/95 max-md:p-1 max-md:shadow-2xl max-md:shadow-black/45 max-md:backdrop-blur" aria-label="Ferramentas">
+      <a isumiNavItem routerLink="/dashboard" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25" [routerLinkActiveOptions]="{ exact: true }" (click)="closeAccountMenu()">
         <svg lucideLayoutDashboard class="size-4" aria-hidden="true"></svg>
         Dashboard
       </a>
-      <a isumiNavItem routerLink="/tools/expenses" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25">
+      <a isumiNavItem routerLink="/tools/expenses" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25" (click)="closeAccountMenu()">
         <svg lucideReceiptText class="size-4" aria-hidden="true"></svg>
         Dividir gastos
       </a>
     </nav>
 
-    <section class="mt-auto border-t border-sidebar-border pt-5 max-md:mt-0 max-md:border-t-0 max-md:pt-0" aria-label="Usuario logado">
-      <div class="flex min-w-0 items-center gap-3 rounded-sm px-1 py-1 text-muted-foreground">
+    <section class="mt-auto border-t border-sidebar-border pt-5 max-md:absolute max-md:right-4 max-md:top-1/2 max-md:mt-0 max-md:-translate-y-1/2 max-md:border-t-0 max-md:pt-0" aria-label="Usuario logado">
+      <div class="flex min-w-0 items-center gap-3 rounded-sm px-1 py-1 text-muted-foreground max-md:hidden">
         <isumi-avatar size="md" [src]="auth.profile()?.picture" [name]="auth.profile()?.name || auth.profile()?.email || 'Usuario'" />
         <div class="grid min-w-0 gap-0.5">
           <strong class="truncate text-sm font-bold text-foreground/85">{{ auth.profile()?.name || auth.profile()?.email || "Usuario" }}</strong>
           <span class="truncate text-xs">{{ auth.profile()?.email }}</span>
         </div>
 
-        <isumi-button class="ml-auto shrink-0" variant="ghost" size="sm" iconOnly ariaLabel="Sair" title="Sair" (click)="auth.logout()">
+        <isumi-button class="ml-auto shrink-0" variant="ghost" size="sm" iconOnly ariaLabel="Sair" title="Sair" (click)="logout()">
           <svg icon lucideLogOut class="size-4" aria-hidden="true"></svg>
           Sair
         </isumi-button>
+      </div>
+
+      <div class="relative hidden max-md:block" (click)="$event.stopPropagation()">
+        <button
+          type="button"
+          class="grid size-9 place-items-center rounded-full transition-colors"
+          aria-label="Abrir menu da conta"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="accountMenuOpen()"
+          (click)="toggleAccountMenu($event)"
+        >
+          <isumi-avatar size="md" [src]="auth.profile()?.picture" [name]="auth.profile()?.name || auth.profile()?.email || 'Usuario'" />
+        </button>
+
+        @if (accountMenuOpen()) {
+          <div
+            class="absolute right-0 top-12 z-50 grid w-64 gap-3 rounded-lg bg-popover p-3 text-popover-foreground shadow-2xl shadow-black"
+            role="menu"
+            aria-label="Menu da conta"
+          >
+            <div class="grid min-w-0 gap-0.5 border-b border-border pb-3">
+              <strong class="truncate text-sm font-bold text-foreground">{{ auth.profile()?.name || auth.profile()?.email || "Usuario" }}</strong>
+              <span class="truncate text-xs text-muted-foreground">{{ auth.profile()?.email }}</span>
+            </div>
+
+            <isumi-button variant="ghost-destructive" size="sm" fullWidth ariaLabel="Sair da conta" (click)="logout()">
+              <svg icon lucideLogOut class="size-4" aria-hidden="true"></svg>
+              Sair da conta
+            </isumi-button>
+          </div>
+        }
       </div>
     </section>
   </aside>
 
   <div class="min-w-0">
-    <main class="mx-auto w-[min(1120px,calc(100%_-_48px))] py-8 pb-14 max-md:w-[min(100%_-_32px,1120px)] max-md:py-6">
+    <main class="mx-auto w-[min(1120px,calc(100%_-_48px))] py-8 pb-14 max-md:w-[min(100%_-_32px,1120px)] max-md:py-5 max-md:pb-28">
       <router-outlet />
     </main>
   </div>

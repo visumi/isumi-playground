@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
+import { ChangeDetectionStrategy, Component, HostListener, inject, signal } from "@angular/core";
 import { LucideReceiptText, LucideLayoutDashboard, LucideLogOut } from "@lucide/angular";
 import { RouterLink, RouterLinkActive, RouterOutlet } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
@@ -16,4 +16,25 @@ import { environment } from "../../../environments/environment";
 export class ShellComponent {
   readonly auth = inject(AuthService);
   readonly appVersion = environment.appVersion;
+  readonly accountMenuOpen = signal(false);
+
+  @HostListener("document:click")
+  closeAccountMenu(): void {
+    this.accountMenuOpen.set(false);
+  }
+
+  @HostListener("document:keydown.escape")
+  closeAccountMenuFromEscape(): void {
+    this.accountMenuOpen.set(false);
+  }
+
+  toggleAccountMenu(event: MouseEvent): void {
+    event.stopPropagation();
+    this.accountMenuOpen.update((open) => !open);
+  }
+
+  logout(): void {
+    this.accountMenuOpen.set(false);
+    this.auth.logout();
+  }
 }
