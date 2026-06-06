@@ -203,7 +203,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       }
 
       if (request.method === "DELETE" && participantId) {
-        await deleteGuestParticipant(db, user.uid, roomId, participantId);
+        await deleteExpenseParticipant(db, user.uid, roomId, participantId);
         return new Response(null, { status: 204, headers: corsHeaders });
       }
     }
@@ -499,7 +499,7 @@ async function updateGuestParticipant(db: Client, userId: string, roomId: string
   return buildExpenseRoomDetail(db, roomId);
 }
 
-async function deleteGuestParticipant(db: Client, userId: string, roomId: string, participantId: string): Promise<void> {
+async function deleteExpenseParticipant(db: Client, userId: string, roomId: string, participantId: string): Promise<void> {
   await assertExpenseRoomOwner(db, roomId, userId);
   const participant = await findExpenseParticipant(db, roomId, participantId);
 
@@ -507,19 +507,7 @@ async function deleteGuestParticipant(db: Client, userId: string, roomId: string
     throw new HttpError(404, "not_found");
   }
 
-  if (participant.kind !== "guest") {
-    throw new HttpError(403, "cannot_delete_user_participant");
-  }
-
-  const payerResult = await db.execute({
-    sql: "SELECT COUNT(*) AS count FROM expense_items WHERE room_id = ? AND payer_participant_id = ?",
-    args: [roomId, participantId]
-  });
-  const payerCount = Number((payerResult.rows[0] as { count?: number | string } | undefined)?.count || 0);
-
-  if (payerCount > 0) {
-    throw new HttpError(409, "participant_pays_items");
-  }
+  await assertExpenseParticipantCanBeDeleted(db, roomId, participant);
 
   await db.execute({
     sql: "DELETE FROM expense_participants WHERE id = ? AND room_id = ?",
@@ -527,6 +515,39 @@ async function deleteGuestParticipant(db: Client, userId: string, roomId: string
   });
   await clearPaidSettlements(db, roomId);
   await touchExpenseRoom(db, roomId);
+}
+
+export async function assertExpenseParticipantCanBeDeleted(
+  db: Pick<Client, "execute">,
+  roomId: string,
+  participant: { id: string; role: "owner" | "member" | "guest" }
+): Promise<void> {
+  if (participant.role === "owner") {
+    throw new HttpError(403, "cannot_delete_owner_participant");
+  }
+
+  const linkedResult = await db.execute({
+    sql: `
+      SELECT 1
+      FROM expense_items
+      WHERE room_id = ? AND payer_participant_id = ?
+      UNION ALL
+      SELECT 1
+      FROM expense_item_splits s
+      INNER JOIN expense_items i ON i.id = s.item_id
+      WHERE i.room_id = ? AND s.participant_id = ?
+      UNION ALL
+      SELECT 1
+      FROM expense_paid_settlements
+      WHERE room_id = ? AND (from_participant_id = ? OR to_participant_id = ?)
+      LIMIT 1
+    `,
+    args: [roomId, participant.id, roomId, participant.id, roomId, participant.id, participant.id]
+  });
+
+  if (linkedResult.rows.length > 0) {
+    throw new HttpError(409, "participant_has_expense_links");
+  }
 }
 
 async function createExpenseItem(db: Client, userId: string, roomId: string, payload: ExpenseItemInput) {

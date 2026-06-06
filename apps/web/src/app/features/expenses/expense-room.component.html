@@ -29,7 +29,7 @@
 
   </header>
 
-  <dl class="grid grid-cols-3 overflow-hidden rounded-lg bg-secondary text-sm max-lg:grid-cols-2 max-sm:grid-cols-1">
+  <dl class="grid grid-cols-4 overflow-hidden rounded-lg bg-secondary text-sm max-lg:grid-cols-2 max-sm:grid-cols-1">
     <div class="grid gap-1 border-r border-border p-4 max-lg:border-b max-sm:border-r-0">
       <dt class="text-muted-foreground">Subtotal</dt>
       <dd class="m-0 text-lg font-black">{{ money(state.subtotalCents) }}</dd>
@@ -38,9 +38,13 @@
       <dt class="text-muted-foreground">Gorjeta</dt>
       <dd class="m-0 text-lg font-black">{{ money(state.tipAmountCents) }}</dd>
     </div>
-    <div class="grid gap-1 border-border p-4 max-sm:border-b max-sm:border-r-0">
+    <div class="grid gap-1 border-r border-border p-4 max-lg:border-r max-sm:border-b max-sm:border-r-0">
       <dt class="text-muted-foreground">Total final</dt>
       <dd class="m-0 text-lg font-black">{{ money(state.totalCents) }}</dd>
+    </div>
+    <div class="grid gap-1 border-border p-4">
+      <dt class="text-muted-foreground">Ainda falta pagar</dt>
+      <dd class="m-0 text-lg font-black text-primary">{{ money(unpaidSettlementCents()) }}</dd>
     </div>
   </dl>
 
@@ -83,9 +87,9 @@
                 </span>
               </div>
             </div>
-            @if (isOwner() && participant.kind === "guest") {
-            <isumi-button variant="ghost-destructive" size="sm" iconOnly ariaLabel="Remover convidado"
-              (click)="removeGuest(participant)">
+            @if (canRemoveParticipant(participant)) {
+            <isumi-button variant="ghost-destructive" size="sm" iconOnly ariaLabel="Remover participante"
+              [loading]="saving()" (click)="removeParticipant(participant)">
               <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
               Remover
             </isumi-button>
@@ -130,6 +134,10 @@
             Quem paga quem
           </h2>
           <isumi-badge variant="secondary">{{ state.settlements.length }}</isumi-badge>
+        </div>
+        <div class="mb-3 rounded-md bg-secondary p-3 text-sm">
+          <span class="block text-xs font-bold text-muted-foreground">Ainda falta pagar</span>
+          <strong class="text-base text-primary">{{ money(unpaidSettlementCents()) }}</strong>
         </div>
 
         @if (state.settlements.length === 0) {

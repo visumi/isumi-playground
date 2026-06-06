@@ -196,6 +196,11 @@ export class ExpenseRoomComponent implements OnInit {
   readonly tipPercent = signal("10");
   readonly participants = computed(() => this.detail()?.participants || []);
   readonly isOwner = computed(() => this.detail()?.room.ownerUserId === this.auth.profile()?.uid);
+  readonly unpaidSettlementCents = computed(() =>
+    (this.detail()?.settlements || [])
+      .filter((settlement) => !settlement.paid)
+      .reduce((total, settlement) => total + settlement.amountCents, 0)
+  );
 
   ngOnInit(): void {
     this.loadRoom();
@@ -247,11 +252,18 @@ export class ExpenseRoomComponent implements OnInit {
     });
   }
 
-  removeGuest(participant: ExpenseParticipant): void {
-    this.expenses.deleteGuest(this.roomId(), participant.id).subscribe({
+  removeParticipant(participant: ExpenseParticipant): void {
+    this.saving.set(true);
+    this.error.set(null);
+    this.expenses.deleteParticipant(this.roomId(), participant.id).subscribe({
       next: () => this.loadRoom(),
-      error: () => this.error.set("Nao foi possivel remover esta pessoa. Verifique se ela pagou algum item.")
+      error: () => this.error.set("Nao foi possivel remover esta pessoa. Ela ja esta em gastos, divisoes ou acertos."),
+      complete: () => this.saving.set(false)
     });
+  }
+
+  canRemoveParticipant(participant: ExpenseParticipant): boolean {
+    return this.isOwner() && participant.role !== "owner";
   }
 
   openNewItemModal(): void {

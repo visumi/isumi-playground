@@ -37,7 +37,7 @@ export class ExpensesService {
     return this.http.patch<ExpenseRoomDetail>(`${this.baseUrl}/${roomId}/participants/${participantId}`, payload);
   }
 
-  deleteGuest(roomId: string, participantId: string): Observable<void> {
+  deleteParticipant(roomId: string, participantId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${roomId}/participants/${participantId}`);
   }
 

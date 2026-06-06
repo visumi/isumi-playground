@@ -74,4 +74,12 @@ describe("ExpensesService", () => {
     expect(request.request.body.paid).toBeTrue();
     request.flush({});
   });
+
+  it("deletes a participant from a room", () => {
+    service.deleteParticipant("room-1", "participant-1").subscribe();
+
+    const request = http.expectOne("http://localhost:8787/tools/expenses/rooms/room-1/participants/participant-1");
+    expect(request.request.method).toBe("DELETE");
+    request.flush(null);
+  });
 });

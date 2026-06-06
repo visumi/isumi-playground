@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyTipToItems, calculateBalances, calculateItemSplits, calculateParticipantTotals, calculateTipAmountCents, optimizeSettlements } from "../src/index";
+import { applyTipToItems, assertExpenseParticipantCanBeDeleted, calculateBalances, calculateItemSplits, calculateParticipantTotals, calculateTipAmountCents, optimizeSettlements } from "../src/index";
 
 describe("expense calculations", () => {
   it("splits cents by share units with deterministic remainder distribution", () => {
@@ -82,5 +82,45 @@ describe("expense calculations", () => {
     expect(optimizeSettlements(balances)).toEqual([
       { fromParticipantId: "bruno", toParticipantId: "ana", amountCents: 550 }
     ]);
+  });
+});
+
+describe("expense participant deletion", () => {
+  function dbWithLinkedRows(rows: unknown[]) {
+    return {
+      execute: async () => ({ rows })
+    };
+  }
+
+  it("allows deleting guests and logged users without links", async () => {
+    await expect(assertExpenseParticipantCanBeDeleted(dbWithLinkedRows([]) as never, "room-1", {
+      id: "guest-1",
+      role: "guest"
+    })).resolves.toBeUndefined();
+
+    await expect(assertExpenseParticipantCanBeDeleted(dbWithLinkedRows([]) as never, "room-1", {
+      id: "user-1",
+      role: "member"
+    })).resolves.toBeUndefined();
+  });
+
+  it("blocks deleting the owner participant", async () => {
+    await expect(assertExpenseParticipantCanBeDeleted(dbWithLinkedRows([]) as never, "room-1", {
+      id: "owner-1",
+      role: "owner"
+    })).rejects.toMatchObject({
+      status: 403,
+      message: "cannot_delete_owner_participant"
+    });
+  });
+
+  it("blocks deleting participants linked to expenses, splits or paid settlements", async () => {
+    await expect(assertExpenseParticipantCanBeDeleted(dbWithLinkedRows([{ linked: 1 }]) as never, "room-1", {
+      id: "member-1",
+      role: "member"
+    })).rejects.toMatchObject({
+      status: 409,
+      message: "participant_has_expense_links"
+    });
   });
 });
