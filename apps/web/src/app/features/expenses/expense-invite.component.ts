@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from "@angular/core";
-import { Router, RouterLink } from "@angular/router";
-import { LucideArrowLeft, LucideArrowRight, LucideReceiptText, LucideShieldCheck, LucideUsers } from "@lucide/angular";
+import { Router } from "@angular/router";
+import { LucideArrowRight, LucideUsers } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
 import { IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent } from "../../shared/ui";
 
 @Component({
   selector: "isumi-expense-invite",
   standalone: true,
-  imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent, LucideArrowLeft, LucideArrowRight, LucideReceiptText, LucideShieldCheck, LucideUsers, RouterLink],
+  imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent, LucideArrowRight, LucideUsers],
   template: `
     <section class="grid min-h-[calc(100svh-10rem)] place-items-center py-8" aria-labelledby="invite-title">
       <div class="grid w-full max-w-3xl gap-4">
