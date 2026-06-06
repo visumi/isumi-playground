@@ -644,7 +644,7 @@ async function buildExpenseRoomDetail(db: Client, roomId: string) {
     return {
       ...settlement,
       paid: Boolean(paid && paid.amount_cents === settlement.amountCents),
-      paidAt: paid?.paid_at,
+      paidAt: paid ? toUtcIsoTimestamp(paid.paid_at) : undefined,
       paidByUserId: paid?.paid_by_user_id
     };
   });
@@ -1056,8 +1056,8 @@ function mapExpenseRoom(row: ExpenseRoomRow) {
     ownerUserId: row.owner_user_id,
     name: row.name,
     tipPercent: Number(row.tip_percent ?? 10),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
+    createdAt: toUtcIsoTimestamp(row.created_at),
+    updatedAt: toUtcIsoTimestamp(row.updated_at)
   };
 }
 
@@ -1070,8 +1070,8 @@ function mapExpenseParticipant(row: ExpenseParticipantRow) {
     picture: row.picture,
     kind: row.kind,
     role: row.role,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
+    createdAt: toUtcIsoTimestamp(row.created_at),
+    updatedAt: toUtcIsoTimestamp(row.updated_at)
   };
 }
 
@@ -1084,9 +1084,14 @@ function mapExpenseItem(row: ExpenseItemRow, splits: CalculatedSplit[]) {
     amountCents: row.amount_cents,
     createdByUserId: row.created_by_user_id,
     splits,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
+    createdAt: toUtcIsoTimestamp(row.created_at),
+    updatedAt: toUtcIsoTimestamp(row.updated_at)
   };
+}
+
+function toUtcIsoTimestamp(value: string): string {
+  const normalized = value.includes("T") ? value : value.replace(" ", "T");
+  return /(?:Z|[+-]\d{2}:?\d{2})$/.test(normalized) ? normalized : `${normalized}Z`;
 }
 
 function sanitizeRoomName(value: unknown): string {

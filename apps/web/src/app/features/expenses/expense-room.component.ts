@@ -2,22 +2,37 @@ import { DatePipe } from "@angular/common";
 import { HttpErrorResponse } from "@angular/common/http";
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { RouterLink } from "@angular/router";
-import { LucideArrowLeft, LucideArrowRight, LucideHandCoins, LucideConciergeBell, LucidePencil, LucidePlus, LucideReceiptText, LucideRefreshCw, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, LucideX } from "@lucide/angular";
+import { Router, RouterLink } from "@angular/router";
+import { LucideArrowLeft, LucideArrowRight, LucideCheck, LucideCopy, LucideHandCoins, LucideConciergeBell, LucideLink2, LucideMinus, LucidePencil, LucidePlus, LucideReceiptText, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, LucideX } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
 import { ExpenseItem, ExpenseParticipant, ExpenseParticipantTotal, ExpenseRoomDetail, ExpenseSettlement, UpsertExpenseItemRequest } from "../../core/api/api.types";
 import { AuthService } from "../../core/auth/auth.service";
-import { IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
+import { IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
 
 interface ExpenseItemModalData {
   participants: ExpenseParticipant[];
   item?: ExpenseItem;
 }
 
+const MAX_SPLIT_UNITS = 99;
+
+function normalizeDecimalInput(value: string | number, decimalPlaces: number): string {
+  const rawValue = String(value).replace(/[^\d,.]/g, "");
+  const separatorIndex = rawValue.search(/[,.]/);
+
+  if (separatorIndex === -1) {
+    return rawValue;
+  }
+
+  const whole = rawValue.slice(0, separatorIndex).replace(/[,.]/g, "");
+  const decimal = rawValue.slice(separatorIndex + 1).replace(/[,.]/g, "").slice(0, decimalPlaces);
+  return `${whole},${decimal}`;
+}
+
 @Component({
   selector: "isumi-expense-item-modal",
   standalone: true,
-  imports: [FormsModule, IsumiButtonComponent, IsumiInputDirective, LucideSave, LucideX],
+  imports: [FormsModule, IsumiAvatarComponent, IsumiButtonComponent, IsumiInputDirective, IsumiSelectDirective, LucideMinus, LucidePlus, LucideSave, LucideX],
   template: `
     <form class="grid gap-5" (ngSubmit)="submit()">
       <header class="flex items-start justify-between gap-4">
@@ -37,15 +52,16 @@ interface ExpenseItemModalData {
 
       <div class="grid grid-cols-[minmax(0,1fr)_150px] gap-3 max-sm:grid-cols-1">
         <label class="grid gap-2">
-          <span class="text-sm font-extrabold text-muted-foreground">Descricao</span>
+          <span class="text-sm font-extrabold text-muted-foreground">Item</span>
           <input
             isumiInput
             name="description"
             [ngModel]="description()"
-            (ngModelChange)="description.set($event)"
+            (ngModelChange)="description.set($event.slice(0, 160))"
             maxlength="160"
             autocomplete="off"
             placeholder="Mercado, hospedagem, ingresso..."
+            required
           >
         </label>
         <label class="grid gap-2">
@@ -54,9 +70,14 @@ interface ExpenseItemModalData {
             isumiInput
             name="amount"
             inputmode="decimal"
+            maxlength="14"
+            pattern="[0-9.,]*"
+            autocomplete="off"
             [ngModel]="amount()"
-            (ngModelChange)="amount.set($event)"
+            (ngModelChange)="setAmount($event)"
             placeholder="0,00"
+            aria-label="Valor do item em reais"
+            required
           >
         </label>
       </div>
@@ -64,7 +85,7 @@ interface ExpenseItemModalData {
       <label class="grid gap-2">
         <span class="text-sm font-extrabold text-muted-foreground">Quem pagou</span>
         <select
-          class="w-full rounded-sm border border-input bg-background px-3 py-3 text-foreground transition-colors hover:border-ring/60 focus-visible:border-primary/70 focus-visible:outline-none"
+          isumiSelect
           name="payer"
           [ngModel]="payerParticipantId()"
           (ngModelChange)="payerParticipantId.set($event)"
@@ -75,31 +96,65 @@ interface ExpenseItemModalData {
         </select>
       </label>
 
-      <div class="grid gap-2">
-        <span class="text-sm font-extrabold text-muted-foreground">Partes de cada pessoa</span>
-        <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2">
+      <section class="grid gap-3" aria-labelledby="split-title">
+        <div class="flex items-end justify-between gap-3">
+          <div>
+            <h3 id="split-title" class="m-0 text-sm font-extrabold text-muted-foreground">Partes de cada pessoa</h3>
+            <p class="m-0 mt-1 text-xs leading-5 text-muted-foreground">Use 0 para tirar alguem desta divisao.</p>
+          </div>
+          <span class="rounded-full bg-primary/10 px-2.5 py-1.5 text-xs font-black text-primary">
+            {{ totalSplitUnits() }} parte(s)
+          </span>
+        </div>
+
+        <div class="grid gap-2 rounded-lg bg-secondary p-2">
           @for (participant of participants(); track participant.id) {
-            <label class="grid gap-1 rounded-md bg-secondary p-3">
-              <span class="truncate text-sm font-bold">{{ participant.name }}</span>
-              <input
-                isumiInput
-                size="sm"
-                type="number"
-                min="0"
-                step="1"
-                [name]="'split-' + participant.id"
-                [ngModel]="splitUnit(participant.id)"
-                (ngModelChange)="setSplitUnit(participant.id, $event)"
-                aria-label="Partes de {{ participant.name }}"
-              >
-            </label>
+            <div class="grid gap-2 rounded-md bg-background/70 p-3">
+              <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                <div class="flex min-w-0 items-center gap-3">
+                  <isumi-avatar size="md" [src]="participant.picture" [name]="participant.name" />
+                  <div class="min-w-0">
+                    <strong class="block truncate text-sm">{{ participant.name }}</strong>
+                    <span class="text-xs text-muted-foreground">{{ splitPercent(participant.id) }}% da divisao</span>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-[32px_64px_32px] items-center gap-1">
+                  <isumi-button type="button" variant="ghost" size="sm" iconOnly ariaLabel="Diminuir partes de {{ participant.name }}" (click)="decrementSplitUnit(participant.id)">
+                    <svg icon lucideMinus class="size-4" aria-hidden="true"></svg>
+                    Diminuir
+                  </isumi-button>
+                  <input
+                    isumiInput
+                    size="sm"
+                    class="text-center font-mono font-bold"
+                    type="number"
+                    min="0"
+                    [max]="maxSplitUnits"
+                    step="1"
+                    [name]="'split-' + participant.id"
+                    [ngModel]="splitUnit(participant.id)"
+                    (ngModelChange)="setSplitUnit(participant.id, $event)"
+                    aria-label="Partes de {{ participant.name }}"
+                  >
+                  <isumi-button type="button" variant="ghost" size="sm" iconOnly ariaLabel="Aumentar partes de {{ participant.name }}" (click)="incrementSplitUnit(participant.id)">
+                    <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
+                    Aumentar
+                  </isumi-button>
+                </div>
+              </div>
+
+              <div class="h-1.5 overflow-hidden rounded-full bg-secondary">
+                <div class="h-full rounded-full bg-primary transition-[width]" [style.width.%]="splitPercent(participant.id)"></div>
+              </div>
+            </div>
           }
         </div>
-      </div>
+      </section>
 
       <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-2">
         <isumi-button variant="secondary" type="button" (click)="modalRef.close()">Cancelar</isumi-button>
-        <isumi-button type="submit">
+        <isumi-button type="submit" [disabled]="!canSubmit()">
           <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
           {{ data?.item ? "Salvar item" : "Adicionar item" }}
         </isumi-button>
@@ -117,6 +172,13 @@ export class ExpenseItemModalComponent {
   readonly payerParticipantId = signal(this.data?.item?.payerParticipantId || this.participants()[0]?.id || "");
   readonly splitUnits = signal<Record<string, number>>(this.initialSplitUnits());
   readonly error = signal<string | null>(null);
+  readonly maxSplitUnits = MAX_SPLIT_UNITS;
+  readonly totalSplitUnits = computed(() =>
+    Object.values(this.splitUnits()).reduce((total, shareUnits) => total + Math.max(0, shareUnits), 0)
+  );
+  readonly canSubmit = computed(() =>
+    Boolean(this.parseMoney(this.amount()) && this.payerParticipantId() && this.totalSplitUnits() > 0)
+  );
 
   splitUnit(participantId: string): number {
     return this.splitUnits()[participantId] || 0;
@@ -124,7 +186,29 @@ export class ExpenseItemModalComponent {
 
   setSplitUnit(participantId: string, value: string | number): void {
     const parsed = Number(value) || 0;
-    this.splitUnits.update((units) => ({ ...units, [participantId]: Math.max(0, Math.trunc(parsed)) }));
+    this.splitUnits.update((units) => ({ ...units, [participantId]: Math.min(MAX_SPLIT_UNITS, Math.max(0, Math.trunc(parsed))) }));
+  }
+
+  setAmount(value: string | number): void {
+    this.amount.set(normalizeDecimalInput(value, 2));
+  }
+
+  incrementSplitUnit(participantId: string): void {
+    this.setSplitUnit(participantId, this.splitUnit(participantId) + 1);
+  }
+
+  decrementSplitUnit(participantId: string): void {
+    this.setSplitUnit(participantId, this.splitUnit(participantId) - 1);
+  }
+
+  splitPercent(participantId: string): number {
+    const total = this.totalSplitUnits();
+
+    if (total === 0) {
+      return 0;
+    }
+
+    return Math.round((this.splitUnit(participantId) / total) * 100);
   }
 
   submit(): void {
@@ -178,7 +262,7 @@ export class ExpenseItemModalComponent {
 @Component({
   selector: "isumi-expense-room",
   standalone: true,
-  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowLeft, LucideArrowRight, LucideReceiptText, LucideHandCoins, LucidePencil, LucidePlus, LucideConciergeBell, LucideRefreshCw, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, RouterLink],
+  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowLeft, LucideArrowRight, LucideCheck, LucideCopy, LucideLink2, LucideReceiptText, LucideHandCoins, LucidePencil, LucidePlus, LucideConciergeBell, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, RouterLink],
   templateUrl: "./expense-room.component.html",
   styleUrl: "./expense-room.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -186,8 +270,10 @@ export class ExpenseItemModalComponent {
 export class ExpenseRoomComponent implements OnInit, OnDestroy {
   private readonly expenses = inject(ExpensesService);
   private readonly modal = inject(IsumiModalService);
+  private readonly router = inject(Router);
   private readonly autoRefreshMs = 5000;
   private autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  private copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
   private refreshingRoom = false;
   private readonly handleVisibilityChange = (): void => this.syncAutoRefreshWithVisibility();
   readonly auth = inject(AuthService);
@@ -196,10 +282,14 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   readonly detail = signal<ExpenseRoomDetail | null>(null);
   readonly loading = signal(false);
   readonly saving = signal(false);
+  readonly savingItemId = signal<string | null>(null);
+  readonly deletingItemId = signal<string | null>(null);
+  readonly copiedInviteUrl = signal(false);
   readonly error = signal<string | null>(null);
   readonly guestName = signal("");
   readonly tipPercent = signal("10");
   readonly savingSettlementKey = signal<string | null>(null);
+  readonly canSaveTipPercent = computed(() => this.parsePercent(this.tipPercent()) !== null);
   readonly participants = computed(() => this.detail()?.participants || []);
   readonly isOwner = computed(() => this.detail()?.room.ownerUserId === this.auth.profile()?.uid);
   readonly unpaidSettlementCents = computed(() =>
@@ -234,6 +324,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     document.removeEventListener("visibilitychange", this.handleVisibilityChange);
     this.stopAutoRefresh();
+    this.clearCopyFeedbackTimer();
   }
 
   loadRoom(): void {
@@ -353,10 +444,48 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   }
 
   deleteItem(item: ExpenseItem): void {
+    if (this.deletingItemId()) {
+      return;
+    }
+
+    this.deletingItemId.set(item.id);
+    this.error.set(null);
     this.expenses.deleteItem(this.roomId(), item.id).subscribe({
       next: () => this.loadRoom(),
-      error: () => this.error.set("Nao foi possivel remover o item.")
+      error: () => {
+        this.error.set("Nao foi possivel remover o item.");
+        this.deletingItemId.set(null);
+      },
+      complete: () => this.deletingItemId.set(null)
     });
+  }
+
+  async copyInviteUrl(): Promise<void> {
+    const inviteUrl = this.inviteUrl();
+
+    try {
+      let copied = false;
+
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(inviteUrl);
+          copied = true;
+        } catch {
+          copied = false;
+        }
+      }
+
+      if (!copied) {
+        this.copyWithTextarea(inviteUrl);
+      }
+
+      this.error.set(null);
+      this.copiedInviteUrl.set(true);
+      this.clearCopyFeedbackTimer();
+      this.copyFeedbackTimer = setTimeout(() => this.copiedInviteUrl.set(false), 2500);
+    } catch {
+      this.error.set("Nao foi possivel copiar o link da sala.");
+    }
   }
 
   updateSettlementPaid(settlement: ExpenseSettlement, paid: boolean): void {
@@ -399,6 +528,41 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     };
   }
 
+  setTipPercent(value: string | number): void {
+    const normalized = normalizeDecimalInput(value, 2);
+    const parsed = Number(normalized.replace(",", "."));
+    this.tipPercent.set(Number.isFinite(parsed) && parsed > 100 ? "100" : normalized);
+  }
+
+  private inviteUrl(): string {
+    const path = this.router.serializeUrl(this.router.createUrlTree(["/tools/expenses", this.roomId()]));
+    return `${window.location.origin}${path}`;
+  }
+
+  private copyWithTextarea(value: string): void {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    const copied = document.execCommand("copy");
+    textarea.remove();
+
+    if (!copied) {
+      throw new Error("Copy command failed");
+    }
+  }
+
+  private clearCopyFeedbackTimer(): void {
+    if (this.copyFeedbackTimer) {
+      clearTimeout(this.copyFeedbackTimer);
+      this.copyFeedbackTimer = null;
+    }
+  }
+
   private setDetail(detail: ExpenseRoomDetail): void {
     this.detail.set(detail);
     this.tipPercent.set(this.formatPercent(detail.tipPercent));
@@ -407,8 +571,8 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   private handleRoomLoadError(error: unknown, options: { showLoading: boolean; silent: boolean }): void {
     if (error instanceof HttpErrorResponse && error.status === 403) {
       this.detail.set(null);
-      this.error.set("Voce nao participa mais desta sala. Aceite um novo convite para entrar de novo.");
       this.stopAutoRefresh();
+      void this.router.navigate(["/tools/expenses", this.roomId()]);
     } else if (!options.silent) {
       this.error.set("Nao foi possivel carregar esta sala.");
     }
@@ -462,14 +626,19 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
       : this.expenses.createItem(this.roomId(), payload);
 
     this.saving.set(true);
+    this.savingItemId.set(itemId ?? "new");
     this.error.set(null);
     request.subscribe({
       next: (updated) => this.setDetail(updated),
       error: () => {
         this.error.set("Nao foi possivel salvar o item. Confira valor, pagador e partes.");
         this.saving.set(false);
+        this.savingItemId.set(null);
       },
-      complete: () => this.saving.set(false)
+      complete: () => {
+        this.saving.set(false);
+        this.savingItemId.set(null);
+      }
     });
   }
 

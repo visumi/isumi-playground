@@ -1,69 +1,61 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from "@angular/core";
-import { Router, RouterLink } from "@angular/router";
-import { LucideArrowLeft, LucideArrowRight, LucideReceiptText, LucideShieldCheck, LucideUsers } from "@lucide/angular";
+import { Router } from "@angular/router";
+import { LucideArrowRight, LucideShieldCheck, LucideUsers } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
 import { IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent } from "../../shared/ui";
 
 @Component({
   selector: "isumi-expense-invite",
   standalone: true,
-  imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent, LucideArrowLeft, LucideArrowRight, LucideReceiptText, LucideShieldCheck, LucideUsers, RouterLink],
+  imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent, LucideArrowRight, LucideShieldCheck, LucideUsers],
   template: `
-    <section class="grid min-h-[calc(100svh-10rem)] place-items-center py-8" aria-labelledby="invite-title">
-      <div class="grid w-full max-w-3xl gap-4">
-        <a class="inline-flex w-fit items-center gap-2 text-sm font-extrabold text-muted-foreground no-underline hover:text-foreground" routerLink="/tools/expenses">
-          <svg lucideArrowLeft class="size-4" aria-hidden="true"></svg>
-          Voltar para salas
-        </a>
+    <section class="grid min-h-screen place-items-center bg-background px-4 py-8 text-foreground" aria-labelledby="invite-title">
+      <div class="grid w-full max-w-[560px] gap-6">
+        <div class="inline-flex items-center justify-center gap-3">
+          <span class="relative left-0.5 grid h-10 w-10 place-items-center rounded-sm bg-purple-700 font-slab text-2xl font-bold text-purple-100" aria-hidden="true">泉</span>
+          <strong class="font-extrabold font-slab text-2xl text-purple-200">playground.</strong>
+        </div>
 
         <isumi-card padding="xl" class="overflow-hidden">
-          <div class="grid grid-cols-[minmax(0,1fr)_180px] gap-8 max-md:grid-cols-1">
-            <div class="grid content-start gap-6">
+          <div class="grid gap-7">
+            <div class="grid justify-items-center gap-4 text-center">
               <span class="grid size-12 place-items-center rounded-md bg-primary text-primary-foreground" aria-hidden="true">
                 <svg lucideUsers class="size-6"></svg>
               </span>
 
               <div class="grid gap-3">
                 <p class="m-0 text-sm font-extrabold text-primary">Convite para dividir gastos</p>
-                <h1 id="invite-title" class="m-0 max-w-[12ch] text-[2.35rem] font-black leading-[1.04] tracking-[-0.035em] text-balance max-sm:text-[2rem]">
+                <h1 id="invite-title" class="m-0 text-[2.15rem] font-black leading-tight tracking-[-0.03em] text-balance max-sm:text-[1.9rem]">
                   Entrar nesta sala?
                 </h1>
-                <p class="m-0 max-w-[58ch] leading-6 text-muted-foreground">
-                  Ao aceitar, seu perfil entra na sala e você poderá ver os gastos, adicionar itens e acompanhar os acertos.
+                <p class="m-0 max-w-[46ch] leading-6 text-muted-foreground text-pretty">
+                  Aceite o convite para ver os gastos, adicionar itens e acompanhar os acertos com o grupo.
                 </p>
-              </div>
-
-              @if (error()) {
-                <isumi-alert>{{ error() }}</isumi-alert>
-              }
-
-              <div class="flex gap-2 max-sm:grid">
-                <isumi-button size="lg" mobileFull [loading]="joining()" (click)="acceptInvite()">
-                  <svg icon lucideArrowRight class="size-4" aria-hidden="true"></svg>
-                  Aceitar convite
-                </isumi-button>
-                <isumi-button variant="secondary" size="lg" mobileFull routerLink="/tools/expenses">
-                  Ver minhas salas
-                </isumi-button>
               </div>
             </div>
 
-            <aside class="grid content-start gap-3 rounded-lg bg-secondary p-4 text-sm">
-              <div class="flex items-center gap-2 text-secondary-foreground">
-                <svg lucideReceiptText class="size-4" aria-hidden="true"></svg>
-                <strong>Sala compartilhada</strong>
-              </div>
-              <p class="m-0 leading-6 text-muted-foreground">
-                O link só confirma sua entrada depois do clique. Se você não reconhece esse convite, volte para suas salas.
-              </p>
-              <div class="rounded-md bg-background p-3 font-mono text-xs text-muted-foreground">
+            <div class="flex items-center justify-between gap-4 rounded-md bg-secondary px-4 py-3 max-sm:grid max-sm:gap-2">
+              <span class="text-sm font-extrabold text-muted-foreground">ID da sala</span>
+              <code class="min-w-0 truncate rounded-sm bg-background px-2.5 py-1.5 font-mono text-sm font-bold text-foreground">
                 {{ shortRoomId() }}
-              </div>
-              <div class="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+              </code>
+            </div>
+
+            @if (error()) {
+              <isumi-alert>{{ error() }}</isumi-alert>
+            }
+
+            <div class="grid gap-3">
+              <isumi-button size="lg" fullWidth [loading]="joining()" (click)="acceptInvite()">
+                <svg icon lucideArrowRight class="size-4" aria-hidden="true"></svg>
+                Aceitar convite
+              </isumi-button>
+
+              <div class="flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground">
                 <svg lucideShieldCheck class="size-4 text-primary" aria-hidden="true"></svg>
-                Login necessário para aceitar
+                Login necessario para aceitar
               </div>
-            </aside>
+            </div>
           </div>
         </isumi-card>
       </div>

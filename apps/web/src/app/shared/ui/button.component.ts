@@ -22,7 +22,7 @@ export type IsumiButtonType = "button" | "submit" | "reset";
         </span>
       }
       @if (!iconOnly()) {
-        <span class="truncate">
+        <span class="min-w-0 truncate text-center">
           <ng-content />
         </span>
       }

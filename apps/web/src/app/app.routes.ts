@@ -14,6 +14,11 @@ export const routes: Routes = [
     canActivate: [publicOnlyGuard]
   },
   {
+    path: "tools/expenses/:roomId",
+    component: ExpenseInviteComponent,
+    canActivate: [authGuard]
+  },
+  {
     path: "",
     component: ShellComponent,
     canActivate: [authGuard],
@@ -21,7 +26,6 @@ export const routes: Routes = [
       { path: "", pathMatch: "full", redirectTo: "dashboard" },
       { path: "dashboard", component: DashboardComponent },
       { path: "tools/expenses", component: ExpenseRoomsComponent },
-      { path: "tools/expenses/:roomId", component: ExpenseInviteComponent },
       { path: "tools/expenses/:roomId/room", component: ExpenseRoomComponent }
     ]
   },

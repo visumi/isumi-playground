@@ -1,7 +1,9 @@
+import { HttpErrorResponse } from "@angular/common/http";
 import { signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
+import { Router } from "@angular/router";
 import { provideRouter } from "@angular/router";
-import { of } from "rxjs";
+import { of, throwError } from "rxjs";
 import { ExpensesService } from "../../core/api/expenses.service";
 import { ExpenseRoomDetail } from "../../core/api/api.types";
 import { AuthService } from "../../core/auth/auth.service";
@@ -49,6 +51,23 @@ describe("ExpenseRoomComponent", () => {
     fixture.componentInstance.detail.set(roomDetail());
 
     expect(fixture.componentInstance.unpaidSettlementCents()).toBe(1250);
+  });
+
+  it("redirects removed users back to the invite screen", () => {
+    TestBed.overrideProvider(ExpensesService, {
+      useValue: {
+        getRoom: () => throwError(() => new HttpErrorResponse({ status: 403 })),
+        deleteParticipant: () => of(undefined)
+      }
+    });
+    const router = TestBed.inject(Router);
+    spyOn(router, "navigate").and.resolveTo(true);
+    const fixture = TestBed.createComponent(ExpenseRoomComponent);
+    fixture.componentRef.setInput("roomId", "room-1");
+
+    fixture.componentInstance.loadRoom();
+
+    expect(router.navigate).toHaveBeenCalledWith(["/tools/expenses", "room-1"]);
   });
 });
 

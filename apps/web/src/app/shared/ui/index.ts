@@ -10,3 +10,4 @@ export * from "./modal-host.component";
 export * from "./modal.service";
 export * from "./nav-item.directive";
 export * from "./page-header.component";
+export * from "./select.directive";

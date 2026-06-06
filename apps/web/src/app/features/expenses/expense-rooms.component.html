@@ -1,39 +1,43 @@
-<section class="grid gap-5" aria-labelledby="expenses-title">
-  <isumi-page-header eyebrow="Ferramenta" title="Dividir gastos" titleId="expenses-title">
-    <isumi-button actions variant="secondary" mobileFull [loading]="loading()" (click)="loadRooms()">
-      <svg icon lucideRefreshCw class="size-4" aria-hidden="true"></svg>
-      Atualizar
-    </isumi-button>
-  </isumi-page-header>
+<section class="grid gap-6" aria-labelledby="expenses-title">
+  <isumi-page-header eyebrow="Ferramenta" title="Dividir gastos" titleId="expenses-title" />
 
   <form class="grid gap-4" (ngSubmit)="createRoom()">
-    <isumi-card class="grid gap-4">
-      <div class="flex items-start justify-between gap-4 max-sm:flex-col">
-        <div>
-          <h2 class="mb-1.5 mt-0 inline-flex items-center gap-2 text-[1.2rem] font-black">
-            <svg lucideWalletCards class="size-5" aria-hidden="true"></svg>
-            Nova sala
-          </h2>
-          <p class="m-0 leading-6 text-muted-foreground">Crie uma sala e compartilhe o link com quem vai participar.</p>
-        </div>
-        <isumi-button type="submit" mobileFull [loading]="saving()">
-          <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
-          Criar sala
-        </isumi-button>
-      </div>
+    <isumi-card>
+      <div class="grid w-full gap-5">
+        <div class="flex items-center gap-4 max-sm:flex-col max-sm:text-center">
+          <span class="grid size-11 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground" aria-hidden="true">
+            <svg lucideWalletCards class="size-5"></svg>
+          </span>
 
-      <label class="grid gap-2">
-        <span class="text-sm font-extrabold text-muted-foreground">Nome</span>
-        <input
-          isumiInput
-          name="roomName"
-          [ngModel]="roomName()"
-          (ngModelChange)="roomName.set($event)"
-          maxlength="120"
-          autocomplete="off"
-          placeholder="Viagem, churrasco, mercado..."
-        >
-      </label>
+          <div>
+            <h2 class="m-0 text-[1.35rem] font-black leading-tight">Criar sala</h2>
+            <p class="m-0 mt-2 max-w-[58ch] leading-6 text-muted-foreground">
+              Nomeie a sala e envie o convite para quem vai participar.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 max-sm:grid-cols-1">
+          <label class="grid gap-2">
+            <span class="text-sm font-extrabold text-muted-foreground">Nome da sala</span>
+            <input
+              isumiInput
+              name="roomName"
+              [ngModel]="roomName()"
+              (ngModelChange)="roomName.set($event.slice(0, 120))"
+              maxlength="120"
+              autocomplete="off"
+              placeholder="Viagem, churrasco, mercado..."
+              aria-label="Nome da sala"
+            >
+          </label>
+
+          <isumi-button type="submit" size="lg" mobileFull [loading]="saving()">
+            <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
+            Criar sala
+          </isumi-button>
+        </div>
+      </div>
     </isumi-card>
   </form>
 
@@ -41,40 +45,66 @@
     <isumi-alert>{{ error() }}</isumi-alert>
   }
 
-  <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4 max-sm:grid-cols-1" aria-live="polite">
-    @if (loading()) {
-      @for (placeholder of [1, 2]; track placeholder) {
-        <div class="grid min-h-48 gap-4 rounded-lg bg-card p-5" aria-label="Carregando salas">
-          <div class="size-10 animate-pulse rounded-sm bg-muted"></div>
-          <div class="grid gap-2">
-            <div class="h-5 w-3/5 animate-pulse rounded-sm bg-muted"></div>
-            <div class="h-4 w-2/5 animate-pulse rounded-sm bg-muted"></div>
-          </div>
-          <div class="mt-auto h-4 w-24 animate-pulse rounded-sm bg-muted"></div>
-        </div>
+  <section class="grid gap-3" aria-labelledby="rooms-title">
+    <div class="flex items-end justify-between gap-4 max-sm:flex-col max-sm:items-start">
+      <div>
+        <h2 id="rooms-title" class="m-0 text-[1.15rem] font-black">Suas salas</h2>
+        <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">Continue uma divisao aberta ou crie uma nova acima.</p>
+      </div>
+      @if (!loading()) {
+        <isumi-badge variant="primary">{{ rooms().length }} sala(s)</isumi-badge>
       }
-    } @else if (rooms().length === 0) {
-      <isumi-empty-state class="col-span-full" title="Nenhuma sala ainda" description="Crie uma sala para comecar a organizar os gastos.">
-        <svg icon lucideReceiptText class="size-5" aria-hidden="true"></svg>
-      </isumi-empty-state>
-    } @else {
-      @for (room of rooms(); track room.id) {
-        <isumi-card [interactive]="true" class="grid gap-4">
-          <a class="grid gap-3 text-card-foreground no-underline" [routerLink]="['/tools/expenses', room.id, 'room']">
-            <span class="grid size-10 place-items-center rounded-sm bg-accent text-accent-foreground" aria-hidden="true">
-              <svg lucideReceiptText class="size-5"></svg>
-            </span>
-            <div>
-              <h2 class="m-0 text-[1.15rem] font-black">{{ room.name }}</h2>
-              <time class="mt-1 block text-sm text-muted-foreground" [dateTime]="room.updatedAt">Atualizada {{ room.updatedAt | date:'short' }}</time>
+    </div>
+
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 max-sm:grid-cols-1" aria-live="polite">
+      @if (loading()) {
+        @for (placeholder of [1, 2, 3]; track placeholder) {
+          <div class="grid min-h-48 gap-4 rounded-lg bg-card p-5" aria-label="Carregando salas">
+            <div class="flex items-start justify-between gap-3">
+              <div class="size-10 animate-pulse rounded-sm bg-muted"></div>
+              <div class="h-6 w-20 animate-pulse rounded-full bg-muted"></div>
             </div>
-            <strong class="inline-flex items-center gap-2 text-sm font-black">
-              Abrir sala
-              <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
-            </strong>
-          </a>
-        </isumi-card>
+            <div class="grid gap-2">
+              <div class="h-5 w-3/5 animate-pulse rounded-sm bg-muted"></div>
+              <div class="h-4 w-4/5 animate-pulse rounded-sm bg-muted"></div>
+            </div>
+            <div class="mt-auto h-4 w-24 animate-pulse rounded-sm bg-muted"></div>
+          </div>
+        }
+      } @else if (rooms().length === 0) {
+        <isumi-empty-state class="col-span-full" title="Nenhuma sala ainda" description="Crie uma sala para comecar a organizar os gastos.">
+          <svg icon lucideReceiptText class="size-5" aria-hidden="true"></svg>
+        </isumi-empty-state>
+      } @else {
+        @for (room of rooms(); track room.id) {
+          <isumi-card [interactive]="true" class="grid min-h-48 gap-4">
+            <a class="grid min-h-full gap-4 text-card-foreground no-underline" [routerLink]="['/tools/expenses', room.id, 'room']">
+              <div class="flex items-start justify-between gap-3">
+                <span class="grid size-10 place-items-center rounded-sm bg-accent text-accent-foreground" aria-hidden="true">
+                  <svg lucideReceiptText class="size-5"></svg>
+                </span>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1.5 font-mono text-[0.7rem] font-black text-muted-foreground">
+                  <svg lucideHash class="size-3" aria-hidden="true"></svg>
+                  {{ room.id.slice(0, 6) }}
+                </span>
+              </div>
+
+              <div class="grid gap-2">
+                <h3 class="m-0 truncate text-[1.15rem] font-black">{{ room.name }}</h3>
+                <time class="inline-flex items-center gap-2 text-sm text-muted-foreground" [dateTime]="room.updatedAt">
+                  <svg lucideCalendar class="size-4" aria-hidden="true"></svg>
+                  Atualizada {{ room.updatedAt | date: "dd/MM/yyyy HH:mm" }}
+                </time>
+              </div>
+
+              <strong class="mt-auto inline-flex items-center gap-2 text-sm font-black text-primary">
+                Abrir sala
+                <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
+              </strong>
+            </a>
+          </isumi-card>
+        }
       }
-    }
-  </div>
+    </div>
+  </section>
 </section>

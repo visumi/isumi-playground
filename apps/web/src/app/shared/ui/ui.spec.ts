@@ -5,10 +5,11 @@ import { IsumiAlertComponent } from "./alert.component";
 import { IsumiButtonComponent } from "./button.component";
 import { IsumiEmptyStateComponent } from "./empty-state.component";
 import { IsumiInputDirective } from "./input.directive";
+import { IsumiSelectDirective } from "./select.directive";
 
 @Component({
   standalone: true,
-  imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective],
+  imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective],
   template: `
     <isumi-button variant="secondary" size="sm" disabled>
       <span icon data-testid="icon"></span>
@@ -22,6 +23,9 @@ import { IsumiInputDirective } from "./input.directive";
     <isumi-button variant="ghost-destructive">Remover</isumi-button>
     <input isumiInput name="title" maxlength="120" autocomplete="off" placeholder="Titulo">
     <textarea isumiInput rows="4"></textarea>
+    <select isumiSelect name="kind">
+      <option value="one">Um</option>
+    </select>
     <isumi-alert>Falha ao salvar.</isumi-alert>
     <isumi-empty-state title="Nada aqui" description="Crie um item.">
       <span icon data-testid="empty-icon"></span>
@@ -92,6 +96,15 @@ describe("shared ui", () => {
     expect(input.classList).toContain("focus-visible:ring-0");
     expect(textarea.rows).toBe(4);
     expect(textarea.classList).toContain("resize-y");
+  });
+
+  it("styles native selects without replacing the native control", () => {
+    const select = fixture.debugElement.query(By.css("select")).nativeElement as HTMLSelectElement;
+
+    expect(select.name).toBe("kind");
+    expect(select.options.length).toBe(1);
+    expect(select.classList).toContain("border-input");
+    expect(select.classList).toContain("focus-visible:ring-0");
   });
 
   it("marks error alerts for assistive technology", () => {
