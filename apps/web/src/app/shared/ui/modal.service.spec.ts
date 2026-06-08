@@ -1,5 +1,5 @@
 import { Component } from "@angular/core";
-import { TestBed } from "@angular/core/testing";
+import { fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { ISUMI_MODAL_DATA, ISUMI_MODAL_REF, IsumiModalService, injectIsumiModalData, injectIsumiModalRef } from "./modal.service";
 
 @Component({
@@ -33,19 +33,26 @@ describe("IsumiModalService", () => {
     expect(entry.ariaLabel).toBe("Confirmacao");
     expect(entry.panelClass).toBe("max-w-sm");
     expect(entry.closeOnBackdrop).toBeFalse();
+    expect(entry.closing).toBeFalse();
     expect(entry.injector.get(ISUMI_MODAL_DATA)).toEqual({ title: "Confirmar" });
     expect(entry.injector.get(ISUMI_MODAL_REF)).toBe(ref);
   });
 
-  it("emits the result when a modal closes", (done) => {
+  it("emits the result after the close animation finishes", fakeAsync(() => {
     const ref = service.open<ExampleModalComponent, { title: string }, string>(ExampleModalComponent);
+    let closedResult: string | undefined;
 
     ref.afterClosed().subscribe((result) => {
-      expect(result).toBe("salvo");
-      expect(service.entries()).toEqual([]);
-      done();
+      closedResult = result;
     });
 
     ref.close("salvo");
-  });
+    expect(service.entries()[0].closing).toBeTrue();
+    expect(closedResult).toBeUndefined();
+
+    tick(220);
+
+    expect(closedResult).toBe("salvo");
+    expect(service.entries()).toEqual([]);
+  }));
 });

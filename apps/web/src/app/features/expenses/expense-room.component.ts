@@ -41,7 +41,7 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
           <h2 class="m-0 text-[1.2rem] font-black">{{ data?.item ? "Editar item" : "Adicionar item" }}</h2>
           <p class="m-0 mt-1 max-w-[52ch] text-sm leading-6 text-muted-foreground">Informe quem pagou e como o valor entra na divisao.</p>
         </div>
-        <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Fechar modal" (click)="modalRef.close()">
+        <isumi-button class="max-sm:hidden" variant="ghost" size="sm" iconOnly ariaLabel="Fechar modal" (click)="modalRef.close()">
           <svg icon lucideX class="size-4" aria-hidden="true"></svg>
           Fechar
         </isumi-button>

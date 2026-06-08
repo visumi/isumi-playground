@@ -28,6 +28,7 @@ export interface IsumiModalEntry {
   panelClass: string;
   closeOnBackdrop: boolean;
   closeOnEscape: boolean;
+  closing: boolean;
   ref: IsumiModalRef<unknown, unknown>;
 }
 
@@ -66,6 +67,7 @@ export class IsumiModalRef<TData = unknown, TResult = unknown> {
 
 @Injectable({ providedIn: "root" })
 export class IsumiModalService {
+  private readonly closeAnimationMs = 220;
   private readonly parentInjector = inject(Injector);
   private readonly modalEntries = signal<IsumiModalEntry[]>([]);
   private nextId = 1;
@@ -88,8 +90,27 @@ export class IsumiModalService {
     });
 
     ref.attachCloseHandler((result) => {
-      this.modalEntries.update((entries) => entries.filter((entry) => entry.id !== id));
-      ref.finish(result);
+      let startedClosing = false;
+
+      this.modalEntries.update((entries) =>
+        entries.map((entry) => {
+          if (entry.id !== id || entry.closing) {
+            return entry;
+          }
+
+          startedClosing = true;
+          return { ...entry, closing: true };
+        })
+      );
+
+      if (!startedClosing) {
+        return;
+      }
+
+      setTimeout(() => {
+        this.modalEntries.update((entries) => entries.filter((entry) => entry.id !== id));
+        ref.finish(result);
+      }, this.closeAnimationMs);
     });
 
     this.modalEntries.update((entries) => [
@@ -102,6 +123,7 @@ export class IsumiModalService {
         panelClass: config.panelClass || "",
         closeOnBackdrop: config.closeOnBackdrop ?? true,
         closeOnEscape: config.closeOnEscape ?? true,
+        closing: false,
         ref: ref as IsumiModalRef<unknown, unknown>
       }
     ]);

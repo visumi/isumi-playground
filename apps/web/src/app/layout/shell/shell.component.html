@@ -40,7 +40,7 @@
           <span class="truncate text-xs">{{ auth.profile()?.email }}</span>
         </div>
 
-        <isumi-button class="ml-auto shrink-0" variant="ghost" size="sm" iconOnly ariaLabel="Sair" title="Sair"
+        <isumi-button class="ml-auto shrink-0" variant="ghost-destructive" size="sm" iconOnly ariaLabel="Sair" title="Sair"
           (click)="logout()">
           <svg icon lucideLogOut class="size-4" aria-hidden="true"></svg>
           Sair
@@ -57,7 +57,7 @@
 
         @if (accountMenuOpen()) {
         <div
-          class="absolute right-0 top-12 z-50 grid w-64 gap-3 rounded-lg bg-popover p-3 text-popover-foreground shadow-2xl shadow-black"
+          class="absolute right-0 top-10 z-50 grid w-64 gap-3 rounded-lg bg-secondary p-3 text-popover-foreground shadow-2xl shadow-black"
           role="menu" aria-label="Menu da conta">
           <div class="grid min-w-0 gap-0.5 border-b border-border pb-3">
             <strong class="truncate text-sm font-bold text-foreground">{{ auth.profile()?.name || auth.profile()?.email
@@ -65,7 +65,7 @@
             <span class="truncate text-xs text-muted-foreground">{{ auth.profile()?.email }}</span>
           </div>
 
-          <isumi-button variant="ghost-destructive" size="sm" fullWidth ariaLabel="Sair da conta" (click)="logout()">
+          <isumi-button variant="destructive" size="sm" fullWidth ariaLabel="Sair da conta" (click)="logout()">
             <svg icon lucideLogOut class="size-4" aria-hidden="true"></svg>
             Sair da conta
           </isumi-button>

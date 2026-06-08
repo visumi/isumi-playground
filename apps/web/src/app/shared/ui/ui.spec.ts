@@ -21,6 +21,7 @@ import { IsumiSelectDirective } from "./select.directive";
       Sair
     </isumi-button>
     <isumi-button variant="ghost-destructive">Remover</isumi-button>
+    <isumi-button variant="destructive">Excluir</isumi-button>
     <input isumiInput name="title" maxlength="120" autocomplete="off" placeholder="Titulo">
     <textarea isumiInput rows="4"></textarea>
     <select isumiSelect name="kind">
@@ -84,6 +85,16 @@ describe("shared ui", () => {
     expect(button.classList).toContain("bg-transparent");
     expect(button.classList).toContain("hover:bg-destructive/30");
     expect(button.classList).toContain("hover:text-destructive");
+  });
+
+  it("supports filled destructive buttons with consistent foreground color", () => {
+    const buttons = fixture.debugElement.queryAll(By.css("button"));
+    const button = buttons[4].nativeElement as HTMLButtonElement;
+
+    expect(button.classList).toContain("bg-destructive");
+    expect(button.classList).toContain("text-white");
+    expect(button.classList).toContain("hover:bg-red-600");
+    expect(button.classList).toContain("hover:text-white");
   });
 
   it("styles native inputs without removing their HTML attributes", () => {
