@@ -1,6 +1,6 @@
 export const environment = {
   "production": false,
-  "appVersion": "0.4.0",
+  "appVersion": "0.4.1",
   "apiBaseUrl": "http://localhost:8787",
   "firebase": {
     "apiKey": "AIzaSyAFOb9FfgU8UYkYbms1nPr5dMobWeD5neU",

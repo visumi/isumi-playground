@@ -483,6 +483,11 @@
     </div>
   </div>
   } @else if (error()) {
-  <isumi-alert>{{ error() }}</isumi-alert>
+    <isumi-empty-state
+      title="Nao foi possivel abrir esta sala"
+      description="O link pode estar incorreto, a sala pode ter sido removida ou talvez voce nao tenha acesso a ela. Tente carregar novamente ou volte para suas salas."
+    >
+      <svg icon lucideFrown class="size-5" aria-hidden="true"></svg>
+    </isumi-empty-state>
   }
 </section>
