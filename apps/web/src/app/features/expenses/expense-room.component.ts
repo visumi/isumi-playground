@@ -2,12 +2,13 @@ import { DatePipe } from "@angular/common";
 import { HttpErrorResponse } from "@angular/common/http";
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { Router, RouterLink } from "@angular/router";
-import { LucideArrowLeft, LucideArrowRight, LucideHandCoins, LucideConciergeBell, LucideMinus, LucidePencil, LucidePlus, LucideReceiptText, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, LucideX } from "@lucide/angular";
+import { Router } from "@angular/router";
+import { LucideArrowRight, LucideHandCoins, LucideConciergeBell, LucideMinus, LucidePencil, LucidePlus, LucideFiles, LucideReceiptText, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, LucideX } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
 import { ExpenseItem, ExpenseParticipant, ExpenseParticipantTotal, ExpenseRoomDetail, ExpenseSettlement, UpsertExpenseItemRequest } from "../../core/api/api.types";
 import { AuthService } from "../../core/auth/auth.service";
-import { IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
+import { IsumiBreadcrumbComponent } from "../../shared/ui/breadcrumb.component";
+import { IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiToastService, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
 
 interface ExpenseItemModalData {
   participants: ExpenseParticipant[];
@@ -262,7 +263,7 @@ export class ExpenseItemModalComponent {
 @Component({
   selector: "isumi-expense-room",
   standalone: true,
-  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowLeft, LucideArrowRight, LucideReceiptText, LucideHandCoins, LucidePencil, LucidePlus, LucideConciergeBell, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, RouterLink],
+  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiBreadcrumbComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowRight, LucideReceiptText, LucideHandCoins, LucidePencil, LucidePlus, LucideConciergeBell, LucideScale, LucideFiles, LucideTrash2, LucideUserPlus, LucideUsers],
   templateUrl: "./expense-room.component.html",
   styleUrl: "./expense-room.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -271,6 +272,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   private readonly expenses = inject(ExpensesService);
   private readonly modal = inject(IsumiModalService);
   private readonly router = inject(Router);
+  private readonly toast = inject(IsumiToastService);
   private readonly autoRefreshMs = 5000;
   private autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
   private copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
@@ -308,6 +310,10 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   readonly paidSettlements = computed(() =>
     (this.detail()?.settlements || []).filter((settlement) => settlement.paid)
   );
+  readonly breadcrumbItems = computed(() => [
+    { label: "Salas", link: "/tools/expenses" },
+    { label: "Sala" }
+  ]);
   readonly settlementProgressLabel = computed(() => {
     const total = this.detail()?.settlements.length || 0;
     const paid = this.paidSettlements().length;
@@ -481,10 +487,12 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
 
       this.error.set(null);
       this.copiedInviteUrl.set(true);
+      this.toast.success("Link de convite copiado.", { id: "expense-invite-url-copied" });
       this.clearCopyFeedbackTimer();
       this.copyFeedbackTimer = setTimeout(() => this.copiedInviteUrl.set(false), 2500);
     } catch {
       this.error.set("Nao foi possivel copiar o link da sala.");
+      this.toast.error("Nao foi possivel copiar o link da sala.", { id: "expense-invite-url-copy-error" });
     }
   }
 

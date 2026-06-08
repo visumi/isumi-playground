@@ -1,9 +1,5 @@
 <section class="grid gap-4" aria-labelledby="expense-room-title">
-  <a class="inline-flex w-fit items-center gap-2 text-sm font-extrabold text-muted-foreground no-underline hover:text-foreground"
-    routerLink="/tools/expenses">
-    <svg lucideArrowLeft class="size-4" aria-hidden="true"></svg>
-    Voltar para salas
-  </a>
+  <isumi-breadcrumb [items]="breadcrumbItems()" />
 
   @if (detail(); as state) {
   <header class="rounded-lg bg-card p-5 text-card-foreground">
@@ -19,10 +15,17 @@
             Confira a nota, acompanhe os acertos e marque o que ja foi pago.
           </p>
         </div>
-        <isumi-button mobileFull [loading]="saving()" [disabled]="state.participants.length === 0" (click)="openNewItemModal()">
-          <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
-          Adicionar item
-        </isumi-button>
+        <div class="flex gap-2 max-md:flex-col max-md:w-full">
+          <isumi-button iconOnly variant="secondary" ariaLabel="Copiar link de convite" (click)="copyInviteUrl()">
+            <svg icon lucideFiles class="size-5" aria-hidden="true"></svg>
+            Copiar link de convite
+          </isumi-button>
+          <isumi-button mobileFull [loading]="saving()" [disabled]="state.participants.length === 0"
+            (click)="openNewItemModal()">
+            <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
+            Adicionar item
+          </isumi-button>
+        </div>
       </div>
 
       <div
@@ -343,7 +346,10 @@
             <div class="mt-1 h-4 w-full animate-pulse rounded-sm bg-muted"></div>
             <div class="h-4 w-4/5 animate-pulse rounded-sm bg-muted"></div>
           </div>
-          <div class="h-10 w-36 shrink-0 animate-pulse rounded-sm bg-muted max-sm:w-full"></div>
+          <div class="flex gap-2 max-md:w-full max-md:flex-col">
+            <div class="size-10 shrink-0 animate-pulse rounded-sm bg-muted max-md:w-full"></div>
+            <div class="h-10 w-36 shrink-0 animate-pulse rounded-sm bg-muted max-md:w-full"></div>
+          </div>
         </div>
 
         <div
