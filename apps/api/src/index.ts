@@ -325,11 +325,11 @@ async function getFirebaseKey(kid: string): Promise<FirebaseKey> {
 
 export function isEmailAllowed(email: string, allowedEmails: string): boolean {
   const allowlist = allowedEmails
-    .split(/[,\s;]+/)
+    .split(/[,\r\n\t ;]+/)
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
 
-  return allowlist.includes(email);
+  return allowlist.includes(email.trim().toLowerCase());
 }
 
 async function upsertUser(db: Client, user: AuthUser): Promise<void> {

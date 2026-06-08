@@ -47,7 +47,8 @@ describe("expense calculations", () => {
     ]);
 
     expect(optimizeSettlements(balances)).toEqual([
-      { fromParticipantId: "caio", toParticipantId: "ana", amountCents: 4000 }
+      { fromParticipantId: "caio", toParticipantId: "ana", amountCents: 4000 },
+      { fromParticipantId: "bruno", toParticipantId: "ana", amountCents: 1000 }
     ]);
   });
 

@@ -2,6 +2,7 @@ node_modules/
 dist/
 .angular/
 .wrangler/
+apps/web/src/environments/environment.ts
 .env
 .env.*
 !.env.example

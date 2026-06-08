@@ -7,14 +7,14 @@
     "enabled": true
   },
   "vars": {
-    "ALLOWED_ORIGIN": "http://localhost:4200"
+    "ALLOWED_ORIGIN": "http://localhost:4200",
+    "ALLOWED_EMAILS": "pancake.tf2@gmail.com,vinicius.isumi@gmail.com"
   },
   "secrets": {
     "required": [
       "TURSO_URL",
       "TURSO_AUTH_TOKEN",
-      "FIREBASE_PROJECT_ID",
-      "ALLOWED_EMAILS"
+      "FIREBASE_PROJECT_ID"
     ]
   },
   "routes": [

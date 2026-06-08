@@ -7,7 +7,7 @@
     "web:env": "node scripts/write-web-env.mjs",
     "web:start": "npm run web:env && ng serve isumi-playground",
     "web:build": "npm run web:env && ng build isumi-playground",
-    "web:test": "ng test isumi-playground --watch=false",
+    "web:test": "npm run web:env && ng test isumi-playground --watch=false",
     "api:dev": "wrangler dev --config apps/api/wrangler.jsonc",
     "api:deploy": "wrangler deploy --config apps/api/wrangler.jsonc",
     "api:test": "vitest run --config apps/api/vitest.config.ts",
