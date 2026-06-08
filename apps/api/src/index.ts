@@ -34,6 +34,7 @@ interface ExpenseParticipantRow {
   picture: string | null;
   kind: "user" | "guest";
   role: "owner" | "member" | "guest";
+  is_establishment: number;
   created_at: string;
   updated_at: string;
 }
@@ -116,6 +117,8 @@ type FirebaseKey = Awaited<ReturnType<typeof importX509>>;
 
 let keyCache: { expiresAt: number; keys: Map<string, FirebaseKey> } | null = null;
 
+const ESTABLISHMENT_PARTICIPANT_ID = "__isumi_establishment__";
+const ESTABLISHMENT_PARTICIPANT_NAME = "Pebbles";
 const jsonHeaders = { "Content-Type": "application/json; charset=utf-8" };
 
 export default {
@@ -379,8 +382,8 @@ async function createExpenseRoom(db: Client, user: AuthUser, payload: { name?: s
 
   await db.execute({
     sql: `
-      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'user', 'owner', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, is_establishment, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'user', 'owner', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `,
     args: [participantId, roomId, user.uid, participantName]
   });
@@ -469,8 +472,8 @@ async function createGuestParticipant(db: Client, userId: string, roomId: string
 
   await db.execute({
     sql: `
-      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, created_at, updated_at)
-      VALUES (?, ?, NULL, ?, 'guest', 'guest', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, is_establishment, created_at, updated_at)
+      VALUES (?, ?, NULL, ?, 'guest', 'guest', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `,
     args: [participantId, roomId, sanitizeParticipantName(payload.name)]
   });
@@ -689,8 +692,8 @@ async function ensureUserParticipant(db: Client, room: ExpenseRoomRow, user: Aut
 
   await db.execute({
     sql: `
-      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'user', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, is_establishment, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'user', ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `,
     args: [
       crypto.randomUUID(),
@@ -740,7 +743,7 @@ async function assertExpenseItemExists(db: Client, roomId: string, itemId: strin
 async function findExpenseParticipant(db: Client, roomId: string, participantId: string): Promise<ExpenseParticipantRow | null> {
   const result = await db.execute({
     sql: `
-      SELECT p.id, p.room_id, p.user_id, p.name, u.picture, p.kind, p.role, p.created_at, p.updated_at
+      SELECT p.id, p.room_id, p.user_id, p.name, u.picture, p.kind, p.role, p.is_establishment, p.created_at, p.updated_at
       FROM expense_participants p
       LEFT JOIN users u ON u.id = p.user_id
       WHERE p.id = ? AND p.room_id = ?
@@ -755,11 +758,11 @@ async function findExpenseParticipant(db: Client, roomId: string, participantId:
 async function listExpenseParticipants(db: Client, roomId: string): Promise<ExpenseParticipantRow[]> {
   const result = await db.execute({
     sql: `
-      SELECT p.id, p.room_id, p.user_id, p.name, u.picture, p.kind, p.role, p.created_at, p.updated_at
+      SELECT p.id, p.room_id, p.user_id, p.name, u.picture, p.kind, p.role, p.is_establishment, p.created_at, p.updated_at
       FROM expense_participants p
       LEFT JOIN users u ON u.id = p.user_id
       WHERE p.room_id = ?
-      ORDER BY p.kind DESC, p.created_at ASC
+      ORDER BY p.is_establishment DESC, p.kind DESC, p.created_at ASC
     `,
     args: [roomId]
   });
@@ -811,21 +814,52 @@ async function listExpenseSplits(db: Client, roomId: string): Promise<ExpenseSpl
 async function sanitizeExpenseItemInput(db: Client, roomId: string, payload: ExpenseItemInput) {
   const description = sanitizeItemDescription(payload.description);
   const amountCents = sanitizeAmountCents(payload.amountCents);
-  const payerParticipantId = sanitizeRequiredId(payload.payerParticipantId, "missing_payer");
+  const rawPayerParticipantId = sanitizeRequiredId(payload.payerParticipantId, "missing_payer");
+  const payerParticipantId = rawPayerParticipantId === ESTABLISHMENT_PARTICIPANT_ID
+    ? await ensureEstablishmentParticipant(db, roomId)
+    : rawPayerParticipantId;
   const splits = sanitizeSplitInputs(payload.splits);
-  const validParticipants = new Set((await listExpenseParticipants(db, roomId)).map((participant) => participant.id));
+  const participants = await listExpenseParticipants(db, roomId);
+  const validParticipants = new Set(participants.map((participant) => participant.id));
+  const establishmentParticipantIds = new Set(
+    participants.filter((participant) => Boolean(participant.is_establishment)).map((participant) => participant.id)
+  );
 
   if (!validParticipants.has(payerParticipantId)) {
     throw new HttpError(400, "invalid_payer");
   }
 
   for (const split of splits) {
-    if (!validParticipants.has(split.participantId)) {
+    if (!validParticipants.has(split.participantId) || establishmentParticipantIds.has(split.participantId)) {
       throw new HttpError(400, "invalid_split_participant");
     }
   }
 
   return { description, amountCents, payerParticipantId, splits };
+}
+
+async function ensureEstablishmentParticipant(db: Client, roomId: string): Promise<string> {
+  const existing = await db.execute({
+    sql: "SELECT id FROM expense_participants WHERE room_id = ? AND is_establishment = 1 LIMIT 1",
+    args: [roomId]
+  });
+  const existingId = existing.rows[0]?.["id"];
+
+  if (typeof existingId === "string") {
+    return existingId;
+  }
+
+  const participantId = crypto.randomUUID();
+
+  await db.execute({
+    sql: `
+      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, is_establishment, created_at, updated_at)
+      VALUES (?, ?, NULL, ?, 'guest', 'guest', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `,
+    args: [participantId, roomId, ESTABLISHMENT_PARTICIPANT_NAME]
+  });
+
+  return participantId;
 }
 
 async function replaceExpenseItemSplits(db: Client, itemId: string, splits: Array<{ participantId: string; shareUnits: number }>): Promise<void> {
@@ -1070,6 +1104,7 @@ function mapExpenseParticipant(row: ExpenseParticipantRow) {
     picture: row.picture,
     kind: row.kind,
     role: row.role,
+    isEstablishment: Boolean(row.is_establishment),
     createdAt: toUtcIsoTimestamp(row.created_at),
     updatedAt: toUtcIsoTimestamp(row.updated_at)
   };

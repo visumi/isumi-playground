@@ -23,6 +23,7 @@ export interface ExpenseParticipant {
   picture: string | null;
   kind: "user" | "guest";
   role: "owner" | "member" | "guest";
+  isEstablishment: boolean;
   createdAt: string;
   updatedAt: string;
 }

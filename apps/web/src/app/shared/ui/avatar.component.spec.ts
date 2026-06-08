@@ -9,6 +9,9 @@ import { IsumiAvatarComponent } from "./avatar.component";
   template: `
     <isumi-avatar name="Ana Maria" />
     <isumi-avatar name="Bruno" src="https://example.com/bruno.png" />
+    <isumi-avatar name="Loja" icon>
+      <span class="avatar-icon">I</span>
+    </isumi-avatar>
   `
 })
 class AvatarHostComponent {}
@@ -35,5 +38,13 @@ describe("IsumiAvatarComponent", () => {
 
     expect(image.src).toBe("https://example.com/bruno.png");
     expect(image.alt).toBe("Bruno");
+  });
+
+  it("projects icon content with the primary icon tone", () => {
+    const avatar = fixture.debugElement.query(By.css("isumi-avatar:nth-of-type(3) > span")).nativeElement as HTMLElement;
+
+    expect(avatar.textContent?.trim()).toBe("I");
+    expect(avatar.className).toContain("bg-primary/10");
+    expect(avatar.className).toContain("text-primary");
   });
 });

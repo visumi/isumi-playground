@@ -52,6 +52,24 @@ describe("expense calculations", () => {
     ]);
   });
 
+  it("treats an establishment payer like any other participant in balances", () => {
+    const balances = calculateBalances(["establishment", "ana", "bruno"], [
+      {
+        payerParticipantId: "establishment",
+        amountCents: 6000,
+        splits: [
+          { participantId: "ana", shareUnits: 1, amountCents: 3000 },
+          { participantId: "bruno", shareUnits: 1, amountCents: 3000 }
+        ]
+      }
+    ]);
+
+    expect(optimizeSettlements(balances)).toEqual([
+      { fromParticipantId: "ana", toParticipantId: "establishment", amountCents: 3000 },
+      { fromParticipantId: "bruno", toParticipantId: "establishment", amountCents: 3000 }
+    ]);
+  });
+
   it("calculates subtotal-free tips as zero", () => {
     expect(calculateTipAmountCents(0, 10)).toBe(0);
     expect(calculateParticipantTotals(["ana"], [], 0)).toEqual([

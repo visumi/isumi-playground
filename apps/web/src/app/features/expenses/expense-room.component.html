@@ -149,17 +149,38 @@
         }
 
         <div class="divide-y divide-border">
-          @for (participant of state.participants; track participant.id) {
+          @for (participant of displayedParticipants(); track participant.id) {
           <div class="py-4 text-sm">
+            @if (participant.isEstablishment) {
+            <div class="grid grid-cols-[minmax(0,1fr)_32px] items-center gap-3">
+              <div class="flex min-w-0 items-center gap-3 rounded-lg">
+                <isumi-avatar size="sm" icon name="Pebbles">
+                  <svg lucideRabbit class="size-5" aria-hidden="true"></svg>
+                </isumi-avatar>
+                <div class="min-w-0">
+                  <strong class="block truncate text-sm">{{ participant.name }}</strong>
+                  <span class="text-xs text-muted-foreground">{{ participantRoleLabel(participant) }}</span>
+                </div>
+              </div>
+
+              <div class="flex size-8 items-center justify-end">
+                @if (canRemoveParticipant(participant)) {
+                <isumi-button variant="ghost-destructive" size="sm" iconOnly ariaLabel="Remover Pebbles"
+                  [loading]="saving()" (click)="removeParticipant(participant)">
+                  <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
+                  Remover Pebbles
+                </isumi-button>
+                }
+              </div>
+            </div>
+            } @else {
             <div
               class="grid grid-cols-[minmax(0,1fr)_auto_32px] items-start gap-3 max-[380px]:grid-cols-[minmax(0,1fr)_32px]">
               <div class="flex min-w-0 items-center gap-3">
                 <isumi-avatar size="sm" [src]="participant.picture" [name]="participant.name" />
                 <div class="min-w-0">
                   <strong class="block truncate text-sm">{{ participant.name }}</strong>
-                  <span class="text-xs text-muted-foreground">
-                    {{ participant.role === "owner" ? "Dono" : participant.kind === "guest" ? "Convidado" : "Membro" }}
-                  </span>
+                  <span class="text-xs text-muted-foreground">{{ participantRoleLabel(participant) }}</span>
                 </div>
               </div>
 
@@ -181,6 +202,7 @@
                 }
               </div>
             </div>
+            }
           </div>
           }
         </div>
@@ -241,9 +263,12 @@
             <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
               <div class="min-w-0">
                 <h3 class="m-0 truncate font-sans text-sm font-black">{{ item.description }}</h3>
-                <p class="m-0 truncate text-muted-foreground">
-                  Pago por {{ participantName(item.payerParticipantId) }} em {{ item.createdAt | date: "dd/MM/yyyy
-                  HH:mm" }}
+                <p class="m-0 min-w-0 text-muted-foreground">
+                  <span class="block truncate sm:inline">Pago por {{ participantName(item.payerParticipantId) }}</span>
+                  <span class="hidden sm:inline"> em </span>
+                  <time class="block whitespace-nowrap sm:inline" [dateTime]="item.createdAt">
+                    {{ item.createdAt | date: "dd/MM/yyyy HH:mm" }}
+                  </time>
                 </p>
               </div>
               <strong class="text-right font-sans text-base">{{ money(item.amountCents) }}</strong>

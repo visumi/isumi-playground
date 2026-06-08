@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from "@angular/core";
-import { LucideCheck, LucideLoaderCircle, LucideX, LucideXCircle } from "@lucide/angular";
+import { LucideCheck, LucideLoaderCircle, LucideX } from "@lucide/angular";
 import { IsumiToast, IsumiToastPosition, IsumiToastService, IsumiToastType } from "./toast.service";
 
 const POSITIONS: IsumiToastPosition[] = ["top-center", "top-right", "bottom-center", "bottom-right"];
@@ -7,7 +7,7 @@ const POSITIONS: IsumiToastPosition[] = ["top-center", "top-right", "bottom-cent
 @Component({
   selector: "isumi-toast-host",
   standalone: true,
-  imports: [LucideCheck, LucideLoaderCircle, LucideX, LucideXCircle],
+  imports: [LucideCheck, LucideLoaderCircle, LucideX],
   template: `
     @for (position of positions; track position) {
       @if (toastsByPosition()[position].length) {
@@ -25,7 +25,7 @@ const POSITIONS: IsumiToastPosition[] = ["top-center", "top-right", "bottom-cent
                     <svg icon lucideCheck class="size-4 stroke-3" aria-hidden="true"></svg>
                   }
                   @case ("error") {
-                    <svg icon lucideXCircle class="size-4 stroke-[2.5]" aria-hidden="true"></svg>
+                    <svg icon lucideX class="size-4 stroke-[2.5]" aria-hidden="true"></svg>
                   }
                   @case ("loading") {
                     <svg icon lucideLoaderCircle class="size-4 animate-spin" aria-hidden="true"></svg>

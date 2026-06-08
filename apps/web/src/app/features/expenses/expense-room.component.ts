@@ -3,7 +3,7 @@ import { HttpErrorResponse } from "@angular/common/http";
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
-import { LucideArrowRight, LucideHandCoins, LucideConciergeBell, LucideMinus, LucidePencil, LucidePlus, LucideFiles, LucideReceiptText, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, LucideX, LucideFrown } from "@lucide/angular";
+import { LucideArrowRight, LucideHandCoins, LucideConciergeBell, LucideMinus, LucidePencil, LucidePlus, LucideFiles, LucideReceiptText, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, LucideX, LucideFrown, LucideRabbit } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
 import { ExpenseItem, ExpenseParticipant, ExpenseParticipantTotal, ExpenseRoomDetail, ExpenseSettlement, UpsertExpenseItemRequest } from "../../core/api/api.types";
 import { AuthService } from "../../core/auth/auth.service";
@@ -16,6 +16,7 @@ interface ExpenseItemModalData {
 }
 
 const MAX_SPLIT_UNITS = 99;
+const ESTABLISHMENT_PARTICIPANT_ID = "__isumi_establishment__";
 
 function normalizeDecimalInput(value: string | number, decimalPlaces: number): string {
   const rawValue = String(value).replace(/[^\d,.]/g, "");
@@ -35,7 +36,7 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
   standalone: true,
   imports: [FormsModule, IsumiAvatarComponent, IsumiButtonComponent, IsumiInputDirective, IsumiSelectDirective, LucideMinus, LucidePlus, LucideSave, LucideX],
   template: `
-    <form class="grid gap-5" (ngSubmit)="submit()">
+    <form class="expense-item-form" (ngSubmit)="submit()">
       <header class="flex items-start justify-between gap-4">
         <div>
           <h2 class="m-0 text-[1.2rem] font-black">{{ data?.item ? "Editar item" : "Adicionar item" }}</h2>
@@ -46,10 +47,6 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
           Fechar
         </isumi-button>
       </header>
-
-      @if (error()) {
-        <p class="m-0 rounded-md bg-destructive/15 px-3 py-2 text-sm font-bold text-red-200">{{ error() }}</p>
-      }
 
       <div class="grid grid-cols-[minmax(0,1fr)_150px] gap-3 max-sm:grid-cols-1">
         <label class="grid gap-2">
@@ -91,13 +88,13 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
           [ngModel]="payerParticipantId()"
           (ngModelChange)="payerParticipantId.set($event)"
         >
-          @for (participant of participants(); track participant.id) {
+          @for (participant of payerOptions(); track participant.id) {
             <option [value]="participant.id">{{ participant.name }}</option>
           }
         </select>
       </label>
 
-      <section class="grid gap-3" aria-labelledby="split-title">
+      <section class="grid min-h-0 gap-3" aria-labelledby="split-title">
         <div class="flex items-end justify-between gap-3">
           <div>
             <h3 id="split-title" class="m-0 text-sm font-extrabold text-muted-foreground">Partes de cada pessoa</h3>
@@ -108,7 +105,7 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
           </span>
         </div>
 
-        <div class="grid gap-2 rounded-lg bg-secondary p-2">
+        <div class="expense-item-splits-scroll grid min-h-0 gap-2 rounded-lg bg-secondary p-2">
           @for (participant of participants(); track participant.id) {
             <div class="grid gap-2 rounded-md bg-background/70 p-3">
               <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
@@ -162,17 +159,57 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
       </footer>
     </form>
   `,
+  styles: [`
+    :host {
+      display: block;
+    }
+
+    .expense-item-form {
+      display: flex;
+      max-height: calc(min(720px, calc(100dvh - 32px)) - 40px);
+      min-height: 0;
+      flex-direction: column;
+      gap: 1.25rem;
+      overflow: hidden;
+    }
+
+    .expense-item-splits-scroll {
+      max-height: min(340px, 38dvh);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+    }
+
+    @media (max-width: 640px) {
+      .expense-item-form {
+        max-height: calc(100dvh - 112px);
+      }
+
+      .expense-item-splits-scroll {
+        max-height: min(320px, 34dvh);
+      }
+    }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExpenseItemModalComponent {
   readonly data = injectIsumiModalData<ExpenseItemModalData>();
   readonly modalRef = injectIsumiModalRef<ExpenseItemModalData, UpsertExpenseItemRequest>();
-  readonly participants = computed(() => this.data?.participants || []);
+  private readonly toast = inject(IsumiToastService);
+  readonly allParticipants = computed(() => this.data?.participants || []);
+  readonly participants = computed(() => this.allParticipants().filter((participant) => !participant.isEstablishment));
+  readonly payerOptions = computed(() => {
+    const establishment = this.allParticipants().find((participant) => participant.isEstablishment);
+
+    return [
+      { id: establishment?.id || ESTABLISHMENT_PARTICIPANT_ID, name: "Pebbles" },
+      ...this.participants().map((participant) => ({ id: participant.id, name: participant.name }))
+    ];
+  });
   readonly description = signal(this.data?.item?.description || "");
   readonly amount = signal(this.data?.item ? (this.data.item.amountCents / 100).toFixed(2).replace(".", ",") : "");
-  readonly payerParticipantId = signal(this.data?.item?.payerParticipantId || this.participants()[0]?.id || "");
+  readonly payerParticipantId = signal(this.data?.item?.payerParticipantId || this.participants()[0]?.id || this.payerOptions()[0]?.id || "");
   readonly splitUnits = signal<Record<string, number>>(this.initialSplitUnits());
-  readonly error = signal<string | null>(null);
   readonly maxSplitUnits = MAX_SPLIT_UNITS;
   readonly totalSplitUnits = computed(() =>
     Object.values(this.splitUnits()).reduce((total, shareUnits) => total + Math.max(0, shareUnits), 0)
@@ -236,7 +273,9 @@ export class ExpenseItemModalComponent {
       .map(([participantId, shareUnits]) => ({ participantId, shareUnits }));
 
     if (!amountCents || !this.payerParticipantId() || splits.length === 0) {
-      this.error.set("Informe valor, pagador e pelo menos uma pessoa com partes.");
+      this.toast.error("Informe valor, pagador e pelo menos uma pessoa com partes.", {
+        id: "expense-item-validation-error"
+      });
       return null;
     }
 
@@ -263,7 +302,7 @@ export class ExpenseItemModalComponent {
 @Component({
   selector: "isumi-expense-room",
   standalone: true,
-  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiBreadcrumbComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowRight, LucideReceiptText, LucideHandCoins, LucidePencil, LucidePlus, LucideConciergeBell, LucideScale, LucideFiles, LucideTrash2, LucideUserPlus, LucideUsers, LucideFrown],
+  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiBreadcrumbComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowRight, LucideReceiptText, LucideHandCoins, LucidePencil, LucidePlus, LucideConciergeBell, LucideScale, LucideFiles, LucideTrash2, LucideUserPlus, LucideUsers, LucideFrown, LucideRabbit],
   templateUrl: "./expense-room.component.html",
   styleUrl: "./expense-room.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -293,6 +332,10 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   readonly savingSettlementKey = signal<string | null>(null);
   readonly canSaveTipPercent = computed(() => this.parsePercent(this.tipPercent()) !== null);
   readonly participants = computed(() => this.detail()?.participants || []);
+  readonly displayedParticipants = computed(() => [
+    ...this.participants().filter((participant) => participant.isEstablishment),
+    ...this.participants().filter((participant) => !participant.isEstablishment)
+  ]);
   readonly isOwner = computed(() => this.detail()?.room.ownerUserId === this.auth.profile()?.uid);
   readonly unpaidSettlementCents = computed(() =>
     (this.detail()?.settlements || [])
@@ -412,7 +455,9 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
         this.loadRoom();
       },
       error: () => {
-        this.error.set("Nao foi possivel remover esta pessoa. Ela ja esta em gastos, divisoes ou acertos.");
+        this.toast.error("Nao foi possivel remover este participante. Ele ja esta em gastos, divisoes ou acertos.", {
+          id: "expense-remove-participant-error"
+        });
         this.saving.set(false);
       },
       complete: () => this.saving.set(false)
@@ -420,6 +465,10 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   }
 
   canRemoveParticipant(participant: ExpenseParticipant): boolean {
+    if (participant.isEstablishment) {
+      return this.isOwner();
+    }
+
     return this.isOwner() && participant.role !== "owner";
   }
 
@@ -521,6 +570,14 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
 
   participantName(participantId: string): string {
     return this.participants().find((participant) => participant.id === participantId)?.name || "Pessoa";
+  }
+
+  participantRoleLabel(participant: ExpenseParticipant): string {
+    if (participant.isEstablishment) {
+      return "Chefão";
+    }
+
+    return participant.role === "owner" ? "Dono" : participant.kind === "guest" ? "Convidado" : "Membro";
   }
 
   money(amountCents: number): string {
@@ -639,7 +696,9 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     request.subscribe({
       next: (updated) => this.setDetail(updated),
       error: () => {
-        this.error.set("Nao foi possivel salvar o item. Confira valor, pagador e partes.");
+        this.toast.error("Nao foi possivel salvar o item. Confira valor, pagador e partes.", {
+          id: "expense-save-item-error"
+        });
         this.saving.set(false);
         this.savingItemId.set(null);
       },
