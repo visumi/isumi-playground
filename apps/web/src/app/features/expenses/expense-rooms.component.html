@@ -11,7 +11,7 @@
 
           <div>
             <h2 class="m-0 text-[1.35rem] font-black leading-tight">Criar sala</h2>
-            <p class="m-0 mt-2 max-w-[58ch] leading-6 text-muted-foreground">
+            <p class="m-0 max-w-[58ch] leading-6 text-muted-foreground">
               Nomeie a sala e envie o convite para quem vai participar.
             </p>
           </div>
@@ -49,7 +49,7 @@
     <div class="flex items-end justify-between gap-4 max-sm:flex-col max-sm:items-start">
       <div>
         <h2 id="rooms-title" class="m-0 text-[1.15rem] font-black">Suas salas</h2>
-        <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">Continue uma divisao aberta ou crie uma nova acima.</p>
+        <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">Continue uma divisão aberta ou crie uma nova acima.</p>
       </div>
       @if (!loading()) {
         <isumi-badge variant="primary">{{ rooms().length }} sala(s)</isumi-badge>
@@ -72,7 +72,7 @@
           </div>
         }
       } @else if (rooms().length === 0) {
-        <isumi-empty-state class="col-span-full" title="Nenhuma sala ainda" description="Crie uma sala para comecar a organizar os gastos.">
+        <isumi-empty-state class="col-span-full" title="Nenhuma sala ainda" description="Crie uma sala para começar a organizar os gastos.">
           <svg icon lucideReceiptText class="size-5" aria-hidden="true"></svg>
         </isumi-empty-state>
       } @else {

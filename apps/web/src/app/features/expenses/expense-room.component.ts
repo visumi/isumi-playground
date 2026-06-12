@@ -39,7 +39,7 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
       <header class="flex items-start justify-between gap-4">
         <div>
           <h2 class="m-0 text-[1.2rem] font-black">{{ data?.item ? "Editar item" : "Adicionar item" }}</h2>
-          <p class="m-0 mt-1 max-w-[52ch] text-sm leading-6 text-muted-foreground">Informe quem pagou e como o valor entra na divisao.</p>
+          <p class="m-0 mt-1 max-w-[52ch] text-sm leading-6 text-muted-foreground">Informe quem pagou e como o valor entra na divisão.</p>
         </div>
         <isumi-button class="max-sm:hidden" variant="ghost" size="sm" iconOnly ariaLabel="Fechar modal" (click)="modalRef.close()">
           <svg icon lucideX class="size-4" aria-hidden="true"></svg>
@@ -97,7 +97,7 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
         <div class="flex items-end justify-between gap-3">
           <div>
             <h3 id="split-title" class="m-0 text-sm font-extrabold text-muted-foreground">Partes de cada pessoa</h3>
-            <p class="m-0 mt-1 text-xs leading-5 text-muted-foreground">Use 0 para tirar alguem desta divisao.</p>
+            <p class="m-0 mt-1 text-xs leading-5 text-muted-foreground">Use 0 para tirar alguem desta divisão.</p>
           </div>
           <span class="rounded-full bg-primary/10 px-2.5 py-1.5 text-xs font-black text-primary">
             {{ totalSplitUnits() }} parte(s)
@@ -112,7 +112,7 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
                   <isumi-avatar size="md" [src]="participant.picture" [name]="participant.name" />
                   <div class="min-w-0">
                     <strong class="block truncate text-sm">{{ participant.name }}</strong>
-                    <span class="text-xs text-muted-foreground">{{ splitPercent(participant.id) }}% da divisao</span>
+                    <span class="text-xs text-muted-foreground">{{ splitPercent(participant.id) }}% da divisão</span>
                   </div>
                 </div>
 
@@ -434,7 +434,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   openNewItemModal(): void {
     const ref = this.modal.open<ExpenseItemModalComponent, ExpenseItemModalData, UpsertExpenseItemRequest>(ExpenseItemModalComponent, {
       data: { participants: this.participants() },
-      ariaLabel: "Adicionar item da divisao"
+      ariaLabel: "Adicionar item da divisão"
     });
 
     ref.afterClosed().subscribe((payload) => {
@@ -447,7 +447,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   editItem(item: ExpenseItem): void {
     const ref = this.modal.open<ExpenseItemModalComponent, ExpenseItemModalData, UpsertExpenseItemRequest>(ExpenseItemModalComponent, {
       data: { participants: this.participants(), item },
-      ariaLabel: "Editar item da divisao"
+      ariaLabel: "Editar item da divisão"
     });
 
     ref.afterClosed().subscribe((payload) => {

@@ -1005,7 +1005,7 @@ function toUtcIsoTimestamp(value: string): string {
 
 function sanitizeRoomName(value: unknown): string {
   const name = typeof value === "string" ? value.trim() : "";
-  return (name || "Nova divisao").slice(0, 120);
+  return (name || "Nova divisão").slice(0, 120);
 }
 
 function sanitizeParticipantName(value: unknown): string {

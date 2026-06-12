@@ -44,7 +44,7 @@ export class ExpenseRoomsComponent implements OnInit {
     this.saving.set(true);
     this.error.set(null);
 
-    this.expenses.createRoom({ name: this.roomName().trim() || "Nova divisao" }).subscribe({
+    this.expenses.createRoom({ name: this.roomName().trim() || "Nova divisão" }).subscribe({
       next: (detail) => {
         this.roomName.set("");
         void this.router.navigate(["/tools/expenses", detail.room.id, "room"]);
