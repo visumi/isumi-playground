@@ -10,7 +10,6 @@ export interface ExpenseRoom {
   id: string;
   ownerUserId: string;
   name: string;
-  tipPercent: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -23,7 +22,6 @@ export interface ExpenseParticipant {
   picture: string | null;
   kind: "user" | "guest";
   role: "owner" | "member" | "guest";
-  isEstablishment: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -63,15 +61,12 @@ export interface ExpenseSettlement {
 export interface ExpenseParticipantTotal {
   participantId: string;
   subtotalCents: number;
-  tipAmountCents: number;
   totalCents: number;
 }
 
 export interface ExpenseRoomDetail {
   room: ExpenseRoom;
-  tipPercent: number;
   subtotalCents: number;
-  tipAmountCents: number;
   totalCents: number;
   participants: ExpenseParticipant[];
   items: ExpenseItem[];
@@ -96,10 +91,6 @@ export interface UpsertExpenseItemRequest {
     participantId: string;
     shareUnits: number;
   }>;
-}
-
-export interface UpdateExpenseTipRequest {
-  tipPercent: number;
 }
 
 export interface UpdateExpenseSettlementRequest {

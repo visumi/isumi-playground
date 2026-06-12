@@ -1,8 +1,5 @@
 PRAGMA foreign_keys = ON;
 
-ALTER TABLE expense_rooms
-  ADD COLUMN tip_percent REAL NOT NULL DEFAULT 10 CHECK (tip_percent >= 0 AND tip_percent <= 100);
-
 CREATE TABLE IF NOT EXISTS expense_paid_settlements (
   room_id TEXT NOT NULL,
   from_participant_id TEXT NOT NULL,

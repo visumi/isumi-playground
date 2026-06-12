@@ -53,40 +53,6 @@ describe("ExpenseRoomComponent", () => {
     expect(fixture.componentInstance.unpaidSettlementCents()).toBe(1250);
   });
 
-  it("shows establishment participants first and keeps removal available to the owner", () => {
-    const fixture = TestBed.createComponent(ExpenseRoomComponent);
-    fixture.componentRef.setInput("roomId", "room-1");
-    const detail = roomDetail();
-    detail.participants = [
-      participant("owner-1", "Owner", { role: "owner", userId: "owner-user" }),
-      participant("restaurant-1", "Chefão", { isEstablishment: true }),
-      participant("guest-1", "Ana")
-    ];
-    fixture.componentInstance.detail.set(detail);
-
-    expect(fixture.componentInstance.displayedParticipants().map((item) => item.id)).toEqual([
-      "restaurant-1",
-      "owner-1",
-      "guest-1"
-    ]);
-    expect(fixture.componentInstance.canRemoveParticipant(detail.participants[1])).toBeTrue();
-
-    detail.items = [{
-      id: "item-1",
-      roomId: "room-1",
-      payerParticipantId: "restaurant-1",
-      description: "Jantar",
-      amountCents: 1000,
-      createdByUserId: "owner-user",
-      splits: [],
-      createdAt: "2026-06-05T00:00:00Z",
-      updatedAt: "2026-06-05T00:00:00Z"
-    }];
-    fixture.componentInstance.detail.set({ ...detail });
-
-    expect(fixture.componentInstance.canRemoveParticipant(detail.participants[1])).toBeTrue();
-  });
-
   it("uses a toast instead of the page alert when participant removal fails", () => {
     const toast = jasmine.createSpyObj<IsumiToastService>("IsumiToastService", ["error"]);
     TestBed.overrideProvider(ExpensesService, {
@@ -134,14 +100,11 @@ function roomDetail(): ExpenseRoomDetail {
       id: "room-1",
       ownerUserId: "owner-user",
       name: "Jantar",
-      tipPercent: 10,
       createdAt: "2026-06-05T00:00:00Z",
       updatedAt: "2026-06-05T00:00:00Z"
     },
-    tipPercent: 10,
     subtotalCents: 3000,
-    tipAmountCents: 300,
-    totalCents: 3300,
+    totalCents: 3000,
     participants: [],
     items: [],
     participantTotals: [],
@@ -167,7 +130,6 @@ function participant(
     picture: null,
     kind: "guest",
     role: "guest",
-    isEstablishment: false,
     createdAt: "2026-06-05T00:00:00Z",
     updatedAt: "2026-06-05T00:00:00Z",
     ...options

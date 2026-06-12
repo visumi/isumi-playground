@@ -21,7 +21,6 @@ interface ExpenseRoomRow {
   id: string;
   owner_user_id: string;
   name: string;
-  tip_percent: number;
   created_at: string;
   updated_at: string;
 }
@@ -34,7 +33,6 @@ interface ExpenseParticipantRow {
   picture: string | null;
   kind: "user" | "guest";
   role: "owner" | "member" | "guest";
-  is_establishment: number;
   created_at: string;
   updated_at: string;
 }
@@ -81,10 +79,6 @@ interface ExpenseParticipantInput {
   name?: string;
 }
 
-interface ExpenseTipInput {
-  tipPercent?: number;
-}
-
 interface ExpensePaidSettlementInput {
   fromParticipantId?: string;
   toParticipantId?: string;
@@ -109,7 +103,6 @@ interface Settlement {
 interface ParticipantTotal {
   participantId: string;
   subtotalCents: number;
-  tipAmountCents: number;
   totalCents: number;
 }
 
@@ -117,8 +110,6 @@ type FirebaseKey = Awaited<ReturnType<typeof importX509>>;
 
 let keyCache: { expiresAt: number; keys: Map<string, FirebaseKey> } | null = null;
 
-const ESTABLISHMENT_PARTICIPANT_ID = "__isumi_establishment__";
-const ESTABLISHMENT_PARTICIPANT_NAME = "Pebbles";
 const jsonHeaders = { "Content-Type": "application/json; charset=utf-8" };
 
 export default {
@@ -174,13 +165,6 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         return json(await getExpenseRoomDetail(db, user, roomId, url.searchParams.get("accept") === "1"), 200, corsHeaders);
       }
 
-    }
-
-    const expenseRoomTipMatch = url.pathname.match(/^\/tools\/expenses\/rooms\/([^/]+)\/tip$/);
-    if (expenseRoomTipMatch && request.method === "PATCH") {
-      const roomId = expenseRoomTipMatch[1];
-      const payload = await readJson<ExpenseTipInput>(request);
-      return json(await updateExpenseRoomTip(db, user.uid, roomId, payload), 200, corsHeaders);
     }
 
     const expensePaidSettlementMatch = url.pathname.match(/^\/tools\/expenses\/rooms\/([^/]+)\/settlements$/);
@@ -354,7 +338,7 @@ async function upsertUser(db: Client, user: AuthUser): Promise<void> {
 async function listExpenseRooms(db: Client, userId: string) {
   const result = await db.execute({
     sql: `
-      SELECT r.id, r.owner_user_id, r.name, r.tip_percent, r.created_at, r.updated_at
+      SELECT r.id, r.owner_user_id, r.name, r.created_at, r.updated_at
       FROM expense_rooms r
       INNER JOIN expense_participants p ON p.room_id = r.id
       WHERE p.user_id = ?
@@ -374,35 +358,19 @@ async function createExpenseRoom(db: Client, user: AuthUser, payload: { name?: s
 
   await db.execute({
     sql: `
-      INSERT INTO expense_rooms (id, owner_user_id, name, tip_percent, created_at, updated_at)
-      VALUES (?, ?, ?, 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO expense_rooms (id, owner_user_id, name, created_at, updated_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `,
     args: [roomId, user.uid, name]
   });
 
   await db.execute({
     sql: `
-      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, is_establishment, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'user', 'owner', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'user', 'owner', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `,
     args: [participantId, roomId, user.uid, participantName]
   });
-
-  return buildExpenseRoomDetail(db, roomId);
-}
-
-async function updateExpenseRoomTip(db: Client, userId: string, roomId: string, payload: ExpenseTipInput) {
-  await assertExpenseRoomMember(db, roomId, userId);
-
-  await db.execute({
-    sql: `
-      UPDATE expense_rooms
-      SET tip_percent = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `,
-    args: [sanitizeTipPercent(payload.tipPercent), roomId]
-  });
-  await clearPaidSettlements(db, roomId);
 
   return buildExpenseRoomDetail(db, roomId);
 }
@@ -472,8 +440,8 @@ async function createGuestParticipant(db: Client, userId: string, roomId: string
 
   await db.execute({
     sql: `
-      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, is_establishment, created_at, updated_at)
-      VALUES (?, ?, NULL, ?, 'guest', 'guest', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, created_at, updated_at)
+      VALUES (?, ?, NULL, ?, 'guest', 'guest', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `,
     args: [participantId, roomId, sanitizeParticipantName(payload.name)]
   });
@@ -632,11 +600,8 @@ async function buildExpenseRoomDetail(db: Client, roomId: string) {
   });
   const participantIds = participants.map((participant) => participant.id);
   const subtotalCents = detailedItems.reduce((total, item) => total + item.amountCents, 0);
-  const tipPercent = Number(room.tip_percent ?? 10);
-  const tipAmountCents = calculateTipAmountCents(subtotalCents, tipPercent);
-  const participantTotals = calculateParticipantTotals(participantIds, detailedItems, tipAmountCents);
-  const balanceItems = applyTipToItems(detailedItems, tipAmountCents);
-  const balances = calculateBalances(participantIds, balanceItems);
+  const participantTotals = calculateParticipantTotals(participantIds, detailedItems);
+  const balances = calculateBalances(participantIds, detailedItems);
   const paidByPair = new Map(paidSettlements.map((settlement) => [
     settlementKey(settlement.from_participant_id, settlement.to_participant_id),
     settlement
@@ -654,10 +619,8 @@ async function buildExpenseRoomDetail(db: Client, roomId: string) {
 
   return {
     room: mapExpenseRoom(room),
-    tipPercent,
     subtotalCents,
-    tipAmountCents,
-    totalCents: subtotalCents + tipAmountCents,
+    totalCents: subtotalCents,
     participants: participants.map(mapExpenseParticipant),
     items: detailedItems,
     participantTotals,
@@ -669,7 +632,7 @@ async function buildExpenseRoomDetail(db: Client, roomId: string) {
 async function findExpenseRoom(db: Client, roomId: string): Promise<ExpenseRoomRow | null> {
   const result = await db.execute({
     sql: `
-      SELECT id, owner_user_id, name, tip_percent, created_at, updated_at
+      SELECT id, owner_user_id, name, created_at, updated_at
       FROM expense_rooms
       WHERE id = ?
       LIMIT 1
@@ -692,8 +655,8 @@ async function ensureUserParticipant(db: Client, room: ExpenseRoomRow, user: Aut
 
   await db.execute({
     sql: `
-      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, is_establishment, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'user', ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'user', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `,
     args: [
       crypto.randomUUID(),
@@ -743,7 +706,7 @@ async function assertExpenseItemExists(db: Client, roomId: string, itemId: strin
 async function findExpenseParticipant(db: Client, roomId: string, participantId: string): Promise<ExpenseParticipantRow | null> {
   const result = await db.execute({
     sql: `
-      SELECT p.id, p.room_id, p.user_id, p.name, u.picture, p.kind, p.role, p.is_establishment, p.created_at, p.updated_at
+      SELECT p.id, p.room_id, p.user_id, p.name, u.picture, p.kind, p.role, p.created_at, p.updated_at
       FROM expense_participants p
       LEFT JOIN users u ON u.id = p.user_id
       WHERE p.id = ? AND p.room_id = ?
@@ -758,11 +721,11 @@ async function findExpenseParticipant(db: Client, roomId: string, participantId:
 async function listExpenseParticipants(db: Client, roomId: string): Promise<ExpenseParticipantRow[]> {
   const result = await db.execute({
     sql: `
-      SELECT p.id, p.room_id, p.user_id, p.name, u.picture, p.kind, p.role, p.is_establishment, p.created_at, p.updated_at
+      SELECT p.id, p.room_id, p.user_id, p.name, u.picture, p.kind, p.role, p.created_at, p.updated_at
       FROM expense_participants p
       LEFT JOIN users u ON u.id = p.user_id
       WHERE p.room_id = ?
-      ORDER BY p.is_establishment DESC, p.kind DESC, p.created_at ASC
+      ORDER BY p.kind DESC, p.created_at ASC
     `,
     args: [roomId]
   });
@@ -814,52 +777,22 @@ async function listExpenseSplits(db: Client, roomId: string): Promise<ExpenseSpl
 async function sanitizeExpenseItemInput(db: Client, roomId: string, payload: ExpenseItemInput) {
   const description = sanitizeItemDescription(payload.description);
   const amountCents = sanitizeAmountCents(payload.amountCents);
-  const rawPayerParticipantId = sanitizeRequiredId(payload.payerParticipantId, "missing_payer");
-  const payerParticipantId = rawPayerParticipantId === ESTABLISHMENT_PARTICIPANT_ID
-    ? await ensureEstablishmentParticipant(db, roomId)
-    : rawPayerParticipantId;
+  const payerParticipantId = sanitizeRequiredId(payload.payerParticipantId, "missing_payer");
   const splits = sanitizeSplitInputs(payload.splits);
   const participants = await listExpenseParticipants(db, roomId);
   const validParticipants = new Set(participants.map((participant) => participant.id));
-  const establishmentParticipantIds = new Set(
-    participants.filter((participant) => Boolean(participant.is_establishment)).map((participant) => participant.id)
-  );
 
   if (!validParticipants.has(payerParticipantId)) {
     throw new HttpError(400, "invalid_payer");
   }
 
   for (const split of splits) {
-    if (!validParticipants.has(split.participantId) || establishmentParticipantIds.has(split.participantId)) {
+    if (!validParticipants.has(split.participantId)) {
       throw new HttpError(400, "invalid_split_participant");
     }
   }
 
   return { description, amountCents, payerParticipantId, splits };
-}
-
-async function ensureEstablishmentParticipant(db: Client, roomId: string): Promise<string> {
-  const existing = await db.execute({
-    sql: "SELECT id FROM expense_participants WHERE room_id = ? AND is_establishment = 1 LIMIT 1",
-    args: [roomId]
-  });
-  const existingId = existing.rows[0]?.["id"];
-
-  if (typeof existingId === "string") {
-    return existingId;
-  }
-
-  const participantId = crypto.randomUUID();
-
-  await db.execute({
-    sql: `
-      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, is_establishment, created_at, updated_at)
-      VALUES (?, ?, NULL, ?, 'guest', 'guest', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `,
-    args: [participantId, roomId, ESTABLISHMENT_PARTICIPANT_NAME]
-  });
-
-  return participantId;
 }
 
 async function replaceExpenseItemSplits(db: Client, itemId: string, splits: Array<{ participantId: string; shareUnits: number }>): Promise<void> {
@@ -934,23 +867,13 @@ export function calculateItemSplits(amountCents: number, splits: Array<{ partici
     .map(({ participantId, shareUnits, amountCents }) => ({ participantId, shareUnits, amountCents }));
 }
 
-export function calculateTipAmountCents(subtotalCents: number, tipPercent: number): number {
-  if (subtotalCents <= 0 || tipPercent <= 0) {
-    return 0;
-  }
-
-  return Math.round((subtotalCents * tipPercent) / 100);
-}
-
 export function calculateParticipantTotals(
   participantIds: string[],
-  items: Array<{ splits: CalculatedSplit[] }>,
-  tipAmountCents: number
+  items: Array<{ splits: CalculatedSplit[] }>
 ): ParticipantTotal[] {
   const totals = participantIds.map((participantId) => ({
     participantId,
     subtotalCents: 0,
-    tipAmountCents: 0,
     totalCents: 0
   }));
   const byParticipant = new Map(totals.map((total) => [total.participantId, total]));
@@ -964,58 +887,11 @@ export function calculateParticipantTotals(
     }
   }
 
-  const tipSplits = calculateItemSplits(
-    tipAmountCents,
-    totals
-      .filter((total) => total.subtotalCents > 0)
-      .map((total) => ({ participantId: total.participantId, shareUnits: total.subtotalCents }))
-  );
-
-  for (const tipSplit of tipSplits) {
-    const total = byParticipant.get(tipSplit.participantId);
-    if (total) {
-      total.tipAmountCents = tipSplit.amountCents;
-    }
-  }
-
   for (const total of totals) {
-    total.totalCents = total.subtotalCents + total.tipAmountCents;
+    total.totalCents = total.subtotalCents;
   }
 
   return totals;
-}
-
-export function applyTipToItems<T extends { payerParticipantId: string; amountCents: number; splits: CalculatedSplit[] }>(
-  items: T[],
-  tipAmountCents: number
-): Array<{ payerParticipantId: string; amountCents: number; splits: CalculatedSplit[] }> {
-  if (tipAmountCents <= 0 || items.length === 0) {
-    return items;
-  }
-
-  const itemTipSplits = calculateItemSplits(
-    tipAmountCents,
-    items.map((item, index) => ({ participantId: String(index), shareUnits: item.amountCents }))
-  );
-  const tipByIndex = new Map(itemTipSplits.map((split) => [Number(split.participantId), split.amountCents]));
-
-  return items.map((item, index) => {
-    const itemTipCents = tipByIndex.get(index) || 0;
-    const tipSplits = calculateItemSplits(
-      itemTipCents,
-      item.splits.map((split) => ({ participantId: split.participantId, shareUnits: split.shareUnits }))
-    );
-    const tipByParticipant = new Map(tipSplits.map((split) => [split.participantId, split.amountCents]));
-
-    return {
-      payerParticipantId: item.payerParticipantId,
-      amountCents: item.amountCents + itemTipCents,
-      splits: item.splits.map((split) => ({
-        ...split,
-        amountCents: split.amountCents + (tipByParticipant.get(split.participantId) || 0)
-      }))
-    };
-  });
 }
 
 export function calculateBalances(participantIds: string[], items: Array<{ payerParticipantId: string; amountCents: number; splits: CalculatedSplit[] }>) {
@@ -1089,7 +965,6 @@ function mapExpenseRoom(row: ExpenseRoomRow) {
     id: row.id,
     ownerUserId: row.owner_user_id,
     name: row.name,
-    tipPercent: Number(row.tip_percent ?? 10),
     createdAt: toUtcIsoTimestamp(row.created_at),
     updatedAt: toUtcIsoTimestamp(row.updated_at)
   };
@@ -1104,7 +979,6 @@ function mapExpenseParticipant(row: ExpenseParticipantRow) {
     picture: row.picture,
     kind: row.kind,
     role: row.role,
-    isEstablishment: Boolean(row.is_establishment),
     createdAt: toUtcIsoTimestamp(row.created_at),
     updatedAt: toUtcIsoTimestamp(row.updated_at)
   };
@@ -1155,14 +1029,6 @@ function sanitizeAmountCents(value: unknown): number {
   }
 
   return value;
-}
-
-function sanitizeTipPercent(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 100) {
-    throw new HttpError(400, "invalid_tip_percent");
-  }
-
-  return Math.round(value * 100) / 100;
 }
 
 function sanitizeRequiredId(value: unknown, error: string): string {

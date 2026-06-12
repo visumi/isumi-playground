@@ -42,4 +42,31 @@ describe("auth guards", () => {
     const result = await TestBed.runInInjectionContext(() => publicOnlyGuard({} as never, {} as never));
     expect(TestBed.inject(Router).serializeUrl(result as never)).toBe("/dashboard");
   });
+
+  it("refreshes the profile before allowing an authenticated user to see login", async () => {
+    let allowed = false;
+    const refreshProfile = jasmine.createSpy("refreshProfile").and.callFake(async () => {
+      allowed = true;
+    });
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        {
+          provide: AuthService,
+          useValue: {
+            waitUntilReady: () => Promise.resolve(),
+            isAuthenticated: () => true,
+            isAllowed: () => allowed,
+            refreshProfile
+          }
+        }
+      ]
+    });
+
+    const result = await TestBed.runInInjectionContext(() => publicOnlyGuard({} as never, {} as never));
+
+    expect(refreshProfile).toHaveBeenCalled();
+    expect(TestBed.inject(Router).serializeUrl(result as never)).toBe("/dashboard");
+  });
 });

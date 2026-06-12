@@ -24,7 +24,14 @@ export const publicOnlyGuard: CanActivateFn = async () => {
   const router = inject(Router);
 
   await auth.waitUntilReady();
-  return auth.isAuthenticated() && auth.isAllowed()
-    ? router.createUrlTree(["/dashboard"])
-    : true;
+
+  if (!auth.isAuthenticated()) {
+    return true;
+  }
+
+  if (!auth.isAllowed()) {
+    await auth.refreshProfile();
+  }
+
+  return auth.isAllowed() ? router.createUrlTree(["/dashboard"]) : true;
 };

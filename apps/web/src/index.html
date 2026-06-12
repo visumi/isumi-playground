@@ -12,7 +12,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Slab:wght@700&display=swap" rel="stylesheet">
   </head>
   <body>
-    <isumi-root></isumi-root>
+    <isumi-root>
+      <div class="global-app-loading" role="status" aria-label="Carregando playground">
+        <div class="global-app-loading__logo" aria-hidden="true">泉</div>
+        <div class="global-app-loading__bar" aria-hidden="true">
+          <span></span>
+        </div>
+      </div>
+    </isumi-root>
     <script>
       const redirect = sessionStorage.redirect;
       if (redirect) {

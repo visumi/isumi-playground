@@ -3,7 +3,7 @@ import { HttpErrorResponse } from "@angular/common/http";
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
-import { LucideArrowRight, LucideHandCoins, LucideConciergeBell, LucideMinus, LucidePencil, LucidePlus, LucideFiles, LucideReceiptText, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, LucideX, LucideFrown, LucideRabbit } from "@lucide/angular";
+import { LucideArrowRight, LucideConciergeBell, LucideMinus, LucidePencil, LucidePlus, LucideFiles, LucideReceiptText, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, LucideX, LucideFrown } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
 import { ExpenseItem, ExpenseParticipant, ExpenseParticipantTotal, ExpenseRoomDetail, ExpenseSettlement, UpsertExpenseItemRequest } from "../../core/api/api.types";
 import { AuthService } from "../../core/auth/auth.service";
@@ -16,7 +16,6 @@ interface ExpenseItemModalData {
 }
 
 const MAX_SPLIT_UNITS = 99;
-const ESTABLISHMENT_PARTICIPANT_ID = "__isumi_establishment__";
 
 function normalizeDecimalInput(value: string | number, decimalPlaces: number): string {
   const rawValue = String(value).replace(/[^\d,.]/g, "");
@@ -88,7 +87,7 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
           [ngModel]="payerParticipantId()"
           (ngModelChange)="payerParticipantId.set($event)"
         >
-          @for (participant of payerOptions(); track participant.id) {
+          @for (participant of participants(); track participant.id) {
             <option [value]="participant.id">{{ participant.name }}</option>
           }
         </select>
@@ -196,19 +195,10 @@ export class ExpenseItemModalComponent {
   readonly data = injectIsumiModalData<ExpenseItemModalData>();
   readonly modalRef = injectIsumiModalRef<ExpenseItemModalData, UpsertExpenseItemRequest>();
   private readonly toast = inject(IsumiToastService);
-  readonly allParticipants = computed(() => this.data?.participants || []);
-  readonly participants = computed(() => this.allParticipants().filter((participant) => !participant.isEstablishment));
-  readonly payerOptions = computed(() => {
-    const establishment = this.allParticipants().find((participant) => participant.isEstablishment);
-
-    return [
-      { id: establishment?.id || ESTABLISHMENT_PARTICIPANT_ID, name: "Pebbles" },
-      ...this.participants().map((participant) => ({ id: participant.id, name: participant.name }))
-    ];
-  });
+  readonly participants = computed(() => this.data?.participants || []);
   readonly description = signal(this.data?.item?.description || "");
   readonly amount = signal(this.data?.item ? (this.data.item.amountCents / 100).toFixed(2).replace(".", ",") : "");
-  readonly payerParticipantId = signal(this.data?.item?.payerParticipantId || this.participants()[0]?.id || this.payerOptions()[0]?.id || "");
+  readonly payerParticipantId = signal(this.data?.item?.payerParticipantId || this.participants()[0]?.id || "");
   readonly splitUnits = signal<Record<string, number>>(this.initialSplitUnits());
   readonly maxSplitUnits = MAX_SPLIT_UNITS;
   readonly totalSplitUnits = computed(() =>
@@ -302,7 +292,7 @@ export class ExpenseItemModalComponent {
 @Component({
   selector: "isumi-expense-room",
   standalone: true,
-  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiBreadcrumbComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowRight, LucideReceiptText, LucideHandCoins, LucidePencil, LucidePlus, LucideConciergeBell, LucideScale, LucideFiles, LucideTrash2, LucideUserPlus, LucideUsers, LucideFrown, LucideRabbit],
+  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiBreadcrumbComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowRight, LucideReceiptText, LucidePencil, LucidePlus, LucideConciergeBell, LucideScale, LucideFiles, LucideTrash2, LucideUserPlus, LucideUsers, LucideFrown],
   templateUrl: "./expense-room.component.html",
   styleUrl: "./expense-room.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -328,14 +318,8 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   readonly copiedInviteUrl = signal(false);
   readonly error = signal<string | null>(null);
   readonly guestName = signal("");
-  readonly tipPercent = signal("10");
   readonly savingSettlementKey = signal<string | null>(null);
-  readonly canSaveTipPercent = computed(() => this.parsePercent(this.tipPercent()) !== null);
   readonly participants = computed(() => this.detail()?.participants || []);
-  readonly displayedParticipants = computed(() => [
-    ...this.participants().filter((participant) => participant.isEstablishment),
-    ...this.participants().filter((participant) => !participant.isEstablishment)
-  ]);
   readonly isOwner = computed(() => this.detail()?.room.ownerUserId === this.auth.profile()?.uid);
   readonly unpaidSettlementCents = computed(() =>
     (this.detail()?.settlements || [])
@@ -405,27 +389,6 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     });
   }
 
-  saveTipPercent(): void {
-    const detail = this.detail();
-    const tipPercent = this.parsePercent(this.tipPercent());
-
-    if (!detail || tipPercent === null) {
-      this.error.set("Informe uma gorjeta entre 0 e 100%.");
-      return;
-    }
-
-    this.saving.set(true);
-    this.error.set(null);
-    this.expenses.updateTip(detail.room.id, { tipPercent }).subscribe({
-      next: (updated) => this.setDetail(updated),
-      error: () => {
-        this.error.set("Nao foi possivel atualizar a gorjeta.");
-        this.saving.set(false);
-      },
-      complete: () => this.saving.set(false)
-    });
-  }
-
   addGuest(): void {
     const name = this.guestName().trim();
     if (!name) {
@@ -465,10 +428,6 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   }
 
   canRemoveParticipant(participant: ExpenseParticipant): boolean {
-    if (participant.isEstablishment) {
-      return this.isOwner();
-    }
-
     return this.isOwner() && participant.role !== "owner";
   }
 
@@ -573,10 +532,6 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   }
 
   participantRoleLabel(participant: ExpenseParticipant): string {
-    if (participant.isEstablishment) {
-      return "Chefão";
-    }
-
     return participant.role === "owner" ? "Dono" : participant.kind === "guest" ? "Convidado" : "Membro";
   }
 
@@ -588,15 +543,8 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     return this.detail()?.participantTotals.find((total) => total.participantId === participantId) || {
       participantId,
       subtotalCents: 0,
-      tipAmountCents: 0,
       totalCents: 0
     };
-  }
-
-  setTipPercent(value: string | number): void {
-    const normalized = normalizeDecimalInput(value, 2);
-    const parsed = Number(normalized.replace(",", "."));
-    this.tipPercent.set(Number.isFinite(parsed) && parsed > 100 ? "100" : normalized);
   }
 
   private inviteUrl(): string {
@@ -630,7 +578,6 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
 
   private setDetail(detail: ExpenseRoomDetail): void {
     this.detail.set(detail);
-    this.tipPercent.set(this.formatPercent(detail.tipPercent));
   }
 
   private handleRoomLoadError(error: unknown, options: { showLoading: boolean; silent: boolean }): void {
@@ -709,17 +656,4 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     });
   }
 
-  private parsePercent(value: string): number | null {
-    const parsed = Number(value.replace(",", ".").trim());
-
-    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
-      return null;
-    }
-
-    return Math.round(parsed * 100) / 100;
-  }
-
-  private formatPercent(value: number): string {
-    return Number.isInteger(value) ? String(value) : String(value).replace(".", ",");
-  }
 }
