@@ -180,7 +180,7 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
       max-height: min(340px, 38dvh);
       overflow-y: auto;
       overscroll-behavior: contain;
-      scrollbar-gutter: stable;
+      scrollbar-gutter: auto;
     }
 
     @media (max-width: 640px) {

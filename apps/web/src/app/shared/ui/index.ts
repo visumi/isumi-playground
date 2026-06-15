@@ -3,7 +3,6 @@ export * from "./avatar.component";
 export * from "./badge.component";
 export * from "./breadcrumb.component";
 export * from "./button.component";
-export * from "./card.component";
 export * from "./checkbox.component";
 export * from "./empty-state.component";
 export * from "./input.directive";

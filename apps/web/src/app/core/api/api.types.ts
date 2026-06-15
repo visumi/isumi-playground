@@ -98,3 +98,95 @@ export interface UpdateExpenseSettlementRequest {
   toParticipantId: string;
   paid: boolean;
 }
+
+export type MonthlyExpenseType = "FIXO" | "VARIAVEL" | "RESERVA";
+
+export interface MonthlyExpenseMonth {
+  id: string;
+  userId: string;
+  year: number;
+  month: number;
+  incomeCents: number;
+  variableLimitCents: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MonthlyExpenseCatalogItem {
+  id: string;
+  name: string;
+  color: string;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MonthlyExpenseItem {
+  id: string;
+  monthId: string;
+  categoryId: string;
+  categoryName: string;
+  categoryColor: string;
+  paymentMethodId: string;
+  paymentMethodName: string;
+  paymentMethodColor: string;
+  description: string;
+  amountCents: number;
+  totalPurchaseCents: number;
+  installmentNumber: number;
+  installmentTotal: number;
+  expenseType: MonthlyExpenseType;
+  installmentGroupId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MonthlyExpenseSummary {
+  incomeCents: number;
+  variableLimitCents: number;
+  variableSpentCents: number;
+  variableRemainingCents: number;
+  fixedTotalCents: number;
+  reserveTotalCents: number;
+  monthTotalCents: number;
+  unallocatedCents: number;
+}
+
+export interface MonthlyExpenseDetail {
+  month: MonthlyExpenseMonth;
+  summary: MonthlyExpenseSummary;
+  categories: MonthlyExpenseCatalogItem[];
+  paymentMethods: MonthlyExpenseCatalogItem[];
+  items: MonthlyExpenseItem[];
+}
+
+export interface CreateMonthlyExpenseMonthRequest {
+  year: number;
+  month: number;
+}
+
+export interface UpdateMonthlyExpenseMonthRequest {
+  incomeCents: number;
+  variableLimitCents: number;
+}
+
+export interface UpsertMonthlyExpenseCatalogItemRequest {
+  name: string;
+  color: string;
+  archived?: boolean;
+}
+
+export interface UpsertMonthlyExpenseItemRequest {
+  description: string;
+  categoryId: string;
+  paymentMethodId: string;
+  totalPurchaseCents: number;
+  installmentTotal: number;
+  expenseType: MonthlyExpenseType;
+}
+
+export interface MonthlyExpenseCsvImportResponse {
+  imported: number;
+  errors: Array<{ line: number; message: string }>;
+  detail: MonthlyExpenseDetail;
+}

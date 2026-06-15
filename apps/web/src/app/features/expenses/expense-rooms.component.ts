@@ -5,12 +5,12 @@ import { Router, RouterLink } from "@angular/router";
 import { LucideArrowRight, LucideCalendar, LucideHash, LucidePlus, LucideReceiptText, LucideWalletCards } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
 import { ExpenseRoom } from "../../core/api/api.types";
-import { IsumiAlertComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCardComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent } from "../../shared/ui";
+import { IsumiAlertComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent } from "../../shared/ui";
 
 @Component({
   selector: "isumi-expense-rooms",
   standalone: true,
-  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiButtonComponent, IsumiBadgeComponent, IsumiCardComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, LucideArrowRight, LucideCalendar, LucideHash, LucidePlus, LucideReceiptText, LucideWalletCards, RouterLink],
+  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiButtonComponent, IsumiBadgeComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, LucideArrowRight, LucideCalendar, LucideHash, LucidePlus, LucideReceiptText, LucideWalletCards, RouterLink],
   templateUrl: "./expense-rooms.component.html",
   styleUrl: "./expense-rooms.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush

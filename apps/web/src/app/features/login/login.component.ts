@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
-import { IsumiAlertComponent, IsumiCardComponent } from "../../shared/ui";
+import { IsumiAlertComponent } from "../../shared/ui";
 
 @Component({
   selector: "isumi-login",
   standalone: true,
-  imports: [IsumiAlertComponent, IsumiCardComponent],
+  imports: [IsumiAlertComponent],
   templateUrl: "./login.component.html",
   styleUrl: "./login.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush

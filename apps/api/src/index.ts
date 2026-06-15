@@ -85,6 +85,85 @@ interface ExpensePaidSettlementInput {
   paid?: boolean;
 }
 
+type MonthlyExpenseType = "FIXO" | "VARIAVEL" | "RESERVA";
+
+interface MonthlyExpenseMonthRow {
+  id: string;
+  user_id: string;
+  year: number;
+  month: number;
+  income_cents: number;
+  variable_limit_cents: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface MonthlyExpenseCategoryRow {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface MonthlyExpensePaymentMethodRow {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface MonthlyExpenseItemRow {
+  id: string;
+  user_id: string;
+  month_id: string;
+  category_id: string;
+  payment_method_id: string;
+  description: string;
+  amount_cents: number;
+  total_purchase_cents: number;
+  installment_number: number;
+  installment_total: number;
+  expense_type: MonthlyExpenseType;
+  installment_group_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface MonthlyExpenseMonthInput {
+  year?: number;
+  month?: number;
+}
+
+interface MonthlyExpenseMonthSettingsInput {
+  incomeCents?: number;
+  variableLimitCents?: number;
+}
+
+interface MonthlyExpenseCatalogInput {
+  name?: string;
+  color?: string;
+  archived?: boolean;
+}
+
+interface MonthlyExpenseItemInput {
+  description?: string;
+  categoryId?: string;
+  paymentMethodId?: string;
+  totalPurchaseCents?: number;
+  installmentTotal?: number;
+  expenseType?: MonthlyExpenseType;
+}
+
+interface MonthlyExpenseCsvImportInput {
+  csv?: string;
+}
+
 interface CalculatedSplit {
   participantId: string;
   shareUnits: number;
@@ -143,6 +222,108 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
     if (request.method === "GET" && url.pathname === "/me") {
       return json(user, 200, corsHeaders);
+    }
+
+    if (url.pathname === "/tools/monthly-expenses/months") {
+      if (request.method === "GET") {
+        return json(await listMonthlyExpenseMonths(db, user.uid), 200, corsHeaders);
+      }
+
+      if (request.method === "POST") {
+        const payload = await readJson<MonthlyExpenseMonthInput>(request);
+        return json(await createMonthlyExpenseMonth(db, user.uid, payload), 201, corsHeaders);
+      }
+    }
+
+    const monthlyExpenseMonthMatch = url.pathname.match(/^\/tools\/monthly-expenses\/months\/([^/]+)$/);
+    if (monthlyExpenseMonthMatch) {
+      const monthId = monthlyExpenseMonthMatch[1];
+
+      if (request.method === "GET") {
+        return json(await getMonthlyExpenseMonthDetail(db, user.uid, monthId), 200, corsHeaders);
+      }
+
+      if (request.method === "PATCH") {
+        const payload = await readJson<MonthlyExpenseMonthSettingsInput>(request);
+        return json(await updateMonthlyExpenseMonthSettings(db, user.uid, monthId, payload), 200, corsHeaders);
+      }
+    }
+
+    if (url.pathname === "/tools/monthly-expenses/categories") {
+      if (request.method === "GET") {
+        return json(await listMonthlyExpenseCategories(db, user.uid), 200, corsHeaders);
+      }
+
+      if (request.method === "POST") {
+        const payload = await readJson<MonthlyExpenseCatalogInput>(request);
+        return json(await createMonthlyExpenseCategory(db, user.uid, payload), 201, corsHeaders);
+      }
+    }
+
+    const monthlyExpenseCategoryMatch = url.pathname.match(/^\/tools\/monthly-expenses\/categories\/([^/]+)$/);
+    if (monthlyExpenseCategoryMatch && request.method === "PATCH") {
+      const payload = await readJson<MonthlyExpenseCatalogInput>(request);
+      return json(await updateMonthlyExpenseCategory(db, user.uid, monthlyExpenseCategoryMatch[1], payload), 200, corsHeaders);
+    }
+
+    if (url.pathname === "/tools/monthly-expenses/payment-methods") {
+      if (request.method === "GET") {
+        return json(await listMonthlyExpensePaymentMethods(db, user.uid), 200, corsHeaders);
+      }
+
+      if (request.method === "POST") {
+        const payload = await readJson<MonthlyExpenseCatalogInput>(request);
+        return json(await createMonthlyExpensePaymentMethod(db, user.uid, payload), 201, corsHeaders);
+      }
+    }
+
+    const monthlyExpensePaymentMethodMatch = url.pathname.match(/^\/tools\/monthly-expenses\/payment-methods\/([^/]+)$/);
+    if (monthlyExpensePaymentMethodMatch && request.method === "PATCH") {
+      const payload = await readJson<MonthlyExpenseCatalogInput>(request);
+      return json(await updateMonthlyExpensePaymentMethod(db, user.uid, monthlyExpensePaymentMethodMatch[1], payload), 200, corsHeaders);
+    }
+
+    const monthlyExpenseItemMatch = url.pathname.match(/^\/tools\/monthly-expenses\/months\/([^/]+)\/items(?:\/([^/]+))?$/);
+    if (monthlyExpenseItemMatch) {
+      const monthId = monthlyExpenseItemMatch[1];
+      const itemId = monthlyExpenseItemMatch[2];
+
+      if (request.method === "POST" && !itemId) {
+        const payload = await readJson<MonthlyExpenseItemInput>(request);
+        return json(await createMonthlyExpenseItem(db, user.uid, monthId, payload), 201, corsHeaders);
+      }
+
+      if (request.method === "PATCH" && itemId) {
+        const payload = await readJson<MonthlyExpenseItemInput>(request);
+        return json(await updateMonthlyExpenseItem(db, user.uid, monthId, itemId, payload), 200, corsHeaders);
+      }
+
+      if (request.method === "DELETE" && itemId) {
+        await deleteMonthlyExpenseItem(db, user.uid, monthId, itemId);
+        return new Response(null, { status: 204, headers: corsHeaders });
+      }
+    }
+
+    const monthlyExpenseCsvMatch = url.pathname.match(/^\/tools\/monthly-expenses\/months\/([^/]+)\/csv$/);
+    if (monthlyExpenseCsvMatch) {
+      const monthId = monthlyExpenseCsvMatch[1];
+
+      if (request.method === "GET") {
+        const csv = await exportMonthlyExpenseCsv(db, user.uid, monthId);
+        return new Response(csv, {
+          status: 200,
+          headers: {
+            ...Object.fromEntries(corsHeaders.entries()),
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": "attachment; filename=\"gastos-mensais.csv\""
+          }
+        });
+      }
+
+      if (request.method === "POST") {
+        const payload = await readJson<MonthlyExpenseCsvImportInput>(request);
+        return json(await importMonthlyExpenseCsv(db, user.uid, monthId, payload), 200, corsHeaders);
+      }
     }
 
     if (url.pathname === "/tools/expenses/rooms") {
@@ -666,6 +847,849 @@ async function buildExpenseRoomDetail(db: Client, roomId: string) {
     balances,
     settlements
   };
+}
+
+async function listMonthlyExpenseMonths(db: Client, userId: string) {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, year, month, income_cents, variable_limit_cents, created_at, updated_at
+      FROM monthly_expense_months
+      WHERE user_id = ?
+      ORDER BY year DESC, month DESC
+    `,
+    args: [userId]
+  });
+
+  return (result.rows as unknown as MonthlyExpenseMonthRow[]).map(mapMonthlyExpenseMonth);
+}
+
+async function createMonthlyExpenseMonth(db: Client, userId: string, payload: MonthlyExpenseMonthInput) {
+  const period = sanitizeMonthlyExpensePeriod(payload.year, payload.month);
+  const existing = await findMonthlyExpenseMonthByPeriod(db, userId, period.year, period.month);
+
+  if (existing) {
+    throw new HttpError(409, "monthly_expense_month_exists");
+  }
+
+  const previous = await findPreviousMonthlyExpenseMonth(db, userId, period.year, period.month);
+  const monthId = crypto.randomUUID();
+
+  await db.execute({
+    sql: `
+      INSERT INTO monthly_expense_months (id, user_id, year, month, income_cents, variable_limit_cents, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `,
+    args: [
+      monthId,
+      userId,
+      period.year,
+      period.month,
+      previous?.income_cents || 0,
+      previous?.variable_limit_cents || 0
+    ]
+  });
+
+  return getMonthlyExpenseMonthDetail(db, userId, monthId);
+}
+
+async function getMonthlyExpenseMonthDetail(db: Client, userId: string, monthId: string) {
+  const month = await findMonthlyExpenseMonth(db, userId, monthId);
+  if (!month) {
+    throw new HttpError(404, "not_found");
+  }
+
+  const [categories, paymentMethods, items] = await Promise.all([
+    listMonthlyExpenseCategories(db, userId),
+    listMonthlyExpensePaymentMethods(db, userId),
+    listMonthlyExpenseItems(db, userId, monthId)
+  ]);
+
+  return buildMonthlyExpenseDetail(month, categories, paymentMethods, items);
+}
+
+async function updateMonthlyExpenseMonthSettings(db: Client, userId: string, monthId: string, payload: MonthlyExpenseMonthSettingsInput) {
+  await assertMonthlyExpenseMonth(db, userId, monthId);
+  const incomeCents = sanitizeNonNegativeCents(payload.incomeCents, "invalid_income");
+  const variableLimitCents = sanitizeNonNegativeCents(payload.variableLimitCents, "invalid_variable_limit");
+
+  await db.execute({
+    sql: `
+      UPDATE monthly_expense_months
+      SET income_cents = ?, variable_limit_cents = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND user_id = ?
+    `,
+    args: [incomeCents, variableLimitCents, monthId, userId]
+  });
+
+  return getMonthlyExpenseMonthDetail(db, userId, monthId);
+}
+
+async function listMonthlyExpenseCategories(db: Client, userId: string) {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, name, color, archived_at, created_at, updated_at
+      FROM monthly_expense_categories
+      WHERE user_id = ?
+      ORDER BY archived_at IS NOT NULL, name COLLATE NOCASE
+    `,
+    args: [userId]
+  });
+
+  return (result.rows as unknown as MonthlyExpenseCategoryRow[]).map(mapMonthlyExpenseCategory);
+}
+
+async function createMonthlyExpenseCategory(db: Client, userId: string, payload: MonthlyExpenseCatalogInput) {
+  const id = crypto.randomUUID();
+  await db.execute({
+    sql: `
+      INSERT INTO monthly_expense_categories (id, user_id, name, color, created_at, updated_at)
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `,
+    args: [id, userId, sanitizeCatalogName(payload.name), sanitizeCatalogColor(payload.color)]
+  });
+
+  return listMonthlyExpenseCategories(db, userId);
+}
+
+async function updateMonthlyExpenseCategory(db: Client, userId: string, categoryId: string, payload: MonthlyExpenseCatalogInput) {
+  await assertMonthlyExpenseCategory(db, userId, categoryId, { allowArchived: true });
+  await db.execute({
+    sql: `
+      UPDATE monthly_expense_categories
+      SET name = ?, color = ?, archived_at = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND user_id = ?
+    `,
+    args: [
+      sanitizeCatalogName(payload.name),
+      sanitizeCatalogColor(payload.color),
+      payload.archived ? new Date().toISOString() : null,
+      categoryId,
+      userId
+    ]
+  });
+
+  return listMonthlyExpenseCategories(db, userId);
+}
+
+async function listMonthlyExpensePaymentMethods(db: Client, userId: string) {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, name, color, archived_at, created_at, updated_at
+      FROM monthly_expense_payment_methods
+      WHERE user_id = ?
+      ORDER BY archived_at IS NOT NULL, name COLLATE NOCASE
+    `,
+    args: [userId]
+  });
+
+  return (result.rows as unknown as MonthlyExpensePaymentMethodRow[]).map(mapMonthlyExpensePaymentMethod);
+}
+
+async function createMonthlyExpensePaymentMethod(db: Client, userId: string, payload: MonthlyExpenseCatalogInput) {
+  const id = crypto.randomUUID();
+  await db.execute({
+    sql: `
+      INSERT INTO monthly_expense_payment_methods (id, user_id, name, color, created_at, updated_at)
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `,
+    args: [id, userId, sanitizeCatalogName(payload.name), sanitizeCatalogColor(payload.color)]
+  });
+
+  return listMonthlyExpensePaymentMethods(db, userId);
+}
+
+async function updateMonthlyExpensePaymentMethod(db: Client, userId: string, methodId: string, payload: MonthlyExpenseCatalogInput) {
+  await assertMonthlyExpensePaymentMethod(db, userId, methodId, { allowArchived: true });
+  await db.execute({
+    sql: `
+      UPDATE monthly_expense_payment_methods
+      SET name = ?, color = ?, archived_at = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND user_id = ?
+    `,
+    args: [
+      sanitizeCatalogName(payload.name),
+      sanitizeCatalogColor(payload.color),
+      payload.archived ? new Date().toISOString() : null,
+      methodId,
+      userId
+    ]
+  });
+
+  return listMonthlyExpensePaymentMethods(db, userId);
+}
+
+async function createMonthlyExpenseItem(db: Client, userId: string, monthId: string, payload: MonthlyExpenseItemInput) {
+  const month = await assertMonthlyExpenseMonth(db, userId, monthId);
+  const item = await sanitizeMonthlyExpenseItemInput(db, userId, payload);
+  const installmentAmounts = splitInstallmentAmounts(item.totalPurchaseCents, item.installmentTotal);
+  const groupId = crypto.randomUUID();
+
+  for (let index = 0; index < item.installmentTotal; index += 1) {
+    const target = addMonths(month.year, month.month, index);
+    const targetMonth = index === 0
+      ? month
+      : await ensureMonthlyExpenseMonthByPeriod(db, userId, target.year, target.month);
+
+    await insertMonthlyExpenseItem(db, userId, targetMonth.id, {
+      ...item,
+      amountCents: installmentAmounts[index],
+      installmentNumber: index + 1,
+      installmentGroupId: groupId
+    });
+  }
+
+  return getMonthlyExpenseMonthDetail(db, userId, monthId);
+}
+
+async function updateMonthlyExpenseItem(db: Client, userId: string, monthId: string, itemId: string, payload: MonthlyExpenseItemInput) {
+  await assertMonthlyExpenseMonth(db, userId, monthId);
+  await assertMonthlyExpenseItem(db, userId, monthId, itemId);
+  const item = await sanitizeMonthlyExpenseItemInput(db, userId, { ...payload, installmentTotal: 1 });
+
+  await db.execute({
+    sql: `
+      UPDATE monthly_expense_items
+      SET category_id = ?, payment_method_id = ?, description = ?, amount_cents = ?, total_purchase_cents = ?,
+        installment_number = 1, installment_total = 1, expense_type = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND user_id = ? AND month_id = ?
+    `,
+    args: [
+      item.categoryId,
+      item.paymentMethodId,
+      item.description,
+      item.totalPurchaseCents,
+      item.totalPurchaseCents,
+      item.expenseType,
+      itemId,
+      userId,
+      monthId
+    ]
+  });
+
+  return getMonthlyExpenseMonthDetail(db, userId, monthId);
+}
+
+async function deleteMonthlyExpenseItem(db: Client, userId: string, monthId: string, itemId: string): Promise<void> {
+  await assertMonthlyExpenseMonth(db, userId, monthId);
+  await db.execute({
+    sql: "DELETE FROM monthly_expense_items WHERE id = ? AND user_id = ? AND month_id = ?",
+    args: [itemId, userId, monthId]
+  });
+}
+
+async function exportMonthlyExpenseCsv(db: Client, userId: string, monthId: string): Promise<string> {
+  const detail = await getMonthlyExpenseMonthDetail(db, userId, monthId);
+  return serializeMonthlyExpenseCsv(detail.items.map((item: any) => ({
+    descricao: item.description,
+    categoria: item.categoryName,
+    valor_total: formatCsvMoney(item.totalPurchaseCents),
+    numero_parcelas: String(item.installmentTotal),
+    parcela_atual: String(item.installmentNumber),
+    metodo_pagamento: item.paymentMethodName,
+    tipo: item.expenseType
+  })));
+}
+
+async function importMonthlyExpenseCsv(db: Client, userId: string, monthId: string, payload: MonthlyExpenseCsvImportInput) {
+  await assertMonthlyExpenseMonth(db, userId, monthId);
+  const csv = typeof payload.csv === "string" ? payload.csv : "";
+  const rows = parseMonthlyExpenseCsv(csv);
+  const categories = await listMonthlyExpenseCategoryRows(db, userId);
+  const methods = await listMonthlyExpensePaymentMethodRows(db, userId);
+  const items = await listMonthlyExpenseItems(db, userId, monthId);
+  const categoryByName = new Map(categories.filter((item) => !item.archived_at).map((item) => [normalizeCatalogKey(item.name), item]));
+  const methodByName = new Map(methods.filter((item) => !item.archived_at).map((item) => [normalizeCatalogKey(item.name), item]));
+  const existingKeys = new Set(items.map((item) => monthlyExpenseDuplicateKey({
+    description: item.description,
+    totalPurchaseCents: item.total_purchase_cents,
+    installmentNumber: item.installment_number,
+    installmentTotal: item.installment_total,
+    expenseType: item.expense_type,
+    categoryName: categories.find((category) => category.id === item.category_id)?.name || "",
+    paymentMethodName: methods.find((method) => method.id === item.payment_method_id)?.name || ""
+  })));
+  const errors: Array<{ line: number; message: string }> = [];
+  const validRows: Array<ReturnType<typeof normalizeMonthlyExpenseCsvRow> & { categoryId: string; paymentMethodId: string }> = [];
+  const seenKeys = new Set<string>();
+
+  rows.forEach((row, index) => {
+    try {
+      const normalized = normalizeMonthlyExpenseCsvRow(row);
+      const category = categoryByName.get(normalizeCatalogKey(normalized.categoria));
+      const method = methodByName.get(normalizeCatalogKey(normalized.metodo_pagamento));
+
+      if (!category) {
+        throw new HttpError(400, "categoria_nao_cadastrada");
+      }
+
+      if (!method) {
+        throw new HttpError(400, "metodo_pagamento_nao_cadastrado");
+      }
+
+      const key = monthlyExpenseDuplicateKey({
+        description: normalized.descricao,
+        totalPurchaseCents: normalized.totalPurchaseCents,
+        installmentNumber: normalized.parcela_atual,
+        installmentTotal: normalized.numero_parcelas,
+        expenseType: normalized.tipo,
+        categoryName: category.name,
+        paymentMethodName: method.name
+      });
+
+      if (existingKeys.has(key) || seenKeys.has(key)) {
+        throw new HttpError(409, "duplicado_provavel");
+      }
+
+      seenKeys.add(key);
+      validRows.push({ ...normalized, categoryId: category.id, paymentMethodId: method.id });
+    } catch (error) {
+      errors.push({ line: index + 2, message: error instanceof Error ? error.message : "linha_invalida" });
+    }
+  });
+
+  if (errors.length > 0) {
+    return { imported: 0, errors, detail: await getMonthlyExpenseMonthDetail(db, userId, monthId) };
+  }
+
+  for (const row of validRows) {
+    await insertMonthlyExpenseItem(db, userId, monthId, {
+      description: row.descricao,
+      categoryId: row.categoryId,
+      paymentMethodId: row.paymentMethodId,
+      totalPurchaseCents: row.totalPurchaseCents,
+      amountCents: splitInstallmentAmounts(row.totalPurchaseCents, row.numero_parcelas)[row.parcela_atual - 1],
+      installmentNumber: row.parcela_atual,
+      installmentTotal: row.numero_parcelas,
+      expenseType: row.tipo,
+      installmentGroupId: crypto.randomUUID()
+    });
+  }
+
+  return { imported: validRows.length, errors: [], detail: await getMonthlyExpenseMonthDetail(db, userId, monthId) };
+}
+
+async function findMonthlyExpenseMonth(db: Client, userId: string, monthId: string): Promise<MonthlyExpenseMonthRow | null> {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, year, month, income_cents, variable_limit_cents, created_at, updated_at
+      FROM monthly_expense_months
+      WHERE id = ? AND user_id = ?
+      LIMIT 1
+    `,
+    args: [monthId, userId]
+  });
+
+  return (result.rows[0] as unknown as MonthlyExpenseMonthRow | undefined) || null;
+}
+
+async function findMonthlyExpenseMonthByPeriod(db: Client, userId: string, year: number, month: number): Promise<MonthlyExpenseMonthRow | null> {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, year, month, income_cents, variable_limit_cents, created_at, updated_at
+      FROM monthly_expense_months
+      WHERE user_id = ? AND year = ? AND month = ?
+      LIMIT 1
+    `,
+    args: [userId, year, month]
+  });
+
+  return (result.rows[0] as unknown as MonthlyExpenseMonthRow | undefined) || null;
+}
+
+async function findPreviousMonthlyExpenseMonth(db: Client, userId: string, year: number, month: number): Promise<MonthlyExpenseMonthRow | null> {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, year, month, income_cents, variable_limit_cents, created_at, updated_at
+      FROM monthly_expense_months
+      WHERE user_id = ? AND (year < ? OR (year = ? AND month < ?))
+      ORDER BY year DESC, month DESC
+      LIMIT 1
+    `,
+    args: [userId, year, year, month]
+  });
+
+  return (result.rows[0] as unknown as MonthlyExpenseMonthRow | undefined) || null;
+}
+
+async function ensureMonthlyExpenseMonthByPeriod(db: Client, userId: string, year: number, month: number): Promise<MonthlyExpenseMonthRow> {
+  const existing = await findMonthlyExpenseMonthByPeriod(db, userId, year, month);
+  if (existing) {
+    return existing;
+  }
+
+  const previous = await findPreviousMonthlyExpenseMonth(db, userId, year, month);
+  const monthId = crypto.randomUUID();
+  await db.execute({
+    sql: `
+      INSERT INTO monthly_expense_months (id, user_id, year, month, income_cents, variable_limit_cents, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `,
+    args: [monthId, userId, year, month, previous?.income_cents || 0, previous?.variable_limit_cents || 0]
+  });
+
+  const created = await findMonthlyExpenseMonth(db, userId, monthId);
+  if (!created) {
+    throw new HttpError(500, "monthly_expense_month_create_failed");
+  }
+
+  return created;
+}
+
+async function assertMonthlyExpenseMonth(db: Client, userId: string, monthId: string): Promise<MonthlyExpenseMonthRow> {
+  const month = await findMonthlyExpenseMonth(db, userId, monthId);
+  if (!month) {
+    throw new HttpError(404, "not_found");
+  }
+
+  return month;
+}
+
+async function listMonthlyExpenseCategoryRows(db: Client, userId: string): Promise<MonthlyExpenseCategoryRow[]> {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, name, color, archived_at, created_at, updated_at
+      FROM monthly_expense_categories
+      WHERE user_id = ?
+      ORDER BY name COLLATE NOCASE
+    `,
+    args: [userId]
+  });
+
+  return result.rows as unknown as MonthlyExpenseCategoryRow[];
+}
+
+async function listMonthlyExpensePaymentMethodRows(db: Client, userId: string): Promise<MonthlyExpensePaymentMethodRow[]> {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, name, color, archived_at, created_at, updated_at
+      FROM monthly_expense_payment_methods
+      WHERE user_id = ?
+      ORDER BY name COLLATE NOCASE
+    `,
+    args: [userId]
+  });
+
+  return result.rows as unknown as MonthlyExpensePaymentMethodRow[];
+}
+
+async function assertMonthlyExpenseCategory(db: Client, userId: string, categoryId: string, options: { allowArchived?: boolean } = {}): Promise<void> {
+  const result = await db.execute({
+    sql: "SELECT archived_at FROM monthly_expense_categories WHERE id = ? AND user_id = ? LIMIT 1",
+    args: [categoryId, userId]
+  });
+  const row = result.rows[0] as { archived_at?: string | null } | undefined;
+
+  if (!row || (!options.allowArchived && row.archived_at)) {
+    throw new HttpError(400, "invalid_category");
+  }
+}
+
+async function assertMonthlyExpensePaymentMethod(db: Client, userId: string, methodId: string, options: { allowArchived?: boolean } = {}): Promise<void> {
+  const result = await db.execute({
+    sql: "SELECT archived_at FROM monthly_expense_payment_methods WHERE id = ? AND user_id = ? LIMIT 1",
+    args: [methodId, userId]
+  });
+  const row = result.rows[0] as { archived_at?: string | null } | undefined;
+
+  if (!row || (!options.allowArchived && row.archived_at)) {
+    throw new HttpError(400, "invalid_payment_method");
+  }
+}
+
+async function listMonthlyExpenseItems(db: Client, userId: string, monthId: string): Promise<MonthlyExpenseItemRow[]> {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, month_id, category_id, payment_method_id, description, amount_cents, total_purchase_cents,
+        installment_number, installment_total, expense_type, installment_group_id, created_at, updated_at
+      FROM monthly_expense_items
+      WHERE user_id = ? AND month_id = ?
+      ORDER BY created_at DESC, id DESC
+    `,
+    args: [userId, monthId]
+  });
+
+  return result.rows as unknown as MonthlyExpenseItemRow[];
+}
+
+async function assertMonthlyExpenseItem(db: Client, userId: string, monthId: string, itemId: string): Promise<void> {
+  const result = await db.execute({
+    sql: "SELECT id FROM monthly_expense_items WHERE id = ? AND user_id = ? AND month_id = ? LIMIT 1",
+    args: [itemId, userId, monthId]
+  });
+
+  if (result.rows.length === 0) {
+    throw new HttpError(404, "not_found");
+  }
+}
+
+async function sanitizeMonthlyExpenseItemInput(db: Client, userId: string, payload: MonthlyExpenseItemInput) {
+  const categoryId = sanitizeRequiredId(payload.categoryId, "missing_category");
+  const paymentMethodId = sanitizeRequiredId(payload.paymentMethodId, "missing_payment_method");
+  await assertMonthlyExpenseCategory(db, userId, categoryId);
+  await assertMonthlyExpensePaymentMethod(db, userId, paymentMethodId);
+
+  return {
+    description: sanitizeItemDescription(payload.description),
+    categoryId,
+    paymentMethodId,
+    totalPurchaseCents: sanitizeAmountCents(payload.totalPurchaseCents),
+    installmentTotal: sanitizeInstallmentTotal(payload.installmentTotal),
+    expenseType: sanitizeMonthlyExpenseType(payload.expenseType)
+  };
+}
+
+async function insertMonthlyExpenseItem(
+  db: Client,
+  userId: string,
+  monthId: string,
+  item: {
+    description: string;
+    categoryId: string;
+    paymentMethodId: string;
+    totalPurchaseCents: number;
+    amountCents: number;
+    installmentNumber: number;
+    installmentTotal: number;
+    expenseType: MonthlyExpenseType;
+    installmentGroupId: string;
+  }
+): Promise<void> {
+  await db.execute({
+    sql: `
+      INSERT INTO monthly_expense_items (
+        id, user_id, month_id, category_id, payment_method_id, description, amount_cents, total_purchase_cents,
+        installment_number, installment_total, expense_type, installment_group_id, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `,
+    args: [
+      crypto.randomUUID(),
+      userId,
+      monthId,
+      item.categoryId,
+      item.paymentMethodId,
+      item.description,
+      item.amountCents,
+      item.totalPurchaseCents,
+      item.installmentNumber,
+      item.installmentTotal,
+      item.expenseType,
+      item.installmentGroupId
+    ]
+  });
+}
+
+function buildMonthlyExpenseDetail(
+  month: MonthlyExpenseMonthRow,
+  categories: ReturnType<typeof mapMonthlyExpenseCategory>[],
+  paymentMethods: ReturnType<typeof mapMonthlyExpensePaymentMethod>[],
+  items: MonthlyExpenseItemRow[]
+) {
+  const categoryById = new Map(categories.map((item) => [item.id, item]));
+  const methodById = new Map(paymentMethods.map((item) => [item.id, item]));
+  const detailedItems = items.map((item) => {
+    const category = categoryById.get(item.category_id);
+    const method = methodById.get(item.payment_method_id);
+
+    return {
+      id: item.id,
+      monthId: item.month_id,
+      categoryId: item.category_id,
+      categoryName: category?.name || "Categoria",
+      categoryColor: category?.color || "#9333ea",
+      paymentMethodId: item.payment_method_id,
+      paymentMethodName: method?.name || "Pagamento",
+      paymentMethodColor: method?.color || "#2563eb",
+      description: item.description,
+      amountCents: item.amount_cents,
+      totalPurchaseCents: item.total_purchase_cents,
+      installmentNumber: item.installment_number,
+      installmentTotal: item.installment_total,
+      expenseType: item.expense_type,
+      installmentGroupId: item.installment_group_id,
+      createdAt: toUtcIsoTimestamp(item.created_at),
+      updatedAt: toUtcIsoTimestamp(item.updated_at)
+    };
+  });
+  const summary = calculateMonthlyExpenseSummary({
+    incomeCents: month.income_cents,
+    variableLimitCents: month.variable_limit_cents,
+    items: detailedItems
+  });
+
+  return {
+    month: mapMonthlyExpenseMonth(month),
+    summary,
+    categories,
+    paymentMethods,
+    items: detailedItems
+  };
+}
+
+export function calculateMonthlyExpenseSummary(input: {
+  incomeCents: number;
+  variableLimitCents: number;
+  items: Array<{ amountCents: number; expenseType: MonthlyExpenseType }>;
+}) {
+  const fixedCents = input.items
+    .filter((item) => item.expenseType === "FIXO")
+    .reduce((total, item) => total + item.amountCents, 0);
+  const variableCents = input.items
+    .filter((item) => item.expenseType === "VARIAVEL")
+    .reduce((total, item) => total + item.amountCents, 0);
+  const reserveCents = input.items
+    .filter((item) => item.expenseType === "RESERVA")
+    .reduce((total, item) => total + item.amountCents, 0);
+
+  return {
+    incomeCents: input.incomeCents,
+    variableLimitCents: input.variableLimitCents,
+    variableSpentCents: variableCents,
+    variableRemainingCents: input.variableLimitCents - variableCents,
+    fixedTotalCents: fixedCents,
+    reserveTotalCents: reserveCents,
+    monthTotalCents: fixedCents + variableCents + reserveCents,
+    unallocatedCents: input.incomeCents - fixedCents - input.variableLimitCents
+  };
+}
+
+export function splitInstallmentAmounts(totalCents: number, installmentTotal: number): number[] {
+  const safeTotal = sanitizeAmountCents(totalCents);
+  const safeInstallments = sanitizeInstallmentTotal(installmentTotal);
+  const base = Math.floor(safeTotal / safeInstallments);
+  let remainder = safeTotal - base * safeInstallments;
+
+  return Array.from({ length: safeInstallments }, () => {
+    const amount = base + (remainder > 0 ? 1 : 0);
+    remainder = Math.max(0, remainder - 1);
+    return amount;
+  });
+}
+
+function mapMonthlyExpenseMonth(row: MonthlyExpenseMonthRow) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    year: row.year,
+    month: row.month,
+    incomeCents: row.income_cents,
+    variableLimitCents: row.variable_limit_cents,
+    createdAt: toUtcIsoTimestamp(row.created_at),
+    updatedAt: toUtcIsoTimestamp(row.updated_at)
+  };
+}
+
+function mapMonthlyExpenseCategory(row: MonthlyExpenseCategoryRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    archived: Boolean(row.archived_at),
+    createdAt: toUtcIsoTimestamp(row.created_at),
+    updatedAt: toUtcIsoTimestamp(row.updated_at)
+  };
+}
+
+function mapMonthlyExpensePaymentMethod(row: MonthlyExpensePaymentMethodRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    archived: Boolean(row.archived_at),
+    createdAt: toUtcIsoTimestamp(row.created_at),
+    updatedAt: toUtcIsoTimestamp(row.updated_at)
+  };
+}
+
+function sanitizeMonthlyExpensePeriod(year: unknown, month: unknown): { year: number; month: number } {
+  if (typeof year !== "number" || !Number.isInteger(year) || year < 2000 || year > 2100) {
+    throw new HttpError(400, "invalid_year");
+  }
+
+  if (typeof month !== "number" || !Number.isInteger(month) || month < 1 || month > 12) {
+    throw new HttpError(400, "invalid_month");
+  }
+
+  return { year, month };
+}
+
+function sanitizeNonNegativeCents(value: unknown, error: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 999999999) {
+    throw new HttpError(400, error);
+  }
+
+  return value;
+}
+
+function sanitizeCatalogName(value: unknown): string {
+  const name = typeof value === "string" ? value.trim() : "";
+  if (!name) {
+    throw new HttpError(400, "missing_name");
+  }
+
+  return name.slice(0, 80);
+}
+
+function sanitizeCatalogColor(value: unknown): string {
+  const color = typeof value === "string" ? value.trim() : "";
+  return /^#[0-9a-f]{6}$/i.test(color) ? color : "#9333ea";
+}
+
+function sanitizeInstallmentTotal(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0 || value > 120) {
+    throw new HttpError(400, "invalid_installments");
+  }
+
+  return value;
+}
+
+function sanitizeMonthlyExpenseType(value: unknown): MonthlyExpenseType {
+  if (value === "FIXO" || value === "VARIAVEL" || value === "RESERVA") {
+    return value;
+  }
+
+  throw new HttpError(400, "invalid_expense_type");
+}
+
+function addMonths(year: number, month: number, offset: number): { year: number; month: number } {
+  const zeroBased = year * 12 + (month - 1) + offset;
+  return {
+    year: Math.floor(zeroBased / 12),
+    month: zeroBased % 12 + 1
+  };
+}
+
+export function serializeMonthlyExpenseCsv(rows: Array<Record<string, string>>): string {
+  const headers = ["descricao", "categoria", "valor_total", "numero_parcelas", "parcela_atual", "metodo_pagamento", "tipo"];
+  const lines = [
+    headers.join(","),
+    ...rows.map((row) => headers.map((header) => escapeCsvCell(row[header] || "")).join(","))
+  ];
+
+  return `${lines.join("\n")}\n`;
+}
+
+export function parseMonthlyExpenseCsv(csv: string): Array<Record<string, string>> {
+  const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length < 2) {
+    return [];
+  }
+
+  const headers = parseCsvLine(lines[0]).map((header) => header.trim());
+  return lines.slice(1).map((line) => {
+    const cells = parseCsvLine(line);
+    return Object.fromEntries(headers.map((header, index) => [header, cells[index] || ""]));
+  });
+}
+
+function parseCsvLine(line: string): string[] {
+  const cells: string[] = [];
+  let cell = "";
+  let quoted = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+
+    if (char === "\"" && quoted && next === "\"") {
+      cell += "\"";
+      index += 1;
+    } else if (char === "\"") {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      cells.push(cell);
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+
+  cells.push(cell);
+  return cells.map((value) => value.trim());
+}
+
+function escapeCsvCell(value: string): string {
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, "\"\"")}"` : value;
+}
+
+function normalizeMonthlyExpenseCsvRow(row: Record<string, string>) {
+  const descricao = (row.descricao || "").trim();
+  const categoria = (row.categoria || "").trim();
+  const metodoPagamento = (row.metodo_pagamento || "").trim();
+  const tipo = sanitizeMonthlyExpenseType((row.tipo || "").trim().toUpperCase());
+  const numeroParcelas = Number(row.numero_parcelas || 1);
+  const parcelaAtual = Number(row.parcela_atual || 1);
+  const totalPurchaseCents = parseCsvMoney(row.valor_total || "");
+
+  if (!descricao) {
+    throw new HttpError(400, "descricao_obrigatoria");
+  }
+
+  if (!categoria) {
+    throw new HttpError(400, "categoria_obrigatoria");
+  }
+
+  if (!metodoPagamento) {
+    throw new HttpError(400, "metodo_pagamento_obrigatorio");
+  }
+
+  if (!Number.isInteger(numeroParcelas) || numeroParcelas <= 0 || numeroParcelas > 120) {
+    throw new HttpError(400, "numero_parcelas_invalido");
+  }
+
+  if (!Number.isInteger(parcelaAtual) || parcelaAtual <= 0 || parcelaAtual > numeroParcelas) {
+    throw new HttpError(400, "parcela_atual_invalida");
+  }
+
+  return {
+    descricao,
+    categoria,
+    valor_total: row.valor_total,
+    totalPurchaseCents,
+    numero_parcelas: numeroParcelas,
+    parcela_atual: parcelaAtual,
+    metodo_pagamento: metodoPagamento,
+    tipo
+  };
+}
+
+function parseCsvMoney(value: string): number {
+  const normalized = value.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  const parsed = Number(normalized);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new HttpError(400, "valor_total_invalido");
+  }
+
+  return Math.round(parsed * 100);
+}
+
+function formatCsvMoney(cents: number): string {
+  return (cents / 100).toFixed(2).replace(".", ",");
+}
+
+function normalizeCatalogKey(value: string): string {
+  return value.trim().toLocaleLowerCase("pt-BR");
+}
+
+function monthlyExpenseDuplicateKey(input: {
+  description: string;
+  totalPurchaseCents: number;
+  installmentNumber: number;
+  installmentTotal: number;
+  expenseType: MonthlyExpenseType;
+  categoryName: string;
+  paymentMethodName: string;
+}): string {
+  return [
+    input.description.trim().toLocaleLowerCase("pt-BR"),
+    input.totalPurchaseCents,
+    input.installmentNumber,
+    input.installmentTotal,
+    input.expenseType,
+    normalizeCatalogKey(input.categoryName),
+    normalizeCatalogKey(input.paymentMethodName)
+  ].join("|");
 }
 
 async function findExpenseRoom(db: Client, roomId: string): Promise<ExpenseRoomRow | null> {

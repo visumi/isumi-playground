@@ -5,6 +5,7 @@ import { DashboardComponent } from "./features/dashboard/dashboard.component";
 import { ExpenseRoomComponent } from "./features/expenses/expense-room.component";
 import { ExpenseRoomsComponent } from "./features/expenses/expense-rooms.component";
 import { LoginComponent } from "./features/login/login.component";
+import { MonthlyExpensesComponent } from "./features/monthly-expenses/monthly-expenses.component";
 import { ShellComponent } from "./layout/shell/shell.component";
 
 export const routes: Routes = [
@@ -25,6 +26,7 @@ export const routes: Routes = [
     children: [
       { path: "", pathMatch: "full", redirectTo: "dashboard" },
       { path: "dashboard", component: DashboardComponent },
+      { path: "tools/monthly-expenses", component: MonthlyExpensesComponent },
       { path: "tools/expenses", component: ExpenseRoomsComponent },
       { path: "tools/expenses/:roomId/room", component: ExpenseRoomComponent }
     ]

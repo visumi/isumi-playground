@@ -2,7 +2,7 @@
   <isumi-page-header eyebrow="Ferramenta" title="Dividir gastos" titleId="expenses-title" />
 
   <form class="grid gap-4" (ngSubmit)="createRoom()">
-    <isumi-card>
+    <div class="rounded-lg bg-card p-5 text-card-foreground">
       <div class="grid w-full gap-5">
         <div class="flex items-center gap-4 max-sm:flex-col max-sm:text-center">
           <span class="grid size-11 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground" aria-hidden="true">
@@ -38,7 +38,7 @@
           </isumi-button>
         </div>
       </div>
-    </isumi-card>
+    </div>
   </form>
 
   @if (error()) {
@@ -77,7 +77,7 @@
         </isumi-empty-state>
       } @else {
         @for (room of rooms(); track room.id) {
-          <isumi-card [interactive]="true" class="grid min-h-48 gap-4">
+          <div class="grid min-h-48 gap-4 rounded-lg bg-card p-5 text-card-foreground transition-colors hover:bg-secondary/65">
             <a class="grid min-h-full gap-4 text-card-foreground no-underline" [routerLink]="['/tools/expenses', room.id, 'room']">
               <div class="flex items-start justify-between gap-3">
                 <span class="grid size-10 place-items-center rounded-sm bg-accent text-accent-foreground" aria-hidden="true">
@@ -102,7 +102,7 @@
                 <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
               </strong>
             </a>
-          </isumi-card>
+          </div>
         }
       }
     </div>

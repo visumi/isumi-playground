@@ -2,12 +2,12 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { Router } from "@angular/router";
 import { LucideArrowRight, LucideShieldCheck, LucideUsers } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
-import { IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent } from "../../shared/ui";
+import { IsumiAlertComponent, IsumiButtonComponent } from "../../shared/ui";
 
 @Component({
   selector: "isumi-expense-invite",
   standalone: true,
-  imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent, LucideArrowRight, LucideShieldCheck, LucideUsers],
+  imports: [IsumiAlertComponent, IsumiButtonComponent, LucideArrowRight, LucideShieldCheck, LucideUsers],
   template: `
     <section class="grid min-h-screen place-items-center bg-background px-4 py-8 text-foreground" aria-labelledby="invite-title">
       <div class="grid w-full max-w-140 gap-6">
@@ -16,7 +16,7 @@ import { IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent } from ".
           <strong class="font-extrabold font-slab text-2xl text-purple-200">playground.</strong>
         </div>
 
-        <isumi-card padding="xl" class="overflow-hidden">
+        <section class="overflow-hidden rounded-lg bg-card p-7 text-card-foreground">
           <div class="grid gap-7">
             <div class="grid justify-items-center gap-4 text-center">
               <span class="grid size-12 place-items-center rounded-md bg-primary text-primary-foreground" aria-hidden="true">
@@ -57,7 +57,7 @@ import { IsumiAlertComponent, IsumiButtonComponent, IsumiCardComponent } from ".
               </div>
             </div>
           </div>
-        </isumi-card>
+        </section>
       </div>
     </section>
   `,

@@ -12,7 +12,7 @@
     </div>
 
     <nav
-      class="grid gap-1.5 max-md:fixed max-md:bottom-3 max-md:left-4 max-md:right-4 max-md:z-50 max-md:grid-cols-2 max-md:gap-1 max-md:rounded-lg max-md:border max-md:border-sidebar-border max-md:bg-sidebar/95 max-md:p-1 max-md:shadow-2xl max-md:shadow-black/45 max-md:backdrop-blur"
+      class="grid gap-1.5 max-md:fixed max-md:bottom-3 max-md:left-4 max-md:right-4 max-md:z-50 max-md:grid-cols-3 max-md:gap-1 max-md:rounded-lg max-md:border max-md:border-sidebar-border max-md:bg-sidebar/95 max-md:p-1 max-md:shadow-2xl max-md:shadow-black/45 max-md:backdrop-blur"
       aria-label="Ferramentas">
       <a isumiNavItem routerLink="/dashboard"
         routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25"
@@ -23,8 +23,14 @@
       <a isumiNavItem routerLink="/tools/expenses"
         routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25"
         (click)="closeAccountMenu()">
-        <svg lucideReceiptText class="size-4" aria-hidden="true"></svg>
+        <svg lucideReceipt class="size-4" aria-hidden="true"></svg>
         <span class="block max-md:hidden">Dividir gastos</span>
+      </a>
+      <a isumiNavItem routerLink="/tools/monthly-expenses"
+        routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25"
+        (click)="closeAccountMenu()">
+        <svg lucideSheet class="size-4" aria-hidden="true"></svg>
+        <span class="block max-md:hidden">Gastos mensais</span>
       </a>
     </nav>
 

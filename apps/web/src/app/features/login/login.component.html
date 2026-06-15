@@ -10,7 +10,7 @@
     </p>
   </section>
 
-  <isumi-card class="max-sm:mx-auto max-sm:w-full max-sm:max-w-[410px]" padding="xl" aria-label="Entrar">
+  <section class="rounded-lg bg-card p-7 text-card-foreground max-sm:mx-auto max-sm:w-full max-sm:max-w-[410px]" aria-label="Entrar">
     <h2 class="mb-2 text-[1.8rem] font-black tracking-[-0.02em]">Entrar</h2>
     <p class="m-0 leading-6 text-muted-foreground">O acesso e os dados ficam vinculados a sua conta do Google.</p>
 
@@ -40,5 +40,5 @@
     @if (error()) {
       <isumi-alert class="mt-5">{{ error() }}</isumi-alert>
     }
-  </isumi-card>
+  </section>
 </main>

@@ -2,7 +2,7 @@
   <isumi-page-header eyebrow="Bem-vindo" title="{{ auth.profile()?.name || 'vamos começar' }}" titleId="dashboard-title" />
 
   <div class="grid grid-cols-2 gap-4 max-md:grid-cols-1">
-    <isumi-card padding="lg" [interactive]="true" class="grid min-h-60 content-start">
+    <div class="grid min-h-60 content-start rounded-lg bg-card p-6 text-card-foreground transition-colors hover:bg-secondary/65">
       <a class="grid content-start text-card-foreground no-underline" routerLink="/tools/expenses">
         <isumi-badge variant="primary">
           <svg lucideSparkles class="size-3.5" aria-hidden="true"></svg>
@@ -15,6 +15,6 @@
           <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
         </strong>
       </a>
-    </isumi-card>
+    </div>
   </div>
 </section>
