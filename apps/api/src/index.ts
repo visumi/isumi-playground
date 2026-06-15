@@ -165,6 +165,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         return json(await getExpenseRoomDetail(db, user, roomId, url.searchParams.get("accept") === "1"), 200, corsHeaders);
       }
 
+      if (request.method === "DELETE") {
+        await deleteExpenseRoom(db, user.uid, roomId);
+        return new Response(null, { status: 204, headers: corsHeaders });
+      }
     }
 
     const expensePaidSettlementMatch = url.pathname.match(/^\/tools\/expenses\/rooms\/([^/]+)\/settlements$/);
@@ -432,6 +436,41 @@ async function getExpenseRoomDetail(db: Client, user: AuthUser, roomId: string, 
   }
 
   return buildExpenseRoomDetail(db, roomId);
+}
+
+async function deleteExpenseRoom(db: Client, userId: string, roomId: string): Promise<void> {
+  await assertExpenseRoomOwner(db, roomId, userId);
+
+  await db.execute({
+    sql: `
+      DELETE FROM expense_paid_settlements
+      WHERE room_id = ?
+    `,
+    args: [roomId]
+  });
+  await db.execute({
+    sql: `
+      DELETE FROM expense_item_splits
+      WHERE item_id IN (
+        SELECT id
+        FROM expense_items
+        WHERE room_id = ?
+      )
+    `,
+    args: [roomId]
+  });
+  await db.execute({
+    sql: "DELETE FROM expense_items WHERE room_id = ?",
+    args: [roomId]
+  });
+  await db.execute({
+    sql: "DELETE FROM expense_participants WHERE room_id = ?",
+    args: [roomId]
+  });
+  await db.execute({
+    sql: "DELETE FROM expense_rooms WHERE id = ?",
+    args: [roomId]
+  });
 }
 
 async function createGuestParticipant(db: Client, userId: string, roomId: string, payload: ExpenseParticipantInput) {

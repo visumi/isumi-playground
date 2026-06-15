@@ -16,6 +16,13 @@
           </p>
         </div>
         <div class="flex gap-2 max-md:w-full">
+          @if (isOwner()) {
+          <isumi-button iconOnly variant="secondary-destructive" ariaLabel="Excluir sala" [loading]="deletingRoom()"
+            (click)="openDeleteRoomModal()">
+            <svg icon lucideTrash2 class="size-5" aria-hidden="true"></svg>
+            Excluir sala
+          </isumi-button>
+          }
           <isumi-button iconOnly variant="secondary" ariaLabel="Copiar link de convite" (click)="copyInviteUrl()">
             <svg icon lucideFiles class="size-5" aria-hidden="true"></svg>
             Copiar link de convite
@@ -325,6 +332,7 @@
           </div>
           <div class="flex gap-2 max-md:w-full">
             <div class="size-10 shrink-0 animate-pulse rounded-sm bg-muted"></div>
+            <div class="size-10 shrink-0 animate-pulse rounded-sm bg-muted"></div>
             <div class="h-10 w-36 shrink-0 animate-pulse rounded-sm bg-muted max-md:flex-1"></div>
           </div>
         </div>
@@ -460,11 +468,9 @@
     </div>
   </div>
   } @else if (error()) {
-    <isumi-empty-state
-      title="Nao foi possivel abrir esta sala"
-      description="O link pode estar incorreto, a sala pode ter sido removida ou talvez voce nao tenha acesso a ela. Tente carregar novamente ou volte para suas salas."
-    >
-      <svg icon lucideFrown class="size-5" aria-hidden="true"></svg>
-    </isumi-empty-state>
+  <isumi-empty-state title="Nao foi possivel abrir esta sala"
+    description="O link pode estar incorreto, a sala pode ter sido removida ou talvez voce nao tenha acesso a ela. Tente carregar novamente ou volte para suas salas.">
+    <svg icon lucideFrown class="size-5" aria-hidden="true"></svg>
+  </isumi-empty-state>
   }
 </section>

@@ -15,6 +15,10 @@ interface ExpenseItemModalData {
   item?: ExpenseItem;
 }
 
+interface DeleteExpenseRoomModalData {
+  roomName: string;
+}
+
 const MAX_SPLIT_UNITS = 99;
 
 function normalizeDecimalInput(value: string | number, decimalPlaces: number): string {
@@ -290,6 +294,44 @@ export class ExpenseItemModalComponent {
 }
 
 @Component({
+  selector: "isumi-delete-expense-room-modal",
+  standalone: true,
+  imports: [IsumiButtonComponent, LucideTrash2, LucideX],
+  template: `
+    <div class="grid gap-5">
+      <header class="flex items-start justify-between gap-4">
+        <div>
+          <div class="mb-3 grid size-10 place-items-center rounded-sm bg-destructive/15 text-destructive">
+            <svg icon lucideTrash2 class="size-5" aria-hidden="true"></svg>
+          </div>
+          <h2 class="m-0 text-[1.2rem] font-black">Excluir sala</h2>
+          <p class="m-0 mt-2 max-w-[52ch] text-sm leading-6 text-muted-foreground">
+            Isto remove a sala "{{ data?.roomName || "esta sala" }}", seus itens, participantes e acertos. Esta ação não pode ser desfeita.
+          </p>
+        </div>
+        <isumi-button class="max-sm:hidden" variant="ghost" size="sm" iconOnly ariaLabel="Fechar confirmacao" (click)="modalRef.close(false)">
+          <svg icon lucideX class="size-4" aria-hidden="true"></svg>
+          Fechar
+        </isumi-button>
+      </header>
+
+      <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
+        <isumi-button mobileFull variant="secondary" type="button" (click)="modalRef.close(false)">Cancelar</isumi-button>
+        <isumi-button mobileFull variant="destructive" type="button" (click)="modalRef.close(true)">
+          <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
+          Excluir sala
+        </isumi-button>
+      </footer>
+    </div>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class DeleteExpenseRoomModalComponent {
+  readonly data = injectIsumiModalData<DeleteExpenseRoomModalData>();
+  readonly modalRef = injectIsumiModalRef<DeleteExpenseRoomModalData, boolean>();
+}
+
+@Component({
   selector: "isumi-expense-room",
   standalone: true,
   imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiBreadcrumbComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowRight, LucideReceiptText, LucidePencil, LucidePlus, LucideConciergeBell, LucideScale, LucideFiles, LucideTrash2, LucideUserPlus, LucideUsers, LucideFrown],
@@ -315,6 +357,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   readonly saving = signal(false);
   readonly savingItemId = signal<string | null>(null);
   readonly deletingItemId = signal<string | null>(null);
+  readonly deletingRoom = signal(false);
   readonly copiedInviteUrl = signal(false);
   readonly error = signal<string | null>(null);
   readonly guestName = signal("");
@@ -365,7 +408,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   }
 
   private refreshRoom(options: { showLoading?: boolean; silent?: boolean } = {}): void {
-    if (this.saving() || this.refreshingRoom) {
+    if (this.saving() || this.deletingRoom() || this.refreshingRoom) {
       return;
     }
 
@@ -471,6 +514,25 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
         this.deletingItemId.set(null);
       },
       complete: () => this.deletingItemId.set(null)
+    });
+  }
+
+  openDeleteRoomModal(): void {
+    const room = this.detail()?.room;
+
+    if (!room || !this.isOwner() || this.deletingRoom()) {
+      return;
+    }
+
+    const ref = this.modal.open<DeleteExpenseRoomModalComponent, DeleteExpenseRoomModalData, boolean>(DeleteExpenseRoomModalComponent, {
+      data: { roomName: room.name },
+      ariaLabel: "Confirmar exclusao da sala"
+    });
+
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed) {
+        this.deleteRoom();
+      }
     });
   }
 
@@ -603,6 +665,31 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   private finishSavingSettlement(): void {
     this.saving.set(false);
     this.savingSettlementKey.set(null);
+  }
+
+  private deleteRoom(): void {
+    if (this.deletingRoom()) {
+      return;
+    }
+
+    this.deletingRoom.set(true);
+    this.error.set(null);
+    this.stopAutoRefresh();
+    this.expenses.deleteRoom(this.roomId()).subscribe({
+      next: () => {
+        this.toast.success("Sala excluída.", { id: "expense-delete-room-success" });
+        void this.router.navigate(["/tools/expenses"]);
+      },
+      error: () => {
+        this.error.set("Nao foi possivel excluir esta sala.");
+        this.toast.error("Nao foi possivel excluir esta sala.", { id: "expense-delete-room-error" });
+        this.deletingRoom.set(false);
+        this.startAutoRefresh();
+      },
+      complete: () => {
+        this.deletingRoom.set(false);
+      }
+    });
   }
 
   private startAutoRefresh(): void {

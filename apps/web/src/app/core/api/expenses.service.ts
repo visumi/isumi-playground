@@ -21,6 +21,10 @@ export class ExpensesService {
     return this.http.get<ExpenseRoomDetail>(`${this.baseUrl}/${roomId}`);
   }
 
+  deleteRoom(roomId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${roomId}`);
+  }
+
   acceptRoom(roomId: string): Observable<ExpenseRoomDetail> {
     return this.http.get<ExpenseRoomDetail>(`${this.baseUrl}/${roomId}?accept=1`);
   }

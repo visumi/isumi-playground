@@ -32,6 +32,7 @@ describe("ExpenseRoomComponent", () => {
           provide: ExpensesService,
           useValue: {
             getRoom: () => of(roomDetail()),
+            deleteRoom: () => of(undefined),
             deleteParticipant: () => of(undefined)
           }
         },
@@ -58,6 +59,7 @@ describe("ExpenseRoomComponent", () => {
     TestBed.overrideProvider(ExpensesService, {
       useValue: {
         getRoom: () => of(roomDetail()),
+        deleteRoom: () => of(undefined),
         deleteParticipant: () => throwError(() => new Error("linked participant"))
       }
     });
@@ -80,6 +82,7 @@ describe("ExpenseRoomComponent", () => {
     TestBed.overrideProvider(ExpensesService, {
       useValue: {
         getRoom: () => throwError(() => new HttpErrorResponse({ status: 403 })),
+        deleteRoom: () => of(undefined),
         deleteParticipant: () => of(undefined)
       }
     });
@@ -91,6 +94,31 @@ describe("ExpenseRoomComponent", () => {
     fixture.componentInstance.loadRoom();
 
     expect(router.navigate).toHaveBeenCalledWith(["/tools/expenses", "room-1"]);
+  });
+
+  it("deletes the room after confirmation and returns to the room list", () => {
+    const expenses = jasmine.createSpyObj<ExpensesService>("ExpensesService", ["getRoom", "deleteRoom", "deleteParticipant"]);
+    const modal = jasmine.createSpyObj<IsumiModalService>("IsumiModalService", ["open"]);
+    const toast = jasmine.createSpyObj<IsumiToastService>("IsumiToastService", ["success", "error"]);
+    expenses.getRoom.and.returnValue(of(roomDetail()));
+    expenses.deleteRoom.and.returnValue(of(undefined));
+    expenses.deleteParticipant.and.returnValue(of(undefined));
+    modal.open.and.returnValue({ afterClosed: () => of(true) } as never);
+    TestBed.overrideProvider(ExpensesService, { useValue: expenses });
+    TestBed.overrideProvider(IsumiModalService, { useValue: modal });
+    TestBed.overrideProvider(IsumiToastService, { useValue: toast });
+    const router = TestBed.inject(Router);
+    spyOn(router, "navigate").and.resolveTo(true);
+    const fixture = TestBed.createComponent(ExpenseRoomComponent);
+    fixture.componentRef.setInput("roomId", "room-1");
+    fixture.componentInstance.detail.set(roomDetail());
+
+    fixture.componentInstance.openDeleteRoomModal();
+
+    expect(modal.open).toHaveBeenCalled();
+    expect(expenses.deleteRoom).toHaveBeenCalledWith("room-1");
+    expect(toast.success).toHaveBeenCalledWith("Sala excluída.", { id: "expense-delete-room-success" });
+    expect(router.navigate).toHaveBeenCalledWith(["/tools/expenses"]);
   });
 });
 

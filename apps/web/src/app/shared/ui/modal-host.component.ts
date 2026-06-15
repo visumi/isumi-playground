@@ -110,7 +110,7 @@ export class IsumiModalHostComponent {
     event.currentTarget instanceof HTMLElement && event.currentTarget.releasePointerCapture(event.pointerId);
     this.draggingEntryId = null;
 
-    if (this.dragOffsetY >= this.drawerCloseThreshold()) {
+    if (this.dragOffsetY >= this.drawerCloseThreshold(event.currentTarget)) {
       entry.ref.close();
       return;
     }
@@ -172,7 +172,16 @@ export class IsumiModalHostComponent {
     return typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
   }
 
-  private drawerCloseThreshold(): number {
-    return typeof window === "undefined" ? 220 : Math.max(220, window.innerHeight * 0.5);
+  private drawerCloseThreshold(handleTarget: EventTarget | null): number {
+    const panel = handleTarget instanceof HTMLElement
+      ? handleTarget.closest<HTMLElement>("[role='dialog']")
+      : null;
+    const panelHeight = panel?.getBoundingClientRect().height || 0;
+
+    if (!panelHeight) {
+      return 120;
+    }
+
+    return Math.min(220, Math.max(72, panelHeight * 0.35));
   }
 }
