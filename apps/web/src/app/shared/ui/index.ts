@@ -1,5 +1,4 @@
 export * from "./avatar.component";
-export * from "./badge.component";
 export * from "./breadcrumb.component";
 export * from "./button.component";
 export * from "./checkbox.component";
@@ -10,5 +9,7 @@ export * from "./modal.service";
 export * from "./nav-item.directive";
 export * from "./page-header.component";
 export * from "./select.directive";
+export * from "./tag.component";
 export * from "./toast-host.component";
 export * from "./toast.service";
+export * from "./tooltip.component";

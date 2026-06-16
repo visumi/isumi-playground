@@ -5,12 +5,12 @@ import { Router, RouterLink } from "@angular/router";
 import { LucideArrowRight, LucideCalendar, LucideHash, LucidePlus, LucideReceiptText, LucideWalletCards } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
 import { ExpenseRoom } from "../../core/api/api.types";
-import { IsumiBadgeComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, IsumiToastService } from "../../shared/ui";
+import { IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, IsumiTagComponent, IsumiToastService } from "../../shared/ui";
 
 @Component({
   selector: "isumi-expense-rooms",
   standalone: true,
-  imports: [DatePipe, FormsModule, IsumiButtonComponent, IsumiBadgeComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, LucideArrowRight, LucideCalendar, LucideHash, LucidePlus, LucideReceiptText, LucideWalletCards, RouterLink],
+  imports: [DatePipe, FormsModule, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, IsumiTagComponent, LucideArrowRight, LucideCalendar, LucideHash, LucidePlus, LucideReceiptText, LucideWalletCards, RouterLink],
   templateUrl: "./expense-rooms.component.html",
   changeDetection: ChangeDetectionStrategy.OnPush
 })

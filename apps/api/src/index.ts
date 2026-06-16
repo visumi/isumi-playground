@@ -1137,7 +1137,7 @@ async function importMonthlyExpenseCsv(db: Client, userId: string, monthId: stri
       });
 
       if (existingKeys.has(key) || seenKeys.has(key)) {
-        throw new HttpError(409, "duplicado_provavel");
+        throw new HttpError(409, "provavel_duplicado");
       }
 
       seenKeys.add(key);
@@ -1613,13 +1613,13 @@ function escapeCsvCell(value: string): string {
 }
 
 function normalizeMonthlyExpenseCsvRow(row: Record<string, string>) {
-  const descricao = (row.descricao || "").trim();
-  const categoria = (row.categoria || "").trim();
-  const metodoPagamento = (row.metodo_pagamento || "").trim();
-  const tipo = sanitizeMonthlyExpenseType((row.tipo || "").trim().toUpperCase());
-  const numeroParcelas = Number(row.numero_parcelas || 1);
-  const parcelaAtual = Number(row.parcela_atual || 1);
-  const totalPurchaseCents = parseCsvMoney(row.valor_total || "");
+  const descricao = (row["descricao"] || "").trim();
+  const categoria = (row["categoria"] || "").trim();
+  const metodoPagamento = (row["metodo_pagamento"] || "").trim();
+  const tipo = sanitizeMonthlyExpenseType((row["tipo"] || "").trim().toUpperCase());
+  const numeroParcelas = Number(row["numero_parcelas"] || 1);
+  const parcelaAtual = Number(row["parcela_atual"] || 1);
+  const totalPurchaseCents = parseCsvMoney(row["valor_total"] || "");
 
   if (!descricao) {
     throw new HttpError(400, "descricao_obrigatoria");
@@ -1644,7 +1644,7 @@ function normalizeMonthlyExpenseCsvRow(row: Record<string, string>) {
   return {
     descricao,
     categoria,
-    valor_total: row.valor_total,
+    valor_total: row["valor_total"],
     totalPurchaseCents,
     numero_parcelas: numeroParcelas,
     parcela_atual: parcelaAtual,

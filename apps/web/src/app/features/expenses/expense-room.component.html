@@ -67,7 +67,7 @@
               Quem paga quem
             </h2>
             @if (pendingSettlements()) {
-            <isumi-badge variant="secondary">{{ pendingSettlements().length }} pendente(s)</isumi-badge>
+            <isumi-tag tone="secondary">{{ pendingSettlements().length }} pendente(s)</isumi-tag>
             } @else {
             <span
               class="inline-flex w-fit items-center rounded-full bg-emerald-500/10 px-2.5 py-1.5 text-xs font-black text-emerald-200">
@@ -135,7 +135,7 @@
             <svg lucideUsers class="size-4" aria-hidden="true"></svg>
             Participantes
           </h2>
-          <isumi-badge variant="secondary">{{ state.participants.length }}</isumi-badge>
+          <isumi-tag tone="secondary">{{ state.participants.length }}</isumi-tag>
         </div>
 
         @if (isOwner()) {
@@ -197,7 +197,7 @@
           </h2>
           <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">Registre os gastos e adicione quem pagou.</p>
         </div>
-        <isumi-badge variant="secondary">{{ state.items.length }} item(s)</isumi-badge>
+        <isumi-tag tone="secondary">{{ state.items.length }} item(s)</isumi-tag>
       </div>
 
       @if (state.items.length === 0 && !savingItemId()) {

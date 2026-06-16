@@ -5,10 +5,11 @@ import { IsumiButtonComponent } from "./button.component";
 import { IsumiEmptyStateComponent } from "./empty-state.component";
 import { IsumiInputDirective } from "./input.directive";
 import { IsumiSelectDirective } from "./select.directive";
+import { IsumiTagComponent } from "./tag.component";
 
 @Component({
   standalone: true,
-  imports: [IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective],
+  imports: [IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective, IsumiTagComponent],
   template: `
     <isumi-button variant="secondary" size="sm" disabled>
       <span icon data-testid="icon"></span>
@@ -29,6 +30,10 @@ import { IsumiSelectDirective } from "./select.directive";
     <isumi-empty-state title="Nada aqui" description="Crie um item.">
       <span icon data-testid="empty-icon"></span>
     </isumi-empty-state>
+    <isumi-tag tone="primary">
+      <span icon data-testid="tag-icon"></span>
+      Junho 2026
+    </isumi-tag>
   `
 })
 class UiSpecHostComponent {}
@@ -81,8 +86,8 @@ describe("shared ui", () => {
     const button = buttons[3].nativeElement as HTMLButtonElement;
 
     expect(button.classList).toContain("bg-transparent");
-    expect(button.classList).toContain("hover:bg-destructive/30");
-    expect(button.classList).toContain("hover:text-destructive");
+    expect(button.classList).toContain("hover:bg-red-700");
+    expect(button.classList).toContain("hover:text-white");
   });
 
   it("supports filled destructive buttons with consistent foreground color", () => {
@@ -91,7 +96,7 @@ describe("shared ui", () => {
 
     expect(button.classList).toContain("bg-destructive");
     expect(button.classList).toContain("text-white");
-    expect(button.classList).toContain("hover:bg-red-600");
+    expect(button.classList).toContain("hover:bg-red-700");
     expect(button.classList).toContain("hover:text-white");
   });
 
@@ -121,5 +126,14 @@ describe("shared ui", () => {
 
     expect(emptyState.querySelector("[data-testid='empty-icon']")).not.toBeNull();
     expect(emptyState.textContent).toContain("Nada aqui");
+  });
+
+  it("supports icons inside tags without losing the label", () => {
+    const tag = fixture.debugElement.query(By.css("isumi-tag")).nativeElement as HTMLElement;
+
+    expect(tag.querySelector("[data-testid='tag-icon']")).not.toBeNull();
+    expect(tag.textContent).toContain("Junho 2026");
+    expect(tag.classList).toContain("gap-1.5");
+    expect(tag.classList).toContain("[&_[icon]]:size-3.5");
   });
 });

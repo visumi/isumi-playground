@@ -45,7 +45,7 @@ describe("IsumiCheckboxComponent", () => {
 
     const box = fixture.debugElement.query(By.css("label > span")).nativeElement as HTMLElement;
 
-    expect(box.className).toContain("bg-secondary");
+    expect(box.className).toContain("bg-background");
   });
 
   it("shows a loading indicator", () => {
