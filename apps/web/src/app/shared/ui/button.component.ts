@@ -13,7 +13,7 @@ export type IsumiButtonType = "button" | "submit" | "reset";
     "[class.max-sm:w-full]": "mobileFull()"
   },
   template: `
-    <button [type]="type()" [disabled]="disabled() || loading()" [attr.aria-busy]="loading() ? true : null" [attr.aria-label]="ariaLabel()" [class]="buttonClasses()">
+    <button [type]="type()" [disabled]="disabled() || loading()" [attr.aria-busy]="loading() ? true : null" [attr.aria-label]="ariaLabel()" [attr.aria-pressed]="ariaPressed()" [class]="buttonClasses()">
       @if (loading()) {
         <span class="size-4 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden="true"></span>
       } @else {
@@ -40,6 +40,7 @@ export class IsumiButtonComponent {
   readonly mobileFull = input(false, { transform: booleanAttribute });
   readonly iconOnly = input(false, { transform: booleanAttribute });
   readonly ariaLabel = input<string | null>(null);
+  readonly ariaPressed = input<boolean | null>(null);
 
   readonly buttonClasses = computed(() => {
     const variantClasses: Record<IsumiButtonVariant, string> = {

@@ -6,12 +6,16 @@ import {
   LucideBanknoteArrowUp,
   LucideCalendar,
   LucideCalendarDays,
+  LucideCalendars,
   LucideChevronLeft,
   LucideChevronRight,
+  LucideCreditCard,
   LucideDownload,
-  LucideFolderPlus,
+  LucideBrushCleaning,
+  LucideFlag,
   LucideCoins,
   LucideGoal,
+  LucidePalette,
   LucidePencil,
   LucidePiggyBank,
   LucidePlus,
@@ -19,6 +23,7 @@ import {
   LucideSave,
   LucideSearch,
   LucideSettings2,
+  LucideTags,
   LucideTrash2,
   LucideCalendarRange,
   LucideUpload,
@@ -28,7 +33,7 @@ import {
 } from "@lucide/angular";
 import { MonthlyExpensesService } from "../../core/api/monthly-expenses.service";
 import { MonthlyExpenseCatalogItem, MonthlyExpenseDetail, MonthlyExpenseItem, MonthlyExpenseMonth, MonthlyExpenseType, UpsertMonthlyExpenseItemRequest } from "../../core/api/api.types";
-import { IsumiBadgeComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective, IsumiToastService } from "../../shared/ui";
+import { IsumiBadgeComponent, IsumiBadgeVariant, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective, IsumiToastService } from "../../shared/ui";
 import { IsumiPageHeaderComponent } from "../../shared/ui/page-header.component";
 import { finalize } from "rxjs";
 
@@ -51,8 +56,14 @@ const MONTH_NAMES = [
 
 const TYPE_LABELS: Record<MonthlyExpenseType, string> = {
   FIXO: "Fixo",
-  VARIAVEL: "Variavel",
+  VARIAVEL: "Variável",
   RESERVA: "Reserva"
+};
+
+const TYPE_BADGE_VARIANTS: Record<MonthlyExpenseType, IsumiBadgeVariant> = {
+  FIXO: "rose",
+  VARIAVEL: "indigo",
+  RESERVA: "cyan"
 };
 
 function normalizeMoneyInput(value: string | number): string {
@@ -83,12 +94,16 @@ function normalizeMoneyInput(value: string | number): string {
     LucideBanknoteArrowUp,
     LucideCalendar,
     LucideCalendarDays,
+    LucideCalendars,
     LucideChevronLeft,
     LucideChevronRight,
+    LucideCreditCard,
     LucideDownload,
-    LucideFolderPlus,
+    LucideBrushCleaning,
+    LucideFlag,
     LucideCoins,
     LucideGoal,
+    LucidePalette,
     LucidePencil,
     LucidePiggyBank,
     LucideCalendarRange,
@@ -98,7 +113,9 @@ function normalizeMoneyInput(value: string | number): string {
     LucideDollarSign,
     LucideSave,
     LucideSearch,
+
     LucideSettings2,
+    LucideTags,
     LucideTrash2,
     LucideUpload,
     LucideX
@@ -145,6 +162,12 @@ export class MonthlyExpensesComponent implements OnInit {
   readonly activeCategories = computed(() => this.categories().filter((item) => !item.archived));
   readonly paymentMethods = computed(() => this.detail()?.paymentMethods || []);
   readonly activePaymentMethods = computed(() => this.paymentMethods().filter((item) => !item.archived));
+  readonly catalogKindLabel = computed(() => this.catalogKind() === "category" ? "Categoria" : "Pagamento");
+  readonly catalogPreviewName = computed(() => this.catalogName().trim() || `${this.catalogKindLabel()}`);
+  readonly catalogHelperText = computed(() => this.catalogKind() === "category"
+    ? "Dê um nome curto para encontrar gastos parecidos rapidinho."
+    : "Separe cartões, contas ou dinheiro sem misturar os lançamentos."
+  );
   readonly variableProgress = computed(() => {
     const summary = this.detail()?.summary;
     if (!summary || summary.variableLimitCents <= 0) {
@@ -274,6 +297,7 @@ export class MonthlyExpensesComponent implements OnInit {
   }
 
   saveCatalogItem(): void {
+    const kindLabel = this.catalogKindLabel().toLocaleLowerCase("pt-BR");
     const payload = {
       name: this.catalogName().trim(),
       color: this.catalogColor()
@@ -295,7 +319,10 @@ export class MonthlyExpensesComponent implements OnInit {
         this.catalogName.set("");
       })
     ).subscribe({
-      next: () => this.reloadActiveDetail(),
+      next: () => {
+        this.toast.success(`${this.catalogKindLabel()} criado(a).`, { id: `monthly-expense-catalog-${kindLabel}-created` });
+        this.reloadActiveDetail();
+      },
       error: () => this.toast.error("Não foi possível salvar este cadastro.", { id: "monthly-expense-catalog-save-error" })
     });
   }
@@ -423,6 +450,10 @@ export class MonthlyExpensesComponent implements OnInit {
 
   typeLabel(type: MonthlyExpenseType): string {
     return TYPE_LABELS[type];
+  }
+
+  typeBadgeVariant(type: MonthlyExpenseType): IsumiBadgeVariant {
+    return TYPE_BADGE_VARIANTS[type];
   }
 
   setIncome(value: string | number): void {
