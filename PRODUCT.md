@@ -19,7 +19,7 @@ Modern, calm, and playful. The interface should feel capable and current, but no
 ## References
 
 - Bento box layouts: grouped tools and information should feel modular, tidy, and easy to scan, with each block earning its space.
-- visumi/toolbox: dark utility UI, compact tool-first screens, deep green identity, and surfaces that feel like a personal control room rather than a public marketing site.
+- visumi/toolbox: dark utility UI, compact tool-first screens, deep emerald identity, and surfaces that feel like a personal control room rather than a public marketing site.
 - shadcn/ui create preset `b2BVmR1GK`: dark zinc-like canvas, muted neutral surfaces, restrained purple primary, Lucide icons, semantic Tailwind tokens, clear focus states, familiar controls, and dark-mode patterns with strong foreground/background pairs.
 
 ## Anti-references

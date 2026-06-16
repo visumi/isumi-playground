@@ -10,6 +10,7 @@ import {
   LucideChevronRight,
   LucideDownload,
   LucideFolderPlus,
+  LucideCoins,
   LucideGoal,
   LucidePencil,
   LucidePiggyBank,
@@ -21,15 +22,17 @@ import {
   LucideTrash2,
   LucideCalendarRange,
   LucideUpload,
-  LucideX
+  LucideX,
+  LucideBrickWall,
+  LucideDollarSign
 } from "@lucide/angular";
 import { MonthlyExpensesService } from "../../core/api/monthly-expenses.service";
 import { MonthlyExpenseCatalogItem, MonthlyExpenseDetail, MonthlyExpenseItem, MonthlyExpenseMonth, MonthlyExpenseType, UpsertMonthlyExpenseItemRequest } from "../../core/api/api.types";
-import { IsumiAlertComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective, IsumiToastService } from "../../shared/ui";
+import { IsumiBadgeComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective, IsumiToastService } from "../../shared/ui";
 import { IsumiPageHeaderComponent } from "../../shared/ui/page-header.component";
+import { finalize } from "rxjs";
 
 type CatalogKind = "category" | "payment";
-type ExpenseFormMode = "new" | "edit";
 
 const MONTH_NAMES = [
   "JAN",
@@ -70,7 +73,6 @@ function normalizeMoneyInput(value: string | number): string {
   standalone: true,
   imports: [
     FormsModule,
-    IsumiAlertComponent,
     IsumiBadgeComponent,
     IsumiButtonComponent,
     IsumiEmptyStateComponent,
@@ -85,12 +87,15 @@ function normalizeMoneyInput(value: string | number): string {
     LucideChevronRight,
     LucideDownload,
     LucideFolderPlus,
+    LucideCoins,
     LucideGoal,
     LucidePencil,
     LucidePiggyBank,
     LucideCalendarRange,
     LucidePlus,
     LucideReceiptText,
+    LucideBrickWall,
+    LucideDollarSign,
     LucideSave,
     LucideSearch,
     LucideSettings2,
@@ -99,18 +104,17 @@ function normalizeMoneyInput(value: string | number): string {
     LucideX
   ],
   templateUrl: "./monthly-expenses.component.html",
-  styleUrl: "./monthly-expenses.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MonthlyExpensesComponent implements OnInit {
   private readonly api = inject(MonthlyExpensesService);
   private readonly toast = inject(IsumiToastService);
+  private currentDetailRequestId: string | null = null;
 
   readonly months = signal<MonthlyExpenseMonth[]>([]);
   readonly detail = signal<MonthlyExpenseDetail | null>(null);
   readonly loading = signal(false);
   readonly saving = signal(false);
-  readonly error = signal<string | null>(null);
   readonly selectedYear = signal(new Date().getFullYear());
   readonly selectedMonth = signal(new Date().getMonth() + 1);
   readonly income = signal("");
@@ -173,7 +177,6 @@ export class MonthlyExpensesComponent implements OnInit {
 
   loadMonths(): void {
     this.loading.set(true);
-    this.error.set(null);
     this.api.listMonths().subscribe({
       next: (months) => {
         this.months.set(months);
@@ -185,10 +188,13 @@ export class MonthlyExpensesComponent implements OnInit {
           this.loadDetail(active.id);
         } else {
           this.detail.set(null);
+          this.loading.set(false);
         }
       },
-      error: () => this.error.set("Nao foi possivel carregar seus meses."),
-      complete: () => this.loading.set(false)
+      error: () => {
+        this.toast.error("Não foi possível carregar seus meses.", { id: "monthly-expense-load-months-error" });
+        this.loading.set(false);
+      }
     });
   }
 
@@ -198,15 +204,15 @@ export class MonthlyExpensesComponent implements OnInit {
     }
 
     this.saving.set(true);
-    this.error.set(null);
-    this.api.createMonth({ year: this.selectedYear(), month: this.selectedMonth() }).subscribe({
+    this.api.createMonth({ year: this.selectedYear(), month: this.selectedMonth() }).pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
       next: (detail) => {
         this.setDetail(detail);
         this.months.update((months) => [detail.month, ...months].sort((a, b) => b.year - a.year || b.month - a.month));
-        this.toast.success("Mes criado com os limites do ultimo mes.", { id: "monthly-expense-create-month" });
+        this.toast.success("Orçamento criado com sucesso", { id: "monthly-expense-create-month" });
       },
-      error: (error: unknown) => this.handleError(error, "Nao foi possivel criar este mes."),
-      complete: () => this.saving.set(false)
+      error: (error: unknown) => this.handleError(error, "Não foi possível criar este orçamento.")
     });
   }
 
@@ -220,6 +226,9 @@ export class MonthlyExpensesComponent implements OnInit {
 
     if (active) {
       this.loadDetail(active.id);
+    } else {
+      this.currentDetailRequestId = null;
+      this.loading.set(false);
     }
   }
 
@@ -249,10 +258,11 @@ export class MonthlyExpensesComponent implements OnInit {
     }
 
     this.saving.set(true);
-    this.api.updateMonth(detail.month.id, { incomeCents, variableLimitCents }).subscribe({
+    this.api.updateMonth(detail.month.id, { incomeCents, variableLimitCents }).pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
       next: (updated) => this.setDetail(updated),
-      error: () => this.error.set("Nao foi possivel salvar os valores do mes."),
-      complete: () => this.saving.set(false)
+      error: () => this.toast.error("Não foi possível salvar os valores do mês.", { id: "monthly-expense-settings-save-error" })
     });
   }
 
@@ -279,13 +289,14 @@ export class MonthlyExpensesComponent implements OnInit {
       : this.api.createPaymentMethod(payload);
 
     this.saving.set(true);
-    request.subscribe({
-      next: () => this.reloadActiveDetail(),
-      error: () => this.error.set("Nao foi possivel salvar este cadastro."),
-      complete: () => {
+    request.pipe(
+      finalize(() => {
         this.saving.set(false);
         this.catalogName.set("");
-      }
+      })
+    ).subscribe({
+      next: () => this.reloadActiveDetail(),
+      error: () => this.toast.error("Não foi possível salvar este cadastro.", { id: "monthly-expense-catalog-save-error" })
     });
   }
 
@@ -295,10 +306,11 @@ export class MonthlyExpensesComponent implements OnInit {
       : this.api.updatePaymentMethod(item.id, { name: item.name, color: item.color, archived: true });
 
     this.saving.set(true);
-    request.subscribe({
+    request.pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
       next: () => this.reloadActiveDetail(),
-      error: () => this.error.set("Nao foi possivel arquivar este cadastro."),
-      complete: () => this.saving.set(false)
+      error: () => this.toast.error("Não foi possível arquivar este cadastro.", { id: "monthly-expense-catalog-archive-error" })
     });
   }
 
@@ -327,14 +339,15 @@ export class MonthlyExpensesComponent implements OnInit {
       : this.api.createItem(detail.month.id, payload);
 
     this.saving.set(true);
-    request.subscribe({
+    request.pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
       next: (updated) => {
         this.setDetail(updated);
         this.expenseModalOpen.set(false);
         this.reloadMonthsOnly();
       },
-      error: () => this.error.set("Nao foi possivel salvar o gasto."),
-      complete: () => this.saving.set(false)
+      error: () => this.toast.error("Não foi possível salvar o gasto.", { id: "monthly-expense-item-save-error" })
     });
   }
 
@@ -345,10 +358,11 @@ export class MonthlyExpensesComponent implements OnInit {
     }
 
     this.saving.set(true);
-    this.api.deleteItem(detail.month.id, item.id).subscribe({
+    this.api.deleteItem(detail.month.id, item.id).pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
       next: () => this.loadDetail(detail.month.id),
-      error: () => this.error.set("Nao foi possivel remover o gasto."),
-      complete: () => this.saving.set(false)
+      error: () => this.toast.error("Não foi possível remover o gasto.", { id: "monthly-expense-item-delete-error" })
     });
   }
 
@@ -368,7 +382,7 @@ export class MonthlyExpensesComponent implements OnInit {
         link.click();
         URL.revokeObjectURL(url);
       },
-      error: () => this.error.set("Nao foi possivel exportar o CSV.")
+      error: () => this.toast.error("Não foi possível exportar o CSV.", { id: "monthly-expense-csv-export-error" })
     });
   }
 
@@ -384,7 +398,12 @@ export class MonthlyExpensesComponent implements OnInit {
     const reader = new FileReader();
     reader.onload = () => {
       this.saving.set(true);
-      this.api.importCsv(detail.month.id, String(reader.result || "")).subscribe({
+      this.api.importCsv(detail.month.id, String(reader.result || "")).pipe(
+        finalize(() => {
+          this.saving.set(false);
+          input.value = "";
+        })
+      ).subscribe({
         next: (result) => {
           this.csvErrors.set(result.errors);
           this.setDetail(result.detail);
@@ -392,11 +411,7 @@ export class MonthlyExpensesComponent implements OnInit {
             this.toast.success(`${result.imported} gasto(s) importado(s).`, { id: "monthly-expense-csv-imported" });
           }
         },
-        error: () => this.error.set("Nao foi possivel importar este CSV."),
-        complete: () => {
-          this.saving.set(false);
-          input.value = "";
-        }
+        error: () => this.toast.error("Não foi possível importar este CSV.", { id: "monthly-expense-csv-import-error" })
       });
     };
     reader.readAsText(file);
@@ -423,12 +438,26 @@ export class MonthlyExpensesComponent implements OnInit {
   }
 
   private loadDetail(monthId: string): void {
+    this.currentDetailRequestId = monthId;
     this.loading.set(true);
-    this.error.set(null);
-    this.api.getMonth(monthId).subscribe({
-      next: (detail) => this.setDetail(detail),
-      error: () => this.error.set("Nao foi possivel carregar este mes."),
-      complete: () => this.loading.set(false)
+    this.api.getMonth(monthId).pipe(
+      finalize(() => {
+        if (this.currentDetailRequestId === monthId) {
+          this.currentDetailRequestId = null;
+          this.loading.set(false);
+        }
+      })
+    ).subscribe({
+      next: (detail) => {
+        if (this.currentDetailRequestId === monthId) {
+          this.setDetail(detail);
+        }
+      },
+      error: () => {
+        if (this.currentDetailRequestId === monthId) {
+          this.toast.error("Não foi possível carregar este mês.", { id: "monthly-expense-load-detail-error" });
+        }
+      }
     });
   }
 
@@ -454,7 +483,7 @@ export class MonthlyExpensesComponent implements OnInit {
     const description = this.itemDescription().trim();
 
     if (!description || !this.itemCategoryId() || !this.itemPaymentMethodId() || totalPurchaseCents === null) {
-      this.toast.error("Preencha descricao, categoria, pagamento e valor.", { id: "monthly-expense-item-invalid" });
+      this.toast.error("Preencha descrição, categoria, pagamento e valor.", { id: "monthly-expense-item-invalid" });
       return null;
     }
 
@@ -489,10 +518,10 @@ export class MonthlyExpensesComponent implements OnInit {
 
   private handleError(error: unknown, fallback: string): void {
     if (error instanceof HttpErrorResponse && error.status === 409) {
-      this.error.set("Este mes ja existe.");
+      this.toast.error("Este mês já existe.", { id: "monthly-expense-conflict-error" });
       return;
     }
 
-    this.error.set(fallback);
+    this.toast.error(fallback, { id: "monthly-expense-fallback-error" });
   }
 }

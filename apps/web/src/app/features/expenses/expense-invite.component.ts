@@ -2,12 +2,12 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { Router } from "@angular/router";
 import { LucideArrowRight, LucideShieldCheck, LucideUsers } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
-import { IsumiAlertComponent, IsumiButtonComponent } from "../../shared/ui";
+import { IsumiButtonComponent, IsumiToastService } from "../../shared/ui";
 
 @Component({
   selector: "isumi-expense-invite",
   standalone: true,
-  imports: [IsumiAlertComponent, IsumiButtonComponent, LucideArrowRight, LucideShieldCheck, LucideUsers],
+  imports: [IsumiButtonComponent, LucideArrowRight, LucideShieldCheck, LucideUsers],
   template: `
     <section class="grid min-h-screen place-items-center bg-background px-4 py-8 text-foreground" aria-labelledby="invite-title">
       <div class="grid w-full max-w-140 gap-6">
@@ -41,10 +41,6 @@ import { IsumiAlertComponent, IsumiButtonComponent } from "../../shared/ui";
               </code>
             </div>
 
-            @if (error()) {
-              <isumi-alert>{{ error() }}</isumi-alert>
-            }
-
             <div class="grid gap-3">
               <isumi-button size="lg" fullWidth [loading]="joining()" (click)="acceptInvite()">
                 <svg icon lucideArrowRight class="size-4" aria-hidden="true"></svg>
@@ -53,7 +49,7 @@ import { IsumiAlertComponent, IsumiButtonComponent } from "../../shared/ui";
 
               <div class="flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground">
                 <svg lucideShieldCheck class="size-4 text-primary" aria-hidden="true"></svg>
-                Login necessario para aceitar
+                Login necessário para aceitar
               </div>
             </div>
           </div>
@@ -66,10 +62,10 @@ import { IsumiAlertComponent, IsumiButtonComponent } from "../../shared/ui";
 export class ExpenseInviteComponent {
   private readonly expenses = inject(ExpensesService);
   private readonly router = inject(Router);
+  private readonly toast = inject(IsumiToastService);
 
   readonly roomId = input.required<string>();
   readonly joining = signal(false);
-  readonly error = signal<string | null>(null);
   readonly shortRoomId = computed(() => {
     const roomId = this.roomId();
     return roomId.length > 12 ? `${roomId.slice(0, 8)}...${roomId.slice(-4)}` : roomId;
@@ -81,12 +77,11 @@ export class ExpenseInviteComponent {
     }
 
     this.joining.set(true);
-    this.error.set(null);
 
     this.expenses.acceptRoom(this.roomId()).subscribe({
       next: () => void this.router.navigate(["/tools/expenses", this.roomId(), "room"]),
       error: () => {
-        this.error.set("Nao foi possivel aceitar este convite. Confira o link ou tente de novo.");
+        this.toast.error("Não foi possível aceitar este convite. Confira o link ou tente de novo.", { id: "expense-invite-accept-error" });
         this.joining.set(false);
       },
       complete: () => this.joining.set(false)

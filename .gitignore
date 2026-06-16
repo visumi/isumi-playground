@@ -10,3 +10,4 @@ apps/web/src/environments/environment.ts
 .secrets.*
 coverage/
 *.log
+.codex-web-start.*

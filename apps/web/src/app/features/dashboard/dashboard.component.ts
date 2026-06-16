@@ -9,7 +9,6 @@ import { IsumiBadgeComponent, IsumiPageHeaderComponent } from "../../shared/ui";
   standalone: true,
   imports: [IsumiBadgeComponent, IsumiPageHeaderComponent, LucideArrowRight, LucideSparkles, RouterLink],
   templateUrl: "./dashboard.component.html",
-  styleUrl: "./dashboard.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardComponent {

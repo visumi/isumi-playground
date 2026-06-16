@@ -1,8 +1,8 @@
 <section class="grid gap-5" aria-labelledby="monthly-expenses-title">
   <isumi-page-header eyebrow="Ferramenta" title="Gastos mensais" titleId="monthly-expenses-title" />
 
-  <header class="monthly-hero">
-    <div class="monthly-hero__top">
+  <header class="grid gap-5 overflow-hidden rounded-xl bg-card p-5 text-card-foreground max-sm:p-4">
+    <div class="flex items-start justify-between gap-5 max-lg:flex-col">
       <div class="min-w-0">
         <isumi-badge variant="primary">
           <svg lucideCalendarRange class="size-4" aria-hidden="true"></svg>
@@ -14,24 +14,27 @@
         </p>
       </div>
 
-      <div class="month-switcher">
+      <div class="grid grid-cols-[2.5rem_minmax(13rem,18rem)_2.5rem] items-center gap-2 max-lg:w-full max-lg:grid-cols-[2.5rem_minmax(0,1fr)_2.5rem]">
         <isumi-button variant="secondary" iconOnly ariaLabel="Mes anterior" (click)="shiftMonth(-1)">
           <svg icon lucideChevronLeft class="size-5" aria-hidden="true"></svg>
           Mes anterior
         </isumi-button>
 
-        <label class="month-select">
-          <svg lucideCalendarDays class="size-4" aria-hidden="true"></svg>
+        <label class="relative grid items-center">
+          <svg lucideCalendarDays class="pointer-events-none absolute left-[0.8rem] z-10 size-4 text-muted-foreground" aria-hidden="true"></svg>
           <select
             isumiSelect
             size="sm"
+            class="pl-[2.35rem] font-extrabold"
             [disabled]="months().length === 0"
-            [ngModel]="activeMonth()?.id || months()[0]?.id || ''"
+            [ngModel]="activeMonth()?.id || ''"
             (ngModelChange)="selectMonth($event)"
             aria-label="Selecionar mes cadastrado"
           >
             @if (months().length === 0) {
-              <option value="">Nenhum mes</option>
+              <option value="">Nenhum mês encontrado</option>
+            } @else if (!activeMonth()) {
+              <option value="">{{ selectedMonth().toString().padStart(2, "0") }}/{{ selectedYear() }}</option>
             }
             @for (month of months(); track month.id) {
               <option [value]="month.id">{{ month.month.toString().padStart(2, "0") }}/{{ month.year }}</option>
@@ -47,45 +50,45 @@
     </div>
 
     @if (detail(); as state) {
-      <div class="budget-board">
-        <section class="variable-panel" aria-labelledby="summary-title">
-          <div class="variable-panel__head">
-            <div class="variable-panel__title">
+      <div class="grid grid-cols-[minmax(0,1fr)_minmax(17rem,22rem)] items-stretch gap-4 max-lg:grid-cols-1">
+        <section class="grid min-h-44 content-between gap-6 rounded-lg bg-zinc-950/50 p-[1.1rem]" aria-labelledby="summary-title">
+          <div class="grid gap-4">
+            <div class="grid gap-1">
               <h2 id="summary-title" class="m-0 text-[1.15rem] font-black">Gasto variável</h2>
               <p class="m-0 mt-1 text-sm text-muted-foreground">Quanto do limite variável já foi consumido.</p>
             </div>
 
-            <div class="variable-metrics">
-              <article class="variable-metric variable-metric--spent">
-                <span>Gastos</span>
-                <strong>{{ money(state.summary.variableSpentCents) }}</strong>
+            <div class="grid grid-cols-2 gap-3 max-lg:grid-cols-1">
+              <article class="grid min-h-[5.25rem] content-center gap-[0.45rem] rounded-lg bg-zinc-800/65 px-4 py-3.5">
+                <span class="text-xs font-extrabold text-muted-foreground">Gastos</span>
+                <strong class="text-[1.55rem] leading-none text-red-300">{{ money(state.summary.variableSpentCents) }}</strong>
               </article>
 
-              <article class="variable-metric variable-metric--remaining">
-                <span>Restante</span>
-                <strong [class.text-red-200]="state.summary.variableRemainingCents < 0">{{ money(state.summary.variableRemainingCents) }}</strong>
+              <article class="grid min-h-[5.25rem] content-center gap-[0.45rem] rounded-lg bg-zinc-800/65 px-4 py-3.5">
+                <span class="text-xs font-extrabold text-muted-foreground">Restante</span>
+                <strong class="text-[1.55rem] leading-none text-emerald-500" [class.text-red-200]="state.summary.variableRemainingCents < 0">{{ money(state.summary.variableRemainingCents) }}</strong>
               </article>
             </div>
           </div>
 
-          <div class="progress-shell">
-            <div class="progress-track" role="progressbar" [attr.aria-valuenow]="variableProgress()" aria-valuemin="0" aria-valuemax="100">
-              <div class="progress-mask" [style.left.%]="variableProgress()"></div>
+          <div class="grid gap-2.5">
+            <div class="relative h-[1.15rem] overflow-hidden rounded-full bg-[linear-gradient(90deg,rgb(34_197_94)_0_25%,rgb(234_179_8)_25%_50%,rgb(249_115_22)_50%_75%,rgb(239_68_68)_75%_100%)] before:pointer-events-none before:absolute before:inset-0 before:z-20 before:bg-[linear-gradient(90deg,transparent_calc(25%-1px),rgb(9_9_11/0.82)_calc(25%-1px)_calc(25%+1px),transparent_calc(25%+1px)),linear-gradient(90deg,transparent_calc(50%-1px),rgb(9_9_11/0.82)_calc(50%-1px)_calc(50%+1px),transparent_calc(50%+1px)),linear-gradient(90deg,transparent_calc(75%-1px),rgb(9_9_11/0.82)_calc(75%-1px)_calc(75%+1px),transparent_calc(75%+1px))]" role="progressbar" [attr.aria-valuenow]="variableProgress()" aria-valuemin="0" aria-valuemax="100">
+              <div class="absolute inset-y-0 right-0 z-10 bg-zinc-800/80 transition-[left] duration-200 ease-out" [style.left.%]="variableProgress()"></div>
             </div>
-            <div class="progress-caption">
-              <span>0%</span>
-              <span>25%</span>
-              <span>50%</span>
-              <span>75%</span>
-              <span>100%</span>
+            <div class="relative h-4 text-xs font-extrabold text-muted-foreground">
+              <span class="absolute left-0">0%</span>
+              <span class="absolute left-1/4 -translate-x-1/2">25%</span>
+              <span class="absolute left-1/2 -translate-x-1/2">50%</span>
+              <span class="absolute left-3/4 -translate-x-1/2">75%</span>
+              <span class="absolute right-0">100%</span>
             </div>
           </div>
         </section>
 
-        <section class="budget-settings" aria-label="Valores do mes">
-          <label class="budget-field budget-field--income">
-            <span class="budget-field__label">
-              <span class="budget-field__icon">
+        <section class="grid content-end gap-4 rounded-lg bg-zinc-800/70 p-4" aria-label="Valores do mes">
+          <label class="grid gap-2">
+            <span class="inline-flex items-center gap-2 text-sm font-black text-muted-foreground">
+              <span class="grid size-7 place-items-center rounded-md bg-zinc-900/90 text-emerald-500">
                 <svg lucideBanknoteArrowUp class="size-4" aria-hidden="true"></svg>
               </span>
               Entrada
@@ -100,9 +103,9 @@
             >
           </label>
 
-          <label class="budget-field budget-field--limit">
-            <span class="budget-field__label">
-              <span class="budget-field__icon">
+          <label class="grid gap-2">
+            <span class="inline-flex items-center gap-2 text-sm font-black text-muted-foreground">
+              <span class="grid size-7 place-items-center rounded-md bg-zinc-900/90 text-amber-500">
                 <svg lucideGoal class="size-4" aria-hidden="true"></svg>
               </span>
               Limite variável
@@ -123,66 +126,93 @@
           </isumi-button>
         </section>
       </div>
+    } @else if (loading()) {
+      <div class="grid grid-cols-[minmax(0,1fr)_minmax(17rem,22rem)] items-stretch gap-4 max-lg:grid-cols-1" aria-label="Carregando orcamento do mes">
+        <section class="grid min-h-44 content-between gap-6 rounded-lg bg-zinc-950/50 p-[1.1rem]">
+          <div class="grid gap-4">
+            <div class="grid gap-2">
+              <div class="h-5 w-36 animate-pulse rounded-sm bg-muted"></div>
+              <div class="h-4 w-64 max-w-full animate-pulse rounded-sm bg-muted"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 max-lg:grid-cols-1">
+              <div class="min-h-[5.25rem] animate-pulse rounded-lg bg-zinc-800/65"></div>
+              <div class="min-h-[5.25rem] animate-pulse rounded-lg bg-zinc-800/65"></div>
+            </div>
+          </div>
+          <div class="grid gap-2.5">
+            <div class="h-[1.15rem] animate-pulse rounded-full bg-muted"></div>
+            <div class="h-4 animate-pulse rounded-sm bg-muted/70"></div>
+          </div>
+        </section>
+
+        <section class="grid content-end gap-4 rounded-lg bg-zinc-800/70 p-4">
+          <div class="grid gap-2">
+            <div class="h-4 w-28 animate-pulse rounded-sm bg-muted"></div>
+            <div class="h-12 animate-pulse rounded-sm bg-muted"></div>
+          </div>
+          <div class="grid gap-2">
+            <div class="h-4 w-36 animate-pulse rounded-sm bg-muted"></div>
+            <div class="h-12 animate-pulse rounded-sm bg-muted"></div>
+          </div>
+          <div class="h-10 animate-pulse rounded-sm bg-muted"></div>
+        </section>
+      </div>
     } @else {
-      <div class="grid gap-3 rounded-md bg-secondary p-4">
-        <div class="flex items-center gap-3">
-          <span class="grid size-10 place-items-center rounded-sm bg-primary text-primary-foreground" aria-hidden="true">
+      <div class="flex items-center justify-between gap-4 rounded-lg bg-secondary/80 p-4 max-sm:grid">
+        <div class="flex min-w-0 items-start gap-3">
+          <span class="grid size-10 shrink-0 place-items-center rounded-md bg-primary/10 text-primary" aria-hidden="true">
             <svg lucideCalendar class="size-5"></svg>
           </span>
-          <div>
-            <strong class="block">Este mes ainda nao existe</strong>
-            <span class="text-sm text-muted-foreground">Crie o mês para herdar entrada e limite variável do último mês cadastrado.</span>
+          <div class="min-w-0">
+            <strong class="block text-base">Criar orçamento de {{ monthLabel() }}</strong>
+            <span class="block max-w-[64ch] text-sm leading-6 text-muted-foreground">Este mês ainda não tem entradas, comece agora mesmo clicando no botão de Criar.</span>
           </div>
         </div>
-        <isumi-button class="justify-self-start" [loading]="saving()" (click)="createSelectedMonth()">
+        <isumi-button mobileFull class="shrink-0 justify-self-end" [loading]="saving()" (click)="createSelectedMonth()">
           <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
-          Criar mes
+          Criar
         </isumi-button>
       </div>
     }
   </header>
 
-  @if (error()) {
-    <isumi-alert>{{ error() }}</isumi-alert>
-  }
-
   @if (detail(); as state) {
     <section class="grid gap-4" aria-label="Resumo financeiro">
-      <div class="summary-grid">
-        <article class="summary-cell">
-          <span class="summary-label">Gastos fixos</span>
-          <div class="summary-value summary-value--fixed">
-            <span class="summary-icon">
-              <svg lucideReceiptText aria-hidden="true"></svg>
+      <div class="grid grid-cols-4 gap-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
+        <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
+          <span class="text-[0.78rem] font-extrabold text-muted-foreground">Gastos fixos</span>
+          <div class="flex min-w-0 items-center gap-3">
+            <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-muted-foreground">
+              <svg lucideBrickWall class="size-5 stroke-[2.35]" aria-hidden="true"></svg>
             </span>
-            <strong>{{ money(state.summary.fixedTotalCents) }}</strong>
+            <strong class="min-w-0 text-[1.18rem] leading-tight">{{ money(state.summary.fixedTotalCents) }}</strong>
           </div>
         </article>
-        <article class="summary-cell">
-          <span class="summary-label">Gastos da reserva</span>
-          <div class="summary-value summary-value--reserve">
-            <span class="summary-icon">
-              <svg lucidePiggyBank aria-hidden="true"></svg>
+        <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
+          <span class="text-[0.78rem] font-extrabold text-muted-foreground">Gastos da reserva</span>
+          <div class="flex min-w-0 items-center gap-3">
+            <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-muted-foreground">
+              <svg lucidePiggyBank class="size-5 stroke-[2.35]" aria-hidden="true"></svg>
             </span>
-            <strong>{{ money(state.summary.reserveTotalCents) }}</strong>
+            <strong class="min-w-0 text-[1.18rem] leading-tight">{{ money(state.summary.reserveTotalCents) }}</strong>
           </div>
         </article>
-        <article class="summary-cell">
-          <span class="summary-label">Gastos totais</span>
-          <div class="summary-value summary-value--total">
-            <span class="summary-icon">
-              <svg lucideBanknoteArrowUp aria-hidden="true"></svg>
+        <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
+          <span class="text-[0.78rem] font-extrabold text-muted-foreground">Gastos totais</span>
+          <div class="flex min-w-0 items-center gap-3">
+            <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-muted-foreground">
+              <svg lucideDollarSign class="size-5 stroke-[2.35]" aria-hidden="true"></svg>
             </span>
-            <strong>{{ money(state.summary.monthTotalCents) }}</strong>
+            <strong class="min-w-0 text-[1.18rem] leading-tight">{{ money(state.summary.monthTotalCents) }}</strong>
           </div>
         </article>
-        <article class="summary-cell">
-          <span class="summary-label">Renda não alocada</span>
-          <div class="summary-value summary-value--unallocated">
-            <span class="summary-icon">
-              <svg lucideGoal aria-hidden="true"></svg>
+        <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
+          <span class="text-[0.78rem] font-extrabold text-muted-foreground">Renda não alocada</span>
+          <div class="flex min-w-0 items-center gap-3">
+            <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-muted-foreground">
+              <svg lucideCoins class="size-5 stroke-[2.35]" aria-hidden="true"></svg>
             </span>
-            <strong [class.text-red-200]="state.summary.unallocatedCents < 0">{{ money(state.summary.unallocatedCents) }}</strong>
+            <strong class="min-w-0 text-[1.18rem] leading-tight" [class.text-red-200]="state.summary.unallocatedCents < 0">{{ money(state.summary.unallocatedCents) }}</strong>
           </div>
         </article>
       </div>
@@ -261,8 +291,8 @@
           <svg icon lucideFolderPlus class="size-5" aria-hidden="true"></svg>
         </isumi-empty-state>
       } @else {
-        <div class="expense-table" role="table" aria-label="Gastos do mes">
-          <div class="expense-row expense-row-head" role="row">
+        <div class="grid overflow-hidden rounded-lg bg-secondary max-lg:overflow-x-auto" role="table" aria-label="Gastos do mes">
+          <div class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 px-4 py-3 text-[0.78rem] font-black text-muted-foreground" role="row">
             <span>Gasto</span>
             <span>Categoria</span>
             <span>Pagamento</span>
@@ -273,7 +303,7 @@
           </div>
 
           @for (item of filteredItems(); track item.id) {
-            <article class="expense-row" role="row">
+            <article class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 border-t border-border px-4 py-3" role="row">
               <strong class="truncate">{{ item.description }}</strong>
               <span class="inline-flex min-w-0 items-center gap-2">
                 <i class="size-2.5 shrink-0 rounded-full" [style.background]="item.categoryColor"></i>
@@ -310,8 +340,8 @@
   }
 
   @if (catalogModalOpen()) {
-    <div class="modal-backdrop" role="presentation" (click)="catalogModalOpen.set(false)">
-      <section class="modal-panel" role="dialog" aria-modal="true" aria-label="Categorias e metodos" (click)="$event.stopPropagation()">
+    <div class="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4" role="presentation" (click)="catalogModalOpen.set(false)">
+      <section class="grid max-h-[min(760px,calc(100dvh-2rem))] w-[min(860px,100%)] gap-5 overflow-auto rounded-xl bg-popover p-5 text-popover-foreground shadow-[0_24px_80px_rgb(0_0_0/0.55)]" role="dialog" aria-modal="true" aria-label="Categorias e metodos" (click)="$event.stopPropagation()">
         <header class="flex items-start justify-between gap-4">
           <div>
             <h2 class="m-0 text-[1.2rem] font-black">Categorias e metodos</h2>
@@ -349,7 +379,7 @@
           <section class="grid content-start gap-2">
             <h3 class="m-0 text-base font-black">Categorias</h3>
             @for (category of categories(); track category.id) {
-              <div class="catalog-row" [class.opacity-50]="category.archived">
+              <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="category.archived">
                 <span class="inline-flex min-w-0 items-center gap-2">
                   <i class="size-3 rounded-full" [style.background]="category.color"></i>
                   <strong class="truncate">{{ category.name }}</strong>
@@ -367,7 +397,7 @@
           <section class="grid content-start gap-2">
             <h3 class="m-0 text-base font-black">Metodos</h3>
             @for (method of paymentMethods(); track method.id) {
-              <div class="catalog-row" [class.opacity-50]="method.archived">
+              <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="method.archived">
                 <span class="inline-flex min-w-0 items-center gap-2">
                   <i class="size-3 rounded-full" [style.background]="method.color"></i>
                   <strong class="truncate">{{ method.name }}</strong>
@@ -387,8 +417,8 @@
   }
 
   @if (expenseModalOpen()) {
-    <div class="modal-backdrop" role="presentation" (click)="expenseModalOpen.set(false)">
-      <form class="modal-panel" role="dialog" aria-modal="true" aria-label="Gasto mensal" (click)="$event.stopPropagation()" (ngSubmit)="saveExpenseItem()">
+    <div class="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4" role="presentation" (click)="expenseModalOpen.set(false)">
+      <form class="grid max-h-[min(760px,calc(100dvh-2rem))] w-[min(860px,100%)] gap-5 overflow-auto rounded-xl bg-popover p-5 text-popover-foreground shadow-[0_24px_80px_rgb(0_0_0/0.55)]" role="dialog" aria-modal="true" aria-label="Gasto mensal" (click)="$event.stopPropagation()" (ngSubmit)="saveExpenseItem()">
         <header class="flex items-start justify-between gap-4">
           <div>
             <h2 class="m-0 text-[1.2rem] font-black">{{ editingItem() ? "Editar gasto" : "Adicionar gasto" }}</h2>

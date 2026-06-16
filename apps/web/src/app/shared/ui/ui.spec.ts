@@ -1,7 +1,6 @@
 import { Component } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
-import { IsumiAlertComponent } from "./alert.component";
 import { IsumiButtonComponent } from "./button.component";
 import { IsumiEmptyStateComponent } from "./empty-state.component";
 import { IsumiInputDirective } from "./input.directive";
@@ -9,7 +8,7 @@ import { IsumiSelectDirective } from "./select.directive";
 
 @Component({
   standalone: true,
-  imports: [IsumiAlertComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective],
+  imports: [IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective],
   template: `
     <isumi-button variant="secondary" size="sm" disabled>
       <span icon data-testid="icon"></span>
@@ -27,7 +26,6 @@ import { IsumiSelectDirective } from "./select.directive";
     <select isumiSelect name="kind">
       <option value="one">Um</option>
     </select>
-    <isumi-alert>Falha ao salvar.</isumi-alert>
     <isumi-empty-state title="Nada aqui" description="Crie um item.">
       <span icon data-testid="empty-icon"></span>
     </isumi-empty-state>
@@ -116,13 +114,6 @@ describe("shared ui", () => {
     expect(select.options.length).toBe(1);
     expect(select.classList).toContain("border-input");
     expect(select.classList).toContain("focus-visible:ring-0");
-  });
-
-  it("marks error alerts for assistive technology", () => {
-    const alert = fixture.debugElement.query(By.css("isumi-alert")).nativeElement as HTMLElement;
-
-    expect(alert.getAttribute("role")).toBe("alert");
-    expect(alert.classList).toContain("bg-destructive/15");
   });
 
   it("projects custom empty state icons above the text", () => {

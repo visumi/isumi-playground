@@ -1,4 +1,3 @@
-export * from "./alert.component";
 export * from "./avatar.component";
 export * from "./badge.component";
 export * from "./breadcrumb.component";

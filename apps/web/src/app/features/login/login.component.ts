@@ -1,21 +1,27 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
-import { IsumiAlertComponent } from "../../shared/ui";
+import { IsumiToastService } from "../../shared/ui";
 
 @Component({
   selector: "isumi-login",
   standalone: true,
-  imports: [IsumiAlertComponent],
   templateUrl: "./login.component.html",
-  styleUrl: "./login.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LoginComponent {
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
+  private readonly toast = inject(IsumiToastService);
   readonly error = computed(() => this.auth.authError());
   readonly loading = signal(false);
+  private readonly authErrorToast = effect(() => {
+    const error = this.error();
+
+    if (error) {
+      this.toast.error(error, { id: "login-auth-error" });
+    }
+  });
 
   async login(): Promise<void> {
     this.loading.set(true);

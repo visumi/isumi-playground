@@ -8,7 +8,7 @@ import { ExpensesService } from "../../core/api/expenses.service";
 import { ExpenseItem, ExpenseParticipant, ExpenseParticipantTotal, ExpenseRoomDetail, ExpenseSettlement, UpsertExpenseItemRequest } from "../../core/api/api.types";
 import { AuthService } from "../../core/auth/auth.service";
 import { IsumiBreadcrumbComponent } from "../../shared/ui/breadcrumb.component";
-import { IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiToastService, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
+import { IsumiAvatarComponent, IsumiBadgeComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiToastService, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
 
 interface ExpenseItemModalData {
   participants: ExpenseParticipant[];
@@ -39,7 +39,7 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
   standalone: true,
   imports: [FormsModule, IsumiAvatarComponent, IsumiButtonComponent, IsumiInputDirective, IsumiSelectDirective, LucideMinus, LucidePlus, LucideSave, LucideX],
   template: `
-    <form class="expense-item-form" (ngSubmit)="submit()">
+    <form class="flex max-h-[calc(min(720px,calc(100dvh-32px))-40px)] min-h-0 flex-col gap-5 overflow-hidden max-sm:max-h-[calc(100dvh-112px)]" (ngSubmit)="submit()">
       <header class="flex items-start justify-between gap-4">
         <div>
           <h2 class="m-0 text-[1.2rem] font-black">{{ data?.item ? "Editar item" : "Adicionar item" }}</h2>
@@ -108,7 +108,7 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
           </span>
         </div>
 
-        <div class="expense-item-splits-scroll grid min-h-0 gap-2 rounded-lg bg-secondary p-2">
+        <div class="grid min-h-0 max-h-[min(340px,38dvh)] gap-2 overflow-y-auto overscroll-contain rounded-lg bg-secondary p-2 [scrollbar-gutter:auto] max-sm:max-h-[min(320px,34dvh)]">
           @for (participant of participants(); track participant.id) {
             <div class="grid gap-2 rounded-md bg-background/70 p-3">
               <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
@@ -162,37 +162,6 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
       </footer>
     </form>
   `,
-  styles: [`
-    :host {
-      display: block;
-    }
-
-    .expense-item-form {
-      display: flex;
-      max-height: calc(min(720px, calc(100dvh - 32px)) - 40px);
-      min-height: 0;
-      flex-direction: column;
-      gap: 1.25rem;
-      overflow: hidden;
-    }
-
-    .expense-item-splits-scroll {
-      max-height: min(340px, 38dvh);
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      scrollbar-gutter: auto;
-    }
-
-    @media (max-width: 640px) {
-      .expense-item-form {
-        max-height: calc(100dvh - 112px);
-      }
-
-      .expense-item-splits-scroll {
-        max-height: min(320px, 34dvh);
-      }
-    }
-  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExpenseItemModalComponent {
@@ -334,9 +303,8 @@ export class DeleteExpenseRoomModalComponent {
 @Component({
   selector: "isumi-expense-room",
   standalone: true,
-  imports: [DatePipe, FormsModule, IsumiAlertComponent, IsumiAvatarComponent, IsumiBadgeComponent, IsumiBreadcrumbComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowRight, LucideReceiptText, LucidePencil, LucidePlus, LucideConciergeBell, LucideScale, LucideFiles, LucideTrash2, LucideUserPlus, LucideUsers, LucideFrown],
+  imports: [DatePipe, FormsModule, IsumiAvatarComponent, IsumiBadgeComponent, IsumiBreadcrumbComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, LucideArrowRight, LucideReceiptText, LucidePencil, LucidePlus, LucideConciergeBell, LucideScale, LucideFiles, LucideTrash2, LucideUserPlus, LucideUsers, LucideFrown],
   templateUrl: "./expense-room.component.html",
-  styleUrl: "./expense-room.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExpenseRoomComponent implements OnInit, OnDestroy {
@@ -445,7 +413,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
         this.setDetail(updated);
       },
       error: () => {
-        this.error.set("Nao foi possivel adicionar a pessoa.");
+        this.toast.error("Não foi possível adicionar a pessoa.", { id: "expense-add-guest-error" });
         this.saving.set(false);
       },
       complete: () => this.saving.set(false)
@@ -461,7 +429,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
         this.loadRoom();
       },
       error: () => {
-        this.toast.error("Nao foi possivel remover este participante. Ele ja esta em gastos, divisoes ou acertos.", {
+        this.toast.error("Não foi possível remover este participante. Ele já está em gastos, divisões ou acertos.", {
           id: "expense-remove-participant-error"
         });
         this.saving.set(false);
@@ -510,7 +478,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     this.expenses.deleteItem(this.roomId(), item.id).subscribe({
       next: () => this.loadRoom(),
       error: () => {
-        this.error.set("Nao foi possivel remover o item.");
+        this.toast.error("Não foi possível remover o item.", { id: "expense-delete-item-error" });
         this.deletingItemId.set(null);
       },
       complete: () => this.deletingItemId.set(null)
@@ -561,8 +529,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
       this.clearCopyFeedbackTimer();
       this.copyFeedbackTimer = setTimeout(() => this.copiedInviteUrl.set(false), 2500);
     } catch {
-      this.error.set("Nao foi possivel copiar o link da sala.");
-      this.toast.error("Nao foi possivel copiar o link da sala.", { id: "expense-invite-url-copy-error" });
+      this.toast.error("Não foi possível copiar o link da sala.", { id: "expense-invite-url-copy-error" });
     }
   }
 
@@ -578,7 +545,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     }).subscribe({
       next: (updated) => this.setDetail(updated),
       error: () => {
-        this.error.set("Nao foi possivel atualizar o acerto.");
+        this.toast.error("Não foi possível atualizar o acerto.", { id: "expense-settlement-update-error" });
         this.finishSavingSettlement();
       },
       complete: () => this.finishSavingSettlement()
@@ -648,7 +615,8 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
       this.stopAutoRefresh();
       void this.router.navigate(["/tools/expenses", this.roomId()]);
     } else if (!options.silent) {
-      this.error.set("Nao foi possivel carregar esta sala.");
+      this.error.set("Não foi possível carregar esta sala.");
+      this.toast.error("Não foi possível carregar esta sala.", { id: "expense-room-load-error" });
     }
 
     if (options.showLoading) {
@@ -681,8 +649,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
         void this.router.navigate(["/tools/expenses"]);
       },
       error: () => {
-        this.error.set("Nao foi possivel excluir esta sala.");
-        this.toast.error("Nao foi possivel excluir esta sala.", { id: "expense-delete-room-error" });
+        this.toast.error("Não foi possível excluir esta sala.", { id: "expense-delete-room-error" });
         this.deletingRoom.set(false);
         this.startAutoRefresh();
       },
@@ -730,7 +697,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     request.subscribe({
       next: (updated) => this.setDetail(updated),
       error: () => {
-        this.toast.error("Nao foi possivel salvar o item. Confira valor, pagador e partes.", {
+        this.toast.error("Não foi possível salvar o item. Confira valor, pagador e partes.", {
           id: "expense-save-item-error"
         });
         this.saving.set(false);

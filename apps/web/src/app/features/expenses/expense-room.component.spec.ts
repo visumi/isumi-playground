@@ -73,7 +73,7 @@ describe("ExpenseRoomComponent", () => {
 
     expect(fixture.componentInstance.error()).toBeNull();
     expect(toast.error).toHaveBeenCalledWith(
-      "Nao foi possivel remover este participante. Ele ja esta em gastos, divisoes ou acertos.",
+      "Não foi possível remover este participante. Ele já está em gastos, divisões ou acertos.",
       { id: "expense-remove-participant-error" }
     );
   });
