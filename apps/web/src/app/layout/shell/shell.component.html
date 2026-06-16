@@ -1,6 +1,6 @@
 <div class="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] bg-background text-foreground max-md:grid-cols-1 max-md:grid-rows-[64px_minmax(0,1fr)]">
   <aside
-    class="sticky top-0 z-40 flex h-screen flex-col gap-7 overflow-y-auto border-r border-sidebar-border bg-sidebar px-5 py-5 max-md:h-16 max-md:min-h-0 max-md:flex-row max-md:items-center max-md:gap-3 max-md:overflow-visible max-md:border-r-0 max-md:border-b max-md:px-4 max-md:py-0">
+    class="sticky top-0 z-40 flex h-screen flex-col gap-7 overflow-y-auto border-r border-sidebar-border bg-sidebar px-5 py-5 max-md:h-16 max-md:min-h-0 max-md:flex-row max-md:items-center max-md:gap-3 max-md:overflow-visible max-md:border-r-0 max-md:border-b max-md:border-white/10 max-md:bg-sidebar/80 max-md:px-4 max-md:py-0 max-md:shadow-lg max-md:shadow-black/25 max-md:backdrop-blur-xl">
     <div class="mb-4 inline-flex items-center gap-3 max-md:mb-0 max-md:min-w-0 max-md:pr-20">
       <span
         class="relative left-0.5 grid h-10 w-10 place-items-center rounded-sm bg-purple-700 font-slab text-2xl font-bold text-purple-100 max-md:size-9 max-md:text-xl"
@@ -11,9 +11,7 @@
       </div>
     </div>
 
-    <nav
-      class="grid gap-1.5 max-md:fixed max-md:bottom-3 max-md:left-4 max-md:right-4 max-md:z-50 max-md:grid-cols-3 max-md:gap-1 max-md:rounded-lg max-md:border max-md:border-sidebar-border max-md:bg-sidebar/95 max-md:p-1 max-md:shadow-2xl max-md:shadow-black/45 max-md:backdrop-blur"
-      aria-label="Ferramentas">
+    <nav class="grid gap-1.5 max-md:hidden" aria-label="Ferramentas">
       <a isumiNavItem routerLink="/dashboard"
         routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25"
         [routerLinkActiveOptions]="{ exact: true }" (click)="closeAccountMenu()">
@@ -80,6 +78,27 @@
       </div>
     </section>
   </aside>
+
+  <nav class="shell-mobile-nav hidden" aria-label="Ferramentas">
+    <a isumiNavItem routerLink="/dashboard"
+      routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25"
+      [routerLinkActiveOptions]="{ exact: true }" (click)="closeAccountMenu()">
+      <svg lucideLayoutDashboard class="size-4" aria-hidden="true"></svg>
+      <span class="block max-md:hidden">Dashboard</span>
+    </a>
+    <a isumiNavItem routerLink="/tools/expenses"
+      routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25"
+      (click)="closeAccountMenu()">
+      <svg lucideReceipt class="size-4" aria-hidden="true"></svg>
+      <span class="block max-md:hidden">Dividir gastos</span>
+    </a>
+    <a isumiNavItem routerLink="/tools/monthly-expenses"
+      routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25"
+      (click)="closeAccountMenu()">
+      <svg lucideSheet class="size-4" aria-hidden="true"></svg>
+      <span class="block max-md:hidden">Gastos mensais</span>
+    </a>
+  </nav>
 
   <div class="min-w-0 max-md:min-h-0">
     <main
