@@ -35,7 +35,7 @@ import {
   LucideKeyRound,
   LucideLink,
   LucideRefreshCw,
-  LucideWalletCards
+  LucideBlocks
 } from "@lucide/angular";
 import { MonthlyExpensesService } from "../../core/api/monthly-expenses.service";
 import { MonthlyExpenseCatalogItem, MonthlyExpenseDetail, MonthlyExpenseIngestTokenStatus, MonthlyExpenseItem, MonthlyExpenseMonth, MonthlyExpensePendingItem, MonthlyExpenseType, UpsertMonthlyExpenseItemRequest } from "../../core/api/api.types";
@@ -207,7 +207,6 @@ function normalizeMoneyInput(value: string | number): string {
             <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
             Criar
           </isumi-button>
-          <span class="text-xs font-semibold text-muted-foreground max-sm:row-start-auto sm:col-span-2">{{ catalogHelperText() }}</span>
         </div>
       </form>
 
@@ -283,10 +282,6 @@ export class MonthlyExpenseCatalogModalComponent {
   readonly catalogName = signal("");
   readonly catalogColor = signal(this.catalogKind() === "category" ? "#8b5cf6" : "#3b82f6");
   readonly catalogKindLabel = computed(() => this.catalogKind() === "category" ? "Categoria" : "Pagamento");
-  readonly catalogHelperText = computed(() => this.catalogKind() === "category"
-    ? "Dê um nome curto para encontrar gastos parecidos rapidinho."
-    : "Separe cartões, contas ou dinheiro sem misturar os lançamentos."
-  );
 
   setCatalogKind(kind: CatalogKind): void {
     this.catalogKind.set(kind);
@@ -346,7 +341,7 @@ export class MonthlyExpenseCatalogModalComponent {
     LucideKeyRound,
     LucideLink,
     LucideRefreshCw,
-    LucideWalletCards,
+    LucideBlocks,
     LucideTrash2,
     LucideX
   ],
@@ -356,9 +351,9 @@ export class MonthlyExpenseCatalogModalComponent {
         <div class="min-w-0">
           <h2 class="m-0 inline-flex items-center gap-2 text-[1.15rem] font-black leading-6">
             <span class="grid size-8 place-items-center rounded-md bg-primary/15 text-primary">
-              <svg lucideWalletCards class="size-4" aria-hidden="true"></svg>
+              <svg lucideBlocks class="size-4" aria-hidden="true"></svg>
             </span>
-            Integração com Atalhos
+            Integração com atalhos
           </h2>
           <p class="m-0 mt-1 text-sm text-muted-foreground">Gere a configuração para o atalho da Wallet.</p>
         </div>
@@ -800,7 +795,7 @@ export class MonthlyExpenseItemModalComponent {
     LucideTags,
     LucideTrash2,
     LucideUpload,
-    LucideWalletCards,
+    LucideBlocks,
     LucideX
   ],
   templateUrl: "./monthly-expenses.component.html",
@@ -851,10 +846,6 @@ export class MonthlyExpensesComponent implements OnInit {
   readonly paymentMethods = computed(() => this.detail()?.paymentMethods || []);
   readonly activePaymentMethods = computed(() => this.paymentMethods().filter((item) => !item.archived));
   readonly catalogKindLabel = computed(() => this.catalogKind() === "category" ? "Categoria" : "Pagamento");
-  readonly catalogHelperText = computed(() => this.catalogKind() === "category"
-    ? "Dê um nome curto para encontrar gastos parecidos rapidinho."
-    : "Separe cartões, contas ou dinheiro sem misturar os lançamentos."
-  );
   readonly variableProgress = computed(() => {
     const summary = this.detail()?.summary;
     if (!summary || summary.variableLimitCents <= 0) {
@@ -1060,7 +1051,7 @@ export class MonthlyExpensesComponent implements OnInit {
   openShortcutModal(): void {
     this.modal.open<MonthlyExpenseShortcutModalComponent, MonthlyExpenseShortcutModalData, void>(MonthlyExpenseShortcutModalComponent, {
       data: { endpointUrl: this.shortcutEndpointUrl },
-      ariaLabel: "Integração com Atalhos do iPhone",
+      ariaLabel: "Integração com atalhos do iPhone",
       panelClass: "w-[min(100%,820px)]"
     });
   }

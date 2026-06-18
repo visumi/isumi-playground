@@ -37,7 +37,7 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
 @Component({
   selector: "isumi-expense-item-modal",
   standalone: true,
-  imports: [FormsModule, IsumiAvatarComponent, IsumiButtonComponent, IsumiInputDirective, IsumiSelectDirective, LucideDollarSign, LucideMinus, LucidePlus, LucideReceiptText, LucideSave, LucideUserRound, LucideX],
+  imports: [FormsModule, IsumiAvatarComponent, IsumiButtonComponent, IsumiInputDirective, IsumiSelectDirective, LucideDollarSign, LucideMinus, LucidePlus, LucideReceiptText, LucideSave, LucideUserRound, LucideX, IsumiTagComponent],
   template: `
     <form class="flex max-h-[calc(min(720px,calc(100dvh-32px))-40px)] min-h-0 flex-col gap-5 overflow-hidden max-sm:max-h-[calc(100dvh-112px)]" (ngSubmit)="submit()">
       <header class="flex items-start justify-between gap-4">
@@ -119,9 +119,9 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
             <h3 id="split-title" class="m-0 text-sm font-extrabold text-muted-foreground">Partes de cada pessoa</h3>
             <p class="m-0 mt-1 text-xs leading-5 text-muted-foreground">Use 0 para tirar alguem desta divisão.</p>
           </div>
-          <span class="rounded-full bg-primary/10 px-2.5 py-1.5 text-xs font-black text-primary">
+          <isumi-tag tone="primary">
             {{ totalSplitUnits() }} parte(s)
-          </span>
+          </isumi-tag>
         </div>
 
         <div class="grid min-h-0 max-h-[min(340px,38dvh)] gap-2 overflow-y-auto overscroll-contain rounded-lg bg-background/60 p-2 [scrollbar-gutter:auto] max-sm:max-h-[min(320px,34dvh)]">

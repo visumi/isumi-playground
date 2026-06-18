@@ -55,16 +55,20 @@
     <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 max-sm:grid-cols-1" aria-live="polite">
       @if (loading()) {
         @for (placeholder of [1, 2, 3]; track placeholder) {
-          <div class="grid min-h-48 gap-4 rounded-lg bg-card p-5" aria-label="Carregando salas">
-            <div class="flex items-start justify-between gap-3">
-              <div class="size-10 animate-pulse rounded-sm bg-muted"></div>
-              <div class="h-6 w-20 animate-pulse rounded-full bg-muted"></div>
+          <div class="grid min-h-[16rem] gap-8 rounded-lg bg-card p-5 shadow-2xl shadow-black/10" aria-label="Carregando salas">
+            <div class="grid h-full content-between gap-8">
+              <div class="grid gap-5">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="h-7 w-24 animate-pulse rounded-md bg-muted"></div>
+                  <div class="size-10 animate-pulse rounded-md bg-muted"></div>
+                </div>
+                <div class="grid gap-2">
+                  <div class="h-8 w-3/5 animate-pulse rounded-sm bg-muted"></div>
+                  <div class="h-5 w-4/5 animate-pulse rounded-sm bg-muted"></div>
+                </div>
+              </div>
+              <div class="h-4 w-24 animate-pulse rounded-sm bg-muted"></div>
             </div>
-            <div class="grid gap-2">
-              <div class="h-5 w-3/5 animate-pulse rounded-sm bg-muted"></div>
-              <div class="h-4 w-4/5 animate-pulse rounded-sm bg-muted"></div>
-            </div>
-            <div class="mt-auto h-4 w-24 animate-pulse rounded-sm bg-muted"></div>
           </div>
         }
       } @else if (rooms().length === 0) {
@@ -73,32 +77,34 @@
         </isumi-empty-state>
       } @else {
         @for (room of rooms(); track room.id) {
-          <div class="grid min-h-48 gap-4 rounded-lg bg-card p-5 text-card-foreground transition-colors hover:bg-secondary/65">
-            <a class="grid min-h-full gap-4 text-card-foreground no-underline" [routerLink]="['/tools/expenses', room.id, 'room']">
-              <div class="flex items-start justify-between gap-3">
-                <span class="grid size-10 place-items-center rounded-sm bg-accent text-accent-foreground" aria-hidden="true">
-                  <svg lucideReceiptText class="size-5"></svg>
-                </span>
-                <span class="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1.5 font-mono text-[0.7rem] font-black text-muted-foreground">
-                  <svg lucideHash class="size-3" aria-hidden="true"></svg>
-                  {{ room.id.slice(0, 6) }}
-                </span>
+          <a class="group relative grid min-h-[16rem] overflow-hidden rounded-lg bg-card p-5 text-card-foreground no-underline shadow-2xl shadow-black/10 transition-[border-color,background,transform] duration-200 hover:-translate-y-0.5 hover:border-purple-400/45 hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background" [routerLink]="['/tools/expenses', room.id, 'room']">
+            <div class="relative z-10 grid h-full content-between gap-8">
+              <div class="grid gap-5">
+                <div class="flex items-start justify-between gap-3">
+                  <isumi-tag tone="primary">
+                    <svg icon lucideHash aria-hidden="true"></svg>
+                    {{ room.id.slice(0, 6) }}
+                  </isumi-tag>
+                  <span class="grid size-10 place-items-center rounded-md bg-primary/15 text-primary transition-colors group-hover:bg-primary/25" aria-hidden="true">
+                    <svg lucideReceiptText class="size-5"></svg>
+                  </span>
+                </div>
+
+                <div class="grid min-w-0 gap-2">
+                  <h3 class="m-0 min-w-0 break-words text-[1.65rem] font-black leading-tight tracking-[-0.03em] text-balance">{{ room.name }}</h3>
+                  <time class="inline-flex items-center gap-2 leading-6 text-muted-foreground" [dateTime]="room.updatedAt">
+                    <svg lucideCalendar class="size-4 shrink-0" aria-hidden="true"></svg>
+                    Atualizada {{ room.updatedAt | date: "dd/MM/yyyy HH:mm" }}
+                  </time>
+                </div>
               </div>
 
-              <div class="grid gap-2">
-                <h3 class="m-0 truncate text-[1.15rem] font-black">{{ room.name }}</h3>
-                <time class="inline-flex items-center gap-2 text-sm text-muted-foreground" [dateTime]="room.updatedAt">
-                  <svg lucideCalendar class="size-4" aria-hidden="true"></svg>
-                  Atualizada {{ room.updatedAt | date: "dd/MM/yyyy HH:mm" }}
-                </time>
-              </div>
-
-              <strong class="mt-auto inline-flex items-center gap-2 text-sm font-black text-primary">
+              <strong class="inline-flex items-center gap-2 text-sm font-black text-foreground">
                 Abrir sala
-                <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
+                <svg lucideArrowRight class="size-4 transition-transform group-hover:translate-x-1" aria-hidden="true"></svg>
               </strong>
-            </a>
-          </div>
+            </div>
+          </a>
         }
       }
     </div>
