@@ -566,7 +566,7 @@
             <isumi-tag tone="secondary">{{ activeCategories().length }} ativas</isumi-tag>
           </div>
           @for (category of categories(); track category.id) {
-          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5"
+          <div class="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5"
             [class.opacity-50]="category.archived">
             <span class="inline-flex min-w-0 items-center gap-2">
               <i class="size-3 rounded-full" [style.background]="category.color"></i>
@@ -581,7 +581,7 @@
             }
           </div>
           } @empty {
-          <div class="rounded-lg bg-secondary/60 px-3 py-4 text-sm font-semibold text-muted-foreground">
+          <div class="flex min-h-14 items-center rounded-lg bg-secondary/60 px-3 py-2.5 text-sm font-semibold text-muted-foreground">
             Comece com algo como Mercado, Casa ou Lazer.
           </div>
           }
@@ -593,7 +593,7 @@
             <isumi-tag tone="secondary">{{ activePaymentMethods().length }} ativos</isumi-tag>
           </div>
           @for (method of paymentMethods(); track method.id) {
-          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5"
+          <div class="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5"
             [class.opacity-50]="method.archived">
             <span class="inline-flex min-w-0 items-center gap-2">
               <i class="size-3 rounded-full" [style.background]="method.color"></i>
@@ -608,7 +608,7 @@
             }
           </div>
           } @empty {
-          <div class="rounded-lg bg-secondary/60 px-3 py-4 text-sm font-semibold text-muted-foreground">
+          <div class="flex min-h-14 items-center rounded-lg bg-secondary/60 px-3 py-2.5 text-sm font-semibold text-muted-foreground">
             Adicione cartão, dinheiro ou conta principal.
           </div>
           }

@@ -218,9 +218,9 @@ function normalizeMoneyInput(value: string | number): string {
             <isumi-tag tone="secondary">{{ (data?.activeCategories() || []).length }} ativas</isumi-tag>
           </div>
 
-          <div class="grid min-h-0 content-start gap-2 overflow-y-auto overscroll-contain pr-1">
+          <div class="grid min-h-0 content-start gap-2 overflow-y-auto overscroll-contain">
             @for (category of data?.categories() || []; track category.id) {
-              <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="category.archived">
+              <div class="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="category.archived">
                 <span class="inline-flex min-w-0 items-center gap-2">
                   <i class="size-3 rounded-full" [style.background]="category.color"></i>
                   <strong class="truncate">{{ category.name }}</strong>
@@ -233,7 +233,7 @@ function normalizeMoneyInput(value: string | number): string {
                 }
               </div>
             } @empty {
-              <div class="rounded-lg bg-secondary/60 px-3 py-4 text-sm font-semibold text-muted-foreground">
+              <div class="flex min-h-14 items-center rounded-lg bg-secondary/60 px-3 py-2.5 text-sm font-semibold text-muted-foreground">
                 Comece com algo como Mercado, Casa ou Lazer.
               </div>
             }
@@ -245,9 +245,9 @@ function normalizeMoneyInput(value: string | number): string {
             <h3 class="m-0 text-base font-black">Pagamentos</h3>
             <isumi-tag tone="secondary">{{ (data?.activePaymentMethods() || []).length }} ativos</isumi-tag>
           </div>
-          <div class="grid min-h-0 content-start gap-2 overflow-y-auto overscroll-contain pr-1">
+          <div class="grid min-h-0 content-start gap-2 overflow-y-auto overscroll-contain">
             @for (method of data?.paymentMethods() || []; track method.id) {
-            <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="method.archived">
+            <div class="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="method.archived">
               <span class="inline-flex min-w-0 items-center gap-2">
                 <i class="size-3 rounded-full" [style.background]="method.color"></i>
                 <strong class="truncate">{{ method.name }}</strong>
@@ -260,7 +260,7 @@ function normalizeMoneyInput(value: string | number): string {
               }
             </div>
           } @empty {
-            <div class="rounded-lg bg-secondary/60 px-3 py-4 text-sm font-semibold text-muted-foreground">
+            <div class="flex min-h-14 items-center rounded-lg bg-secondary/60 px-3 py-2.5 text-sm font-semibold text-muted-foreground">
               Adicione cartão, dinheiro ou conta principal.
             </div>
           }
