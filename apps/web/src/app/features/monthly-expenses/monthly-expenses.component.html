@@ -209,9 +209,8 @@
     </div>
   </section>
 
-  @if (loadingPending() || pendingItems().length > 0) {
-  <section class="relative isolate overflow-hidden rounded-lg bg-card p-4 sm:p-5" aria-labelledby="pending-expenses-title"
-    [attr.aria-busy]="loadingPending() ? true : null">
+  @if (pendingItems().length > 0) {
+  <section class="relative isolate overflow-hidden rounded-lg bg-card p-4 sm:p-5" aria-labelledby="pending-expenses-title">
     <div class="pointer-events-none absolute inset-x-0 top-0 h-px"></div>
 
     <div class="grid gap-4">
@@ -221,37 +220,11 @@
             <svg lucideWalletCards class="size-5" aria-hidden="true"></svg>
             Gastos pendentes
           </h2>
-          @if (loadingPending()) {
-          <span
-            class="mt-2 block h-4 w-56 max-w-full animate-pulse rounded-sm bg-muted motion-reduce:animate-none"></span>
-          } @else {
           <p class="m-0 mt-1 text-sm text-muted-foreground">{{ pendingItems().length }} compra(s) necessitando validação.</p>
-          }
         </div>
         <isumi-tag tone="amber">Atalho do iPhone</isumi-tag>
       </div>
 
-      @if (loadingPending()) {
-      <div class="grid gap-2">
-        @for (row of [1, 2]; track row) {
-        <article
-          class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary/75 px-3 py-3 sm:px-4 max-sm:grid-cols-[auto_minmax(0,1fr)]"
-          aria-hidden="true">
-          <span class="size-10 animate-pulse rounded-md bg-muted motion-reduce:animate-none"></span>
-          <span class="grid min-w-0 gap-2">
-            <span class="h-4 w-44 max-w-full animate-pulse rounded-sm bg-muted motion-reduce:animate-none"></span>
-            <span class="h-3 w-24 animate-pulse rounded-sm bg-muted/80 motion-reduce:animate-none"></span>
-          </span>
-          <span
-            class="grid min-w-[9rem] justify-items-end gap-2 max-sm:col-span-2 max-sm:w-full max-sm:grid-cols-[auto_minmax(0,1fr)_auto] max-sm:items-center max-sm:justify-items-stretch">
-            <span class="h-5 w-20 animate-pulse rounded-sm bg-muted motion-reduce:animate-none"></span>
-            <span class="h-9 w-full min-w-24 animate-pulse rounded-sm bg-muted motion-reduce:animate-none"></span>
-            <span class="hidden size-9 animate-pulse rounded-sm bg-muted motion-reduce:animate-none max-sm:block"></span>
-          </span>
-        </article>
-        }
-      </div>
-      } @else {
       <div class="grid gap-2">
         @for (pending of pendingItems(); track pending.id) {
         <article
@@ -290,7 +263,6 @@
         </article>
         }
       </div>
-      }
     </div>
   </section>
   }
