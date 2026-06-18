@@ -3,7 +3,7 @@ import { HttpErrorResponse } from "@angular/common/http";
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
-import { LucideArrowRight, LucideConciergeBell, LucideMinus, LucidePencil, LucidePlus, LucideFiles, LucideReceiptText, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUsers, LucideX, LucideFrown } from "@lucide/angular";
+import { LucideArrowRight, LucideConciergeBell, LucideDollarSign, LucideMinus, LucidePencil, LucidePlus, LucideFiles, LucideReceiptText, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUserRound, LucideUsers, LucideX, LucideFrown } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
 import { ExpenseItem, ExpenseParticipant, ExpenseParticipantTotal, ExpenseRoomDetail, ExpenseSettlement, UpsertExpenseItemRequest } from "../../core/api/api.types";
 import { AuthService } from "../../core/auth/auth.service";
@@ -37,12 +37,17 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
 @Component({
   selector: "isumi-expense-item-modal",
   standalone: true,
-  imports: [FormsModule, IsumiAvatarComponent, IsumiButtonComponent, IsumiInputDirective, IsumiSelectDirective, LucideMinus, LucidePlus, LucideSave, LucideX],
+  imports: [FormsModule, IsumiAvatarComponent, IsumiButtonComponent, IsumiInputDirective, IsumiSelectDirective, LucideDollarSign, LucideMinus, LucidePlus, LucideReceiptText, LucideSave, LucideUserRound, LucideX],
   template: `
     <form class="flex max-h-[calc(min(720px,calc(100dvh-32px))-40px)] min-h-0 flex-col gap-5 overflow-hidden max-sm:max-h-[calc(100dvh-112px)]" (ngSubmit)="submit()">
       <header class="flex items-start justify-between gap-4">
-        <div>
-          <h2 class="m-0 text-[1.2rem] font-black">{{ data?.item ? "Editar item" : "Adicionar item" }}</h2>
+        <div class="min-w-0">
+          <h2 class="m-0 inline-flex items-center gap-2 text-[1.2rem] font-black">
+            <span class="grid size-8 place-items-center rounded-md bg-primary/15 text-primary">
+              <svg lucideReceiptText class="size-4" aria-hidden="true"></svg>
+            </span>
+            {{ data?.item ? "Editar item" : "Adicionar item" }}
+          </h2>
           <p class="m-0 mt-1 max-w-[52ch] text-sm leading-6 text-muted-foreground">Informe quem pagou e como o valor entra na divisão.</p>
         </div>
         <isumi-button class="max-sm:hidden" variant="ghost" size="sm" iconOnly ariaLabel="Fechar modal" (click)="modalRef.close()">
@@ -51,53 +56,64 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
         </isumi-button>
       </header>
 
-      <div class="grid grid-cols-[minmax(0,1fr)_150px] gap-3 max-sm:grid-cols-1">
+      <div class="grid gap-4 rounded-lg bg-secondary/55 p-3.5">
+        <div class="grid grid-cols-[minmax(0,1fr)_150px] gap-3 max-sm:grid-cols-1">
+          <label class="grid gap-2">
+            <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+              <svg lucideReceiptText class="size-4" aria-hidden="true"></svg>
+              Item
+            </span>
+            <input
+              isumiInput
+              name="description"
+              [ngModel]="description()"
+              (ngModelChange)="description.set($event.slice(0, 160))"
+              maxlength="160"
+              autocomplete="off"
+              placeholder="Mercado, hospedagem, ingresso..."
+              required
+            >
+          </label>
+          <label class="grid gap-2">
+            <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+              <svg lucideDollarSign class="size-4" aria-hidden="true"></svg>
+              Valor
+            </span>
+            <input
+              isumiInput
+              name="amount"
+              inputmode="decimal"
+              maxlength="14"
+              pattern="[0-9.,]*"
+              autocomplete="off"
+              [ngModel]="amount()"
+              (ngModelChange)="setAmount($event)"
+              placeholder="0,00"
+              aria-label="Valor do item em reais"
+              required
+            >
+          </label>
+        </div>
+
         <label class="grid gap-2">
-          <span class="text-sm font-extrabold text-muted-foreground">Item</span>
-          <input
-            isumiInput
-            name="description"
-            [ngModel]="description()"
-            (ngModelChange)="description.set($event.slice(0, 160))"
-            maxlength="160"
-            autocomplete="off"
-            placeholder="Mercado, hospedagem, ingresso..."
-            required
+          <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+            <svg lucideUserRound class="size-4" aria-hidden="true"></svg>
+            Quem pagou
+          </span>
+          <select
+            isumiSelect
+            name="payer"
+            [ngModel]="payerParticipantId()"
+            (ngModelChange)="payerParticipantId.set($event)"
           >
-        </label>
-        <label class="grid gap-2">
-          <span class="text-sm font-extrabold text-muted-foreground">Valor</span>
-          <input
-            isumiInput
-            name="amount"
-            inputmode="decimal"
-            maxlength="14"
-            pattern="[0-9.,]*"
-            autocomplete="off"
-            [ngModel]="amount()"
-            (ngModelChange)="setAmount($event)"
-            placeholder="0,00"
-            aria-label="Valor do item em reais"
-            required
-          >
+            @for (participant of participants(); track participant.id) {
+              <option [value]="participant.id">{{ participant.name }}</option>
+            }
+          </select>
         </label>
       </div>
 
-      <label class="grid gap-2">
-        <span class="text-sm font-extrabold text-muted-foreground">Quem pagou</span>
-        <select
-          isumiSelect
-          name="payer"
-          [ngModel]="payerParticipantId()"
-          (ngModelChange)="payerParticipantId.set($event)"
-        >
-          @for (participant of participants(); track participant.id) {
-            <option [value]="participant.id">{{ participant.name }}</option>
-          }
-        </select>
-      </label>
-
-      <section class="grid min-h-0 gap-3" aria-labelledby="split-title">
+      <section class="grid min-h-0 gap-3 rounded-lg bg-secondary/55 p-3.5" aria-labelledby="split-title">
         <div class="flex items-end justify-between gap-3">
           <div>
             <h3 id="split-title" class="m-0 text-sm font-extrabold text-muted-foreground">Partes de cada pessoa</h3>
@@ -108,7 +124,7 @@ function normalizeDecimalInput(value: string | number, decimalPlaces: number): s
           </span>
         </div>
 
-        <div class="grid min-h-0 max-h-[min(340px,38dvh)] gap-2 overflow-y-auto overscroll-contain rounded-lg bg-secondary p-2 [scrollbar-gutter:auto] max-sm:max-h-[min(320px,34dvh)]">
+        <div class="grid min-h-0 max-h-[min(340px,38dvh)] gap-2 overflow-y-auto overscroll-contain rounded-lg bg-background/60 p-2 [scrollbar-gutter:auto] max-sm:max-h-[min(320px,34dvh)]">
           @for (participant of participants(); track participant.id) {
             <div class="grid gap-2 rounded-md bg-background/70 p-3">
               <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">

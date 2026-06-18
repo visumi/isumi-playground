@@ -10,30 +10,26 @@
         </isumi-tag>
       </div>
 
-      <div class="grid grid-cols-[2.5rem_minmax(13rem,18rem)_2.5rem] items-center gap-2 max-lg:w-full max-lg:grid-cols-[2.5rem_minmax(0,1fr)_2.5rem]">
+      <div
+        class="grid grid-cols-[2.5rem_minmax(13rem,18rem)_2.5rem] items-center gap-2 max-lg:w-full max-lg:grid-cols-[2.5rem_minmax(0,1fr)_2.5rem]">
         <isumi-button variant="secondary" iconOnly ariaLabel="Mês anterior" (click)="shiftMonth(-1)">
           <svg icon lucideChevronLeft class="size-5" aria-hidden="true"></svg>
           Mês anterior
         </isumi-button>
 
         <label class="relative grid items-center">
-          <svg lucideCalendarDays class="pointer-events-none absolute left-[0.8rem] z-10 size-4 text-muted-foreground" aria-hidden="true"></svg>
-          <select
-            isumiSelect
-            size="sm"
-            class="pl-[2.35rem] font-extrabold"
-            [disabled]="months().length === 0"
-            [ngModel]="activeMonth()?.id || ''"
-            (ngModelChange)="selectMonth($event)"
-            aria-label="Selecionar mês cadastrado"
-          >
+          <svg lucideCalendarDays class="pointer-events-none absolute left-[0.8rem] z-10 size-4 text-muted-foreground"
+            aria-hidden="true"></svg>
+          <select isumiSelect size="sm" class="pl-[2.35rem] font-extrabold" [disabled]="months().length === 0"
+            [ngModel]="activeMonth()?.id || ''" (ngModelChange)="selectMonth($event)"
+            aria-label="Selecionar mês cadastrado">
             @if (months().length === 0) {
-              <option value="">Nenhum mês encontrado</option>
+            <option value="">Nenhum mês encontrado</option>
             } @else if (!activeMonth()) {
-              <option value="">{{ selectedMonth().toString().padStart(2, "0") }}/{{ selectedYear() }}</option>
+            <option value="">{{ selectedMonth().toString().padStart(2, "0") }}/{{ selectedYear() }}</option>
             }
             @for (month of months(); track month.id) {
-              <option [value]="month.id">{{ month.month.toString().padStart(2, "0") }}/{{ month.year }}</option>
+            <option [value]="month.id">{{ month.month.toString().padStart(2, "0") }}/{{ month.year }}</option>
             }
           </select>
         </label>
@@ -46,590 +42,714 @@
     </div>
 
     @if (detail(); as state) {
-      <div class="grid grid-cols-[minmax(0,1fr)_minmax(17rem,22rem)] items-stretch gap-4 max-lg:grid-cols-1">
-        <section class="grid min-h-44 content-between gap-6 rounded-lg bg-zinc-950/50 p-[1.1rem]" aria-labelledby="summary-title">
-          <div class="grid gap-4">
-            <div class="grid gap-1">
-              <h2 id="summary-title" class="m-0 text-[1.15rem] font-black">Gasto variável</h2>
-              <p class="m-0 mt-1 text-sm text-muted-foreground">Quanto do limite variável já foi consumido.</p>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 max-lg:grid-cols-1">
-              <article class="grid min-h-[5.25rem] content-center gap-[0.45rem] rounded-lg bg-zinc-800/65 px-4 py-3.5">
-                <span class="text-xs font-extrabold text-muted-foreground">Gastos</span>
-                <strong class="text-[1.55rem] leading-none text-red-300">{{ money(state.summary.variableSpentCents) }}</strong>
-              </article>
-
-              <article class="grid min-h-[5.25rem] content-center gap-[0.45rem] rounded-lg bg-zinc-800/65 px-4 py-3.5">
-                <span class="text-xs font-extrabold text-muted-foreground">Restante</span>
-                <strong class="text-[1.55rem] leading-none text-emerald-500" [class.text-red-200]="state.summary.variableRemainingCents < 0">{{ money(state.summary.variableRemainingCents) }}</strong>
-              </article>
-            </div>
+    <div class="grid grid-cols-[minmax(0,1fr)_minmax(17rem,22rem)] items-stretch gap-4 max-lg:grid-cols-1">
+      <section class="grid min-h-44 content-between gap-6 rounded-lg bg-zinc-950/50 p-[1.1rem]"
+        aria-labelledby="summary-title">
+        <div class="grid gap-4">
+          <div class="grid gap-1">
+            <h2 id="summary-title" class="m-0 text-[1.15rem] font-black">Gasto variável</h2>
+            <p class="m-0 mt-1 text-sm text-muted-foreground">Quanto do limite variável já foi consumido.</p>
           </div>
 
-          <div class="grid gap-2.5">
-            <div class="relative h-[1.15rem] overflow-hidden rounded-full bg-[linear-gradient(90deg,rgb(34_197_94)_0_25%,rgb(234_179_8)_25%_50%,rgb(249_115_22)_50%_75%,rgb(239_68_68)_75%_100%)] before:pointer-events-none before:absolute before:inset-0 before:z-20 before:bg-[linear-gradient(90deg,transparent_calc(25%-1px),rgb(9_9_11/0.82)_calc(25%-1px)_calc(25%+1px),transparent_calc(25%+1px)),linear-gradient(90deg,transparent_calc(50%-1px),rgb(9_9_11/0.82)_calc(50%-1px)_calc(50%+1px),transparent_calc(50%+1px)),linear-gradient(90deg,transparent_calc(75%-1px),rgb(9_9_11/0.82)_calc(75%-1px)_calc(75%+1px),transparent_calc(75%+1px))]" role="progressbar" [attr.aria-valuenow]="variableProgress()" aria-valuemin="0" aria-valuemax="100">
-              <div class="absolute inset-y-0 right-0 z-10 bg-zinc-800/80 transition-[left] duration-200 ease-out" [style.left.%]="variableProgress()"></div>
-            </div>
-            <div class="relative h-4 text-xs font-extrabold text-muted-foreground">
-              <span class="absolute left-0">0%</span>
-              <span class="absolute left-1/4 -translate-x-1/2">25%</span>
-              <span class="absolute left-1/2 -translate-x-1/2">50%</span>
-              <span class="absolute left-3/4 -translate-x-1/2">75%</span>
-              <span class="absolute right-0">100%</span>
-            </div>
-          </div>
-        </section>
+          <div class="grid grid-cols-2 gap-3 max-lg:grid-cols-1">
+            <article class="grid min-h-[5.25rem] content-center gap-[0.45rem] rounded-lg bg-zinc-800/65 px-4 py-3.5">
+              <span class="text-xs font-extrabold text-muted-foreground">Gastos</span>
+              <strong class="text-[1.55rem] leading-none text-red-300">{{ money(state.summary.variableSpentCents)
+                }}</strong>
+            </article>
 
-        <section class="grid content-end gap-4 rounded-lg bg-zinc-800/70 p-4" aria-label="Valores do mês">
-          <label class="grid gap-2">
-            <span class="inline-flex items-center gap-2 text-sm font-black text-muted-foreground">
-              <span class="grid size-7 place-items-center rounded-md bg-zinc-900/90 text-emerald-500">
-                <svg lucideBanknoteArrowUp class="size-4" aria-hidden="true"></svg>
-              </span>
-              Entrada
-            </span>
-            <input
-              isumiInput
-              inputmode="decimal"
-              name="income"
-              [ngModel]="income()"
-              (ngModelChange)="setIncome($event)"
-              placeholder="0,00"
-            >
-          </label>
-
-          <label class="grid gap-2">
-            <span class="inline-flex items-center gap-2 text-sm font-black text-muted-foreground">
-              <span class="grid size-7 place-items-center rounded-md bg-zinc-900/90 text-amber-500">
-                <svg lucideGoal class="size-4" aria-hidden="true"></svg>
-              </span>
-              Limite variável
-            </span>
-            <input
-              isumiInput
-              inputmode="decimal"
-              name="variableLimit"
-              [ngModel]="variableLimit()"
-              (ngModelChange)="setVariableLimit($event)"
-              placeholder="0,00"
-            >
-          </label>
-
-          <isumi-button fullWidth [loading]="saving()" (click)="saveSettings()">
-            <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
-            Salvar
-          </isumi-button>
-        </section>
-      </div>
-    } @else if (loading()) {
-      <div class="grid grid-cols-[minmax(0,1fr)_minmax(17rem,22rem)] items-stretch gap-4 max-lg:grid-cols-1" aria-label="Carregando orçamento do mês">
-        <section class="grid min-h-44 content-between gap-6 rounded-lg bg-zinc-950/50 p-[1.1rem]">
-          <div class="grid gap-4">
-            <div class="grid gap-2">
-              <div class="h-5 w-36 animate-pulse rounded-sm bg-muted"></div>
-              <div class="h-4 w-64 max-w-full animate-pulse rounded-sm bg-muted"></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 max-lg:grid-cols-1">
-              <div class="min-h-[5.25rem] animate-pulse rounded-lg bg-zinc-800/65"></div>
-              <div class="min-h-[5.25rem] animate-pulse rounded-lg bg-zinc-800/65"></div>
-            </div>
-          </div>
-          <div class="grid gap-2.5">
-            <div class="h-[1.15rem] animate-pulse rounded-full bg-muted"></div>
-            <div class="h-4 animate-pulse rounded-sm bg-muted/70"></div>
-          </div>
-        </section>
-
-        <section class="grid content-end gap-4 rounded-lg bg-zinc-800/70 p-4">
-          <div class="grid gap-2">
-            <div class="h-4 w-28 animate-pulse rounded-sm bg-muted"></div>
-            <div class="h-12 animate-pulse rounded-sm bg-muted"></div>
-          </div>
-          <div class="grid gap-2">
-            <div class="h-4 w-36 animate-pulse rounded-sm bg-muted"></div>
-            <div class="h-12 animate-pulse rounded-sm bg-muted"></div>
-          </div>
-          <div class="h-10 animate-pulse rounded-sm bg-muted"></div>
-        </section>
-      </div>
-    } @else {
-      <div class="flex items-center justify-between gap-4 rounded-lg bg-secondary/80 p-4 max-sm:grid">
-        <div class="flex min-w-0 items-start gap-3">
-          <span class="grid size-10 shrink-0 place-items-center rounded-md bg-primary/10 text-primary" aria-hidden="true">
-            <svg lucideCalendar class="size-5"></svg>
-          </span>
-          <div class="min-w-0">
-            <strong class="block text-base">Criar orçamento de {{ monthLabel() }}</strong>
-            <span class="block max-w-[64ch] text-sm leading-6 text-muted-foreground">Este mês ainda não tem entradas, comece agora mesmo clicando no botão de Criar.</span>
+            <article class="grid min-h-[5.25rem] content-center gap-[0.45rem] rounded-lg bg-zinc-800/65 px-4 py-3.5">
+              <span class="text-xs font-extrabold text-muted-foreground">Restante</span>
+              <strong class="text-[1.55rem] leading-none text-emerald-500"
+                [class.text-red-200]="state.summary.variableRemainingCents < 0">{{
+                money(state.summary.variableRemainingCents) }}</strong>
+            </article>
           </div>
         </div>
-        <isumi-button mobileFull class="shrink-0 justify-self-end" [loading]="saving()" (click)="createSelectedMonth()">
-          <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
-          Criar
+
+        <div class="grid gap-2.5">
+          <div
+            class="relative h-[1.15rem] overflow-hidden rounded-full bg-[linear-gradient(90deg,rgb(34_197_94)_0_25%,rgb(234_179_8)_25%_50%,rgb(249_115_22)_50%_75%,rgb(239_68_68)_75%_100%)] before:pointer-events-none before:absolute before:inset-0 before:z-20 before:bg-[linear-gradient(90deg,transparent_calc(25%-1px),rgb(9_9_11/0.82)_calc(25%-1px)_calc(25%+1px),transparent_calc(25%+1px)),linear-gradient(90deg,transparent_calc(50%-1px),rgb(9_9_11/0.82)_calc(50%-1px)_calc(50%+1px),transparent_calc(50%+1px)),linear-gradient(90deg,transparent_calc(75%-1px),rgb(9_9_11/0.82)_calc(75%-1px)_calc(75%+1px),transparent_calc(75%+1px))]"
+            role="progressbar" [attr.aria-valuenow]="variableProgress()" aria-valuemin="0" aria-valuemax="100">
+            <div class="absolute inset-y-0 right-0 z-10 bg-zinc-800/80 transition-[left] duration-200 ease-out"
+              [style.left.%]="variableProgress()"></div>
+          </div>
+          <div class="relative h-4 text-xs font-extrabold text-muted-foreground">
+            <span class="absolute left-0">0%</span>
+            <span class="absolute left-1/4 -translate-x-1/2">25%</span>
+            <span class="absolute left-1/2 -translate-x-1/2">50%</span>
+            <span class="absolute left-3/4 -translate-x-1/2">75%</span>
+            <span class="absolute right-0">100%</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid content-end gap-4 rounded-lg bg-zinc-800/70 p-4" aria-label="Valores do mês">
+        <label class="grid gap-2">
+          <span class="inline-flex items-center gap-2 text-sm font-black text-muted-foreground">
+            <span class="grid size-7 place-items-center rounded-md bg-zinc-900/90 text-emerald-500">
+              <svg lucideBanknoteArrowUp class="size-4" aria-hidden="true"></svg>
+            </span>
+            Entrada
+          </span>
+          <input isumiInput inputmode="decimal" name="income" [ngModel]="income()" (ngModelChange)="setIncome($event)"
+            placeholder="0,00">
+        </label>
+
+        <label class="grid gap-2">
+          <span class="inline-flex items-center gap-2 text-sm font-black text-muted-foreground">
+            <span class="grid size-7 place-items-center rounded-md bg-zinc-900/90 text-amber-500">
+              <svg lucideGoal class="size-4" aria-hidden="true"></svg>
+            </span>
+            Limite variável
+          </span>
+          <input isumiInput inputmode="decimal" name="variableLimit" [ngModel]="variableLimit()"
+            (ngModelChange)="setVariableLimit($event)" placeholder="0,00">
+        </label>
+
+        <isumi-button fullWidth [loading]="saving()" (click)="saveSettings()">
+          <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
+          Salvar
         </isumi-button>
+      </section>
+    </div>
+    } @else if (loading()) {
+    <div class="grid grid-cols-[minmax(0,1fr)_minmax(17rem,22rem)] items-stretch gap-4 max-lg:grid-cols-1"
+      aria-label="Carregando orçamento do mês">
+      <section class="grid min-h-44 content-between gap-6 rounded-lg bg-zinc-950/50 p-[1.1rem]">
+        <div class="grid gap-4">
+          <div class="grid gap-2">
+            <div class="h-5 w-36 animate-pulse rounded-sm bg-muted"></div>
+            <div class="h-4 w-64 max-w-full animate-pulse rounded-sm bg-muted"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3 max-lg:grid-cols-1">
+            <div class="min-h-[5.25rem] animate-pulse rounded-lg bg-zinc-800/65"></div>
+            <div class="min-h-[5.25rem] animate-pulse rounded-lg bg-zinc-800/65"></div>
+          </div>
+        </div>
+        <div class="grid gap-2.5">
+          <div class="h-[1.15rem] animate-pulse rounded-full bg-muted"></div>
+          <div class="h-4 animate-pulse rounded-sm bg-muted/70"></div>
+        </div>
+      </section>
+
+      <section class="grid content-end gap-4 rounded-lg bg-zinc-800/70 p-4">
+        <div class="grid gap-2">
+          <div class="h-4 w-28 animate-pulse rounded-sm bg-muted"></div>
+          <div class="h-12 animate-pulse rounded-sm bg-muted"></div>
+        </div>
+        <div class="grid gap-2">
+          <div class="h-4 w-36 animate-pulse rounded-sm bg-muted"></div>
+          <div class="h-12 animate-pulse rounded-sm bg-muted"></div>
+        </div>
+        <div class="h-10 animate-pulse rounded-sm bg-muted"></div>
+      </section>
+    </div>
+    } @else {
+    <div class="flex items-center justify-between gap-4 rounded-lg bg-secondary/80 p-4 max-sm:grid">
+      <div class="flex min-w-0 items-start gap-3">
+        <span class="grid size-10 shrink-0 place-items-center rounded-md bg-primary/10 text-primary" aria-hidden="true">
+          <svg lucideCalendar class="size-5"></svg>
+        </span>
+        <div class="min-w-0">
+          <strong class="block text-base">Criar orçamento de {{ monthLabel() }}</strong>
+          <span class="block max-w-[64ch] text-sm leading-6 text-muted-foreground">Este mês ainda não tem entradas,
+            comece agora mesmo clicando no botão de Criar.</span>
+        </div>
       </div>
+      <isumi-button mobileFull class="shrink-0 justify-self-end" [loading]="saving()" (click)="createSelectedMonth()">
+        <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
+        Criar
+      </isumi-button>
+    </div>
     }
   </header>
 
   @if (detail(); as state) {
-    <section class="grid gap-4" aria-label="Resumo financeiro">
-      <div class="grid grid-cols-4 gap-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
-        <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
-          <span class="text-[0.78rem] font-extrabold text-muted-foreground">Gastos fixos</span>
-          <div class="flex min-w-0 items-center gap-3">
-            <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-muted-foreground">
-              <svg lucideBrickWall class="size-5 stroke-[2.35]" aria-hidden="true"></svg>
-            </span>
-            <strong class="min-w-0 text-[1.18rem] leading-tight">{{ money(state.summary.fixedTotalCents) }}</strong>
-          </div>
-        </article>
-        <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
-          <span class="text-[0.78rem] font-extrabold text-muted-foreground">Gastos da reserva</span>
-          <div class="flex min-w-0 items-center gap-3">
-            <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-muted-foreground">
-              <svg lucidePiggyBank class="size-5 stroke-[2.35]" aria-hidden="true"></svg>
-            </span>
-            <strong class="min-w-0 text-[1.18rem] leading-tight">{{ money(state.summary.reserveTotalCents) }}</strong>
-          </div>
-        </article>
-        <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
-          <span class="text-[0.78rem] font-extrabold text-muted-foreground">Gastos totais</span>
-          <div class="flex min-w-0 items-center gap-3">
-            <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-muted-foreground">
-              <svg lucideDollarSign class="size-5 stroke-[2.35]" aria-hidden="true"></svg>
-            </span>
-            <strong class="min-w-0 text-[1.18rem] leading-tight">{{ money(state.summary.monthTotalCents) }}</strong>
-          </div>
-        </article>
-        <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
-          <span class="text-[0.78rem] font-extrabold text-muted-foreground">Renda não alocada</span>
-          <div class="flex min-w-0 items-center gap-3">
-            <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-muted-foreground">
-              <svg lucideCoins class="size-5 stroke-[2.35]" aria-hidden="true"></svg>
-            </span>
-            <strong class="min-w-0 text-[1.18rem] leading-tight" [class.text-red-200]="state.summary.unallocatedCents < 0">{{ money(state.summary.unallocatedCents) }}</strong>
-          </div>
-        </article>
-      </div>
-    </section>
+  <section class="grid gap-4" aria-label="Resumo financeiro">
+    <div class="grid grid-cols-4 gap-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
+      <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
+        <span class="text-[0.78rem] font-extrabold text-muted-foreground">Gastos fixos</span>
+        <div class="flex min-w-0 items-center gap-3">
+          <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-muted-foreground">
+            <svg lucideBrickWall class="size-5 stroke-[2.35]" aria-hidden="true"></svg>
+          </span>
+          <strong class="min-w-0 text-[1.18rem] leading-tight">{{ money(state.summary.fixedTotalCents) }}</strong>
+        </div>
+      </article>
+      <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
+        <span class="text-[0.78rem] font-extrabold text-muted-foreground">Gastos da reserva</span>
+        <div class="flex min-w-0 items-center gap-3">
+          <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-muted-foreground">
+            <svg lucidePiggyBank class="size-5 stroke-[2.35]" aria-hidden="true"></svg>
+          </span>
+          <strong class="min-w-0 text-[1.18rem] leading-tight">{{ money(state.summary.reserveTotalCents) }}</strong>
+        </div>
+      </article>
+      <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
+        <span class="text-[0.78rem] font-extrabold text-muted-foreground">Gastos totais</span>
+        <div class="flex min-w-0 items-center gap-3">
+          <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-muted-foreground">
+            <svg lucideDollarSign class="size-5 stroke-[2.35]" aria-hidden="true"></svg>
+          </span>
+          <strong class="min-w-0 text-[1.18rem] leading-tight">{{ money(state.summary.monthTotalCents) }}</strong>
+        </div>
+      </article>
+      <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
+        <span class="text-[0.78rem] font-extrabold text-muted-foreground">Renda não alocada</span>
+        <div class="flex min-w-0 items-center gap-3">
+          <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white/5 text-muted-foreground">
+            <svg lucideCoins class="size-5 stroke-[2.35]" aria-hidden="true"></svg>
+          </span>
+          <strong class="min-w-0 text-[1.18rem] leading-tight"
+            [class.text-red-200]="state.summary.unallocatedCents < 0">{{ money(state.summary.unallocatedCents)
+            }}</strong>
+        </div>
+      </article>
+    </div>
+  </section>
 
-    <section class="grid gap-4 rounded-lg bg-card p-5" aria-labelledby="expenses-list-title">
-      <div class="flex items-start justify-between gap-4 max-lg:flex-col">
-        <div>
-          <h2 id="expenses-list-title" class="m-0 inline-flex items-center gap-2 text-[1.15rem] font-black">
-            <svg lucideReceiptText class="size-5" aria-hidden="true"></svg>
-            Gastos
+  @if (loadingPending() || pendingItems().length > 0) {
+  <section class="relative isolate overflow-hidden rounded-lg bg-card p-4 sm:p-5" aria-labelledby="pending-expenses-title"
+    [attr.aria-busy]="loadingPending() ? true : null">
+    <div class="pointer-events-none absolute inset-x-0 top-0 h-px"></div>
+
+    <div class="grid gap-4">
+      <div class="flex items-start justify-between gap-3 max-lg:flex-col">
+        <div class="min-w-0">
+          <h2 id="pending-expenses-title" class="m-0 inline-flex items-center gap-2 text-[1.15rem] font-black">
+            <svg lucideWalletCards class="size-5" aria-hidden="true"></svg>
+            Gastos pendentes
           </h2>
-          <p class="m-0 mt-1 text-sm text-muted-foreground">{{ filteredItems().length }} de {{ state.items.length }} gasto(s)</p>
+          @if (loadingPending()) {
+          <span
+            class="mt-2 block h-4 w-56 max-w-full animate-pulse rounded-sm bg-muted motion-reduce:animate-none"></span>
+          } @else {
+          <p class="m-0 mt-1 text-sm text-muted-foreground">{{ pendingItems().length }} compra(s) necessitando validação.</p>
+          }
         </div>
-
-        <div class="flex flex-wrap gap-2 max-sm:w-full">
-          <isumi-tooltip label="Categorias e pagamentos">
-            <isumi-button variant="secondary" iconOnly ariaLabel="Categorias e pagamentos" (click)="openCatalogModal()">
-              <svg icon lucideSettings2 class="size-4" aria-hidden="true"></svg>
-              Categorias e pagamentos
-            </isumi-button>
-          </isumi-tooltip>
-          <isumi-tooltip label="Exportar CSV">
-            <isumi-button variant="secondary" iconOnly ariaLabel="Exportar CSV" (click)="exportCsv()">
-              <svg icon lucideDownload class="size-4" aria-hidden="true"></svg>
-              Exportar CSV
-            </isumi-button>
-          </isumi-tooltip>
-          <isumi-tooltip label="Importar CSV">
-            <label class="inline-flex size-10 cursor-pointer items-center justify-center rounded-sm bg-secondary text-secondary-foreground transition-colors hover:bg-ring/45 focus-within:outline-none focus-within:ring-2 focus-within:ring-ring/60 focus-within:ring-offset-2 focus-within:ring-offset-background" aria-label="Importar CSV">
-              <svg lucideUpload class="size-4" aria-hidden="true"></svg>
-              <input class="sr-only" type="file" accept=".csv,text/csv" (change)="importCsv($event)">
-            </label>
-          </isumi-tooltip>
-          <isumi-button mobileFull [disabled]="activeCategories().length === 0 || activePaymentMethods().length === 0" (click)="openExpenseModal()">
-            <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
-            Adicionar gasto
-          </isumi-button>
-        </div>
+        <isumi-tag tone="amber">Atalho do iPhone</isumi-tag>
       </div>
 
-      @if (csvErrors().length > 0) {
-        <div class="rounded-md bg-red-500/10 p-3 text-sm text-red-100">
-          <strong class="block">CSV não importado</strong>
-          @for (error of csvErrors(); track error.line + error.message) {
-            <span class="block">Linha {{ error.line }}: {{ error.message }}</span>
-          }
-        </div>
-      }
-
-      <div class="grid grid-cols-[minmax(180px,1fr)_150px_150px_150px] gap-2 max-lg:grid-cols-2 max-sm:grid-cols-1">
-        <label class="relative">
-          <svg lucideSearch class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true"></svg>
-          <input isumiInput size="sm" class="pl-9" name="search" [ngModel]="query()" (ngModelChange)="query.set($event)" placeholder="Buscar gasto">
-        </label>
-
-        <select isumiSelect size="sm" name="typeFilter" [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event)">
-          <option value="ALL">Todos os tipos</option>
-          <option value="FIXO">Fixo</option>
-          <option value="VARIAVEL">Variável</option>
-          <option value="RESERVA">Reserva</option>
-        </select>
-
-        <select isumiSelect size="sm" name="categoryFilter" [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)">
-          <option value="ALL">Categorias</option>
-          @for (category of categories(); track category.id) {
-            <option [value]="category.id">{{ category.name }}</option>
-          }
-        </select>
-
-        <select isumiSelect size="sm" name="paymentFilter" [ngModel]="paymentFilter()" (ngModelChange)="paymentFilter.set($event)">
-          <option value="ALL">Pagamentos</option>
-          @for (method of paymentMethods(); track method.id) {
-            <option [value]="method.id">{{ method.name }}</option>
-          }
-        </select>
+      @if (loadingPending()) {
+      <div class="grid gap-2">
+        @for (row of [1, 2]; track row) {
+        <article
+          class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary/75 px-3 py-3 sm:px-4 max-sm:grid-cols-[auto_minmax(0,1fr)]"
+          aria-hidden="true">
+          <span class="size-10 animate-pulse rounded-md bg-muted motion-reduce:animate-none"></span>
+          <span class="grid min-w-0 gap-2">
+            <span class="h-4 w-44 max-w-full animate-pulse rounded-sm bg-muted motion-reduce:animate-none"></span>
+            <span class="h-3 w-24 animate-pulse rounded-sm bg-muted/80 motion-reduce:animate-none"></span>
+          </span>
+          <span
+            class="grid min-w-[9rem] justify-items-end gap-2 max-sm:col-span-2 max-sm:w-full max-sm:grid-cols-[auto_minmax(0,1fr)_auto] max-sm:items-center max-sm:justify-items-stretch">
+            <span class="h-5 w-20 animate-pulse rounded-sm bg-muted motion-reduce:animate-none"></span>
+            <span class="h-9 w-full min-w-24 animate-pulse rounded-sm bg-muted motion-reduce:animate-none"></span>
+            <span class="hidden size-9 animate-pulse rounded-sm bg-muted motion-reduce:animate-none max-sm:block"></span>
+          </span>
+        </article>
+        }
       </div>
-
-      @if (state.items.length === 0) {
-        <isumi-empty-state title="Nenhum gasto cadastrado" description="Crie categorias e pagamentos, depois adicione o primeiro gasto do mês.">
-          <svg icon lucideBrushCleaning class="size-5" aria-hidden="true"></svg>
-        </isumi-empty-state>
-      } @else if (filteredItems().length === 0) {
-        <isumi-empty-state title="Nenhum gasto encontrado" description="Ajuste os filtros ou limpe a busca para ver os gastos do mês.">
-          <svg icon lucideSearch class="size-5" aria-hidden="true"></svg>
-        </isumi-empty-state>
       } @else {
-        <div class="grid overflow-hidden rounded-lg bg-secondary max-lg:overflow-x-auto" role="table" aria-label="Gastos do mês">
-          <div class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 px-4 py-3 text-[0.78rem] font-black text-muted-foreground" role="row">
-            <span>Gasto</span>
-            <span>Categoria</span>
-            <span>Pagamento</span>
-            <span>Tipo</span>
-            <span>Parcela</span>
-            <span class="text-right">Valor</span>
-            <span class="text-right">Ações</span>
+      <div class="grid gap-2">
+        @for (pending of pendingItems(); track pending.id) {
+        <article
+          class="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary/75 px-3 py-3 ring-1 ring-white/5 transition-[background,box-shadow,transform] duration-200 sm:px-4 max-sm:grid-cols-[auto_minmax(0,1fr)]">
+          <span class="grid size-10 place-items-center rounded-md bg-zinc-950/45 text-amber-200">
+            <svg lucideDollarSign class="size-5" aria-hidden="true"></svg>
+          </span>
+
+          <div class="min-w-0">
+            <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <strong class="min-w-0 max-w-full truncate">{{ pending.merchantName }}</strong>
+              <span
+                class="rounded-full bg-amber-400/10 px-2 py-0.5 text-[0.68rem] font-extrabold text-amber-200">Novo</span>
+            </div>
+            <span class="mt-1 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+              <svg lucideCalendar class="size-3.5" aria-hidden="true"></svg>
+              {{ transactionDateLabel(pending.transactionDate) }}
+            </span>
           </div>
 
-          @for (item of filteredItems(); track item.id) {
-            <article class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 border-t border-border bg-secondary px-4 py-3" role="row">
-              <strong class="truncate">{{ item.description }}</strong>
-              <isumi-tag class="min-w-0" [tone]="tagTone(item.categoryColor)">
-                <span class="truncate">{{ item.categoryName }}</span>
-              </isumi-tag>
-              <isumi-tag class="min-w-0" [tone]="tagTone(item.paymentMethodColor)">
-                <span class="truncate">{{ item.paymentMethodName }}</span>
-              </isumi-tag>
-              <isumi-tag [tone]="typeTagTone(item.expenseType)">{{ typeLabel(item.expenseType) }}</isumi-tag>
-              <span class="grid w-12 justify-items-center gap-1">
-                <isumi-tag tone="secondary">{{ item.installmentNumber }}/{{ item.installmentTotal }}</isumi-tag>
-                <span class="h-1.5 w-full overflow-hidden rounded-full bg-background" aria-hidden="true">
-                  <span class="block h-full rounded-full bg-primary" [style.width.%]="item.installmentTotal > 0 ? (item.installmentNumber / item.installmentTotal) * 100 : 0"></span>
-                </span>
-              </span>
-              <strong class="text-right">{{ money(item.amountCents) }}</strong>
-              <span class="flex justify-end gap-1">
-                <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Editar gasto" (click)="openExpenseModal(item)">
-                  <svg icon lucidePencil class="size-4" aria-hidden="true"></svg>
-                  Editar
-                </isumi-button>
-                <isumi-button variant="ghost-destructive" size="sm" iconOnly ariaLabel="Remover gasto" [loading]="saving()" (click)="deleteExpenseItem(item)">
-                  <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
-                  Remover
-                </isumi-button>
-              </span>
-            </article>
-          }
-        </div>
+          <div class="grid grid-cols-[auto_auto_auto] items-center justify-end gap-2 max-sm:col-span-2 max-sm:grid-cols-[auto_minmax(0,1fr)_auto] max-sm:justify-stretch">
+            <strong class="rounded-md bg-zinc-950/45 px-3 py-2 text-sm ring-1 ring-white/5 max-sm:text-center">{{ money(pending.amount)
+              }}</strong>
+            <isumi-button class="max-sm:w-full" variant="primary" size="sm" mobileFull
+              [disabled]="saving() || activeCategories().length === 0 || activePaymentMethods().length === 0"
+              (click)="openPendingApproval(pending)">
+              <svg icon lucideCheck class="size-4" aria-hidden="true"></svg>
+              Aprovar
+            </isumi-button>
+            <isumi-button variant="ghost-destructive" size="sm" iconOnly ariaLabel="Descartar compra pendente"
+              [loading]="saving()" (click)="dismissPendingItem(pending)">
+              <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
+              Descartar
+            </isumi-button>
+          </div>
+        </article>
+        }
+      </div>
       }
-    </section>
+    </div>
+  </section>
+  }
+
+  <section class="grid gap-4 rounded-lg bg-card p-5" aria-labelledby="expenses-list-title">
+    <div class="flex items-start justify-between gap-4 max-lg:flex-col">
+      <div>
+        <h2 id="expenses-list-title" class="m-0 inline-flex items-center gap-2 text-[1.15rem] font-black">
+          <svg lucideReceiptText class="size-5" aria-hidden="true"></svg>
+          Gastos
+        </h2>
+        <p class="m-0 mt-1 text-sm text-muted-foreground">{{ filteredItems().length }} de {{ state.items.length }}
+          gasto(s)</p>
+      </div>
+
+      <div class="flex flex-wrap gap-2 max-sm:w-full">
+        <isumi-tooltip label="Integração com Atalhos">
+          <isumi-button variant="secondary" iconOnly ariaLabel="Integração com Atalhos" (click)="openShortcutModal()">
+            <svg icon lucideWalletCards class="size-4" aria-hidden="true"></svg>
+            Integração com Atalhos
+          </isumi-button>
+        </isumi-tooltip>
+        <isumi-tooltip label="Categorias e pagamentos">
+          <isumi-button variant="secondary" iconOnly ariaLabel="Categorias e pagamentos" (click)="openCatalogModal()">
+            <svg icon lucideSettings2 class="size-4" aria-hidden="true"></svg>
+            Categorias e pagamentos
+          </isumi-button>
+        </isumi-tooltip>
+        <isumi-tooltip label="Exportar CSV">
+          <isumi-button variant="secondary" iconOnly ariaLabel="Exportar CSV" (click)="exportCsv()">
+            <svg icon lucideDownload class="size-4" aria-hidden="true"></svg>
+            Exportar CSV
+          </isumi-button>
+        </isumi-tooltip>
+        <isumi-tooltip label="Importar CSV">
+          <label
+            class="inline-flex size-10 cursor-pointer items-center justify-center rounded-sm bg-secondary text-secondary-foreground transition-colors hover:bg-ring/45 focus-within:outline-none focus-within:ring-2 focus-within:ring-ring/60 focus-within:ring-offset-2 focus-within:ring-offset-background"
+            aria-label="Importar CSV">
+            <svg lucideUpload class="size-4" aria-hidden="true"></svg>
+            <input class="sr-only" type="file" accept=".csv,text/csv" (change)="importCsv($event)">
+          </label>
+        </isumi-tooltip>
+        <isumi-button mobileFull [disabled]="activeCategories().length === 0 || activePaymentMethods().length === 0"
+          (click)="openExpenseModal()">
+          <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
+          Adicionar gasto
+        </isumi-button>
+      </div>
+    </div>
+
+    @if (csvErrors().length > 0) {
+    <div class="rounded-md bg-red-500/10 p-3 text-sm text-red-100">
+      <strong class="block">CSV não importado</strong>
+      @for (error of csvErrors(); track error.line + error.message) {
+      <span class="block">Linha {{ error.line }}: {{ error.message }}</span>
+      }
+    </div>
+    }
+
+    <div class="grid grid-cols-[minmax(180px,1fr)_150px_150px_150px] gap-2 max-lg:grid-cols-2 max-sm:grid-cols-1">
+      <label class="relative">
+        <svg lucideSearch
+          class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"></svg>
+        <input isumiInput size="sm" class="pl-9" name="search" [ngModel]="query()" (ngModelChange)="query.set($event)"
+          placeholder="Buscar gasto">
+      </label>
+
+      <select isumiSelect size="sm" name="typeFilter" [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event)">
+        <option value="ALL">Todos os tipos</option>
+        <option value="FIXO">Fixo</option>
+        <option value="VARIAVEL">Variável</option>
+        <option value="RESERVA">Reserva</option>
+      </select>
+
+      <select isumiSelect size="sm" name="categoryFilter" [ngModel]="categoryFilter()"
+        (ngModelChange)="categoryFilter.set($event)">
+        <option value="ALL">Categorias</option>
+        @for (category of categories(); track category.id) {
+        <option [value]="category.id">{{ category.name }}</option>
+        }
+      </select>
+
+      <select isumiSelect size="sm" name="paymentFilter" [ngModel]="paymentFilter()"
+        (ngModelChange)="paymentFilter.set($event)">
+        <option value="ALL">Pagamentos</option>
+        @for (method of paymentMethods(); track method.id) {
+        <option [value]="method.id">{{ method.name }}</option>
+        }
+      </select>
+    </div>
+
+    @if (state.items.length === 0) {
+    <isumi-empty-state title="Nenhum gasto cadastrado"
+      description="Crie categorias e pagamentos, depois adicione o primeiro gasto do mês.">
+      <svg icon lucideBrushCleaning class="size-5" aria-hidden="true"></svg>
+    </isumi-empty-state>
+    } @else if (filteredItems().length === 0) {
+    <isumi-empty-state title="Nenhum gasto encontrado"
+      description="Ajuste os filtros ou limpe a busca para ver os gastos do mês.">
+      <svg icon lucideSearch class="size-5" aria-hidden="true"></svg>
+    </isumi-empty-state>
+    } @else {
+    <div class="grid overflow-hidden rounded-lg bg-secondary max-lg:overflow-x-auto" role="table"
+      aria-label="Gastos do mês">
+      <div
+        class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 px-4 py-3 text-[0.78rem] font-black text-muted-foreground"
+        role="row">
+        <span>Gasto</span>
+        <span>Categoria</span>
+        <span>Pagamento</span>
+        <span>Tipo</span>
+        <span>Parcela</span>
+        <span class="text-right">Valor</span>
+        <span class="text-right">Ações</span>
+      </div>
+
+      @for (item of filteredItems(); track item.id) {
+      <article
+        class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 border-t border-border bg-secondary px-4 py-3"
+        role="row">
+        <strong class="truncate">{{ item.description }}</strong>
+        <isumi-tag class="min-w-0" [tone]="tagTone(item.categoryColor)">
+          <span class="truncate">{{ item.categoryName }}</span>
+        </isumi-tag>
+        <isumi-tag class="min-w-0" [tone]="tagTone(item.paymentMethodColor)">
+          <span class="truncate">{{ item.paymentMethodName }}</span>
+        </isumi-tag>
+        <isumi-tag [tone]="typeTagTone(item.expenseType)">{{ typeLabel(item.expenseType) }}</isumi-tag>
+        <span class="grid w-12 justify-items-center gap-1">
+          <isumi-tag tone="secondary">{{ item.installmentNumber }}/{{ item.installmentTotal }}</isumi-tag>
+          <span class="h-1.5 w-full overflow-hidden rounded-full bg-background" aria-hidden="true">
+            <span class="block h-full rounded-full bg-primary"
+              [style.width.%]="item.installmentTotal > 0 ? (item.installmentNumber / item.installmentTotal) * 100 : 0"></span>
+          </span>
+        </span>
+        <strong class="text-right">{{ money(item.amountCents) }}</strong>
+        <span class="flex justify-end gap-1">
+          <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Editar gasto" (click)="openExpenseModal(item)">
+            <svg icon lucidePencil class="size-4" aria-hidden="true"></svg>
+            Editar
+          </isumi-button>
+          <isumi-button variant="ghost-destructive" size="sm" iconOnly ariaLabel="Remover gasto" [loading]="saving()"
+            (click)="deleteExpenseItem(item)">
+            <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
+            Remover
+          </isumi-button>
+        </span>
+      </article>
+      }
+    </div>
+    }
+  </section>
   } @else if (loading()) {
-    <section class="grid gap-4" aria-label="Carregando resumo financeiro" aria-busy="true">
-      <div class="grid grid-cols-4 gap-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
-        @for (card of [1, 2, 3, 4]; track card) {
-          <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
-            <span class="h-3 w-24 animate-pulse rounded-sm bg-zinc-800/90"></span>
-            <div class="flex min-w-0 items-center gap-3">
-              <span class="size-9 shrink-0 animate-pulse rounded-lg bg-zinc-900/90"></span>
-              <span class="h-5 w-28 animate-pulse rounded-sm bg-zinc-800/80"></span>
-            </div>
-          </article>
-        }
-      </div>
-    </section>
-
-    <section class="grid gap-4 rounded-lg bg-card p-5" aria-labelledby="expenses-list-loading-title">
-      <div class="flex items-start justify-between gap-4 max-lg:flex-col">
-        <div class="grid gap-2">
-          <span id="expenses-list-loading-title" class="h-5 w-28 animate-pulse rounded-sm bg-zinc-800/90"></span>
-          <span class="h-4 w-36 animate-pulse rounded-sm bg-zinc-900/90"></span>
+  <section class="grid gap-4" aria-label="Carregando resumo financeiro" aria-busy="true">
+    <div class="grid grid-cols-4 gap-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
+      @for (card of [1, 2, 3, 4]; track card) {
+      <article class="grid min-h-[5.5rem] content-center gap-2 rounded-lg bg-card p-4">
+        <span class="h-3 w-24 animate-pulse rounded-sm bg-zinc-800/90"></span>
+        <div class="flex min-w-0 items-center gap-3">
+          <span class="size-9 shrink-0 animate-pulse rounded-lg bg-zinc-900/90"></span>
+          <span class="h-5 w-28 animate-pulse rounded-sm bg-zinc-800/80"></span>
         </div>
+      </article>
+      }
+    </div>
+  </section>
 
-        <div class="flex flex-wrap gap-2 max-sm:w-full">
-          <span class="size-10 animate-pulse rounded-sm bg-zinc-900/90"></span>
-          <span class="size-10 animate-pulse rounded-sm bg-zinc-900/90"></span>
-          <span class="size-10 animate-pulse rounded-sm bg-zinc-900/90"></span>
-          <span class="h-10 w-36 animate-pulse rounded-sm bg-zinc-800/80 max-sm:w-full"></span>
-        </div>
+  <section class="grid gap-4 rounded-lg bg-card p-5" aria-labelledby="expenses-list-loading-title">
+    <div class="flex items-start justify-between gap-4 max-lg:flex-col">
+      <div class="grid gap-2">
+        <span id="expenses-list-loading-title" class="h-5 w-28 animate-pulse rounded-sm bg-zinc-800/90"></span>
+        <span class="h-4 w-36 animate-pulse rounded-sm bg-zinc-900/90"></span>
       </div>
 
-      <div class="grid grid-cols-[minmax(180px,1fr)_150px_150px_150px] gap-2 max-lg:grid-cols-2 max-sm:grid-cols-1">
-        <span class="h-9 animate-pulse rounded-sm bg-zinc-950/70"></span>
-        <span class="h-9 animate-pulse rounded-sm bg-zinc-950/70"></span>
-        <span class="h-9 animate-pulse rounded-sm bg-zinc-950/70"></span>
-        <span class="h-9 animate-pulse rounded-sm bg-zinc-950/70"></span>
+      <div class="flex flex-wrap gap-2 max-sm:w-full">
+        <span class="size-10 animate-pulse rounded-sm bg-zinc-900/90"></span>
+        <span class="size-10 animate-pulse rounded-sm bg-zinc-900/90"></span>
+        <span class="size-10 animate-pulse rounded-sm bg-zinc-900/90"></span>
+        <span class="h-10 w-36 animate-pulse rounded-sm bg-zinc-800/80 max-sm:w-full"></span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-[minmax(180px,1fr)_150px_150px_150px] gap-2 max-lg:grid-cols-2 max-sm:grid-cols-1">
+      <span class="h-9 animate-pulse rounded-sm bg-zinc-950/70"></span>
+      <span class="h-9 animate-pulse rounded-sm bg-zinc-950/70"></span>
+      <span class="h-9 animate-pulse rounded-sm bg-zinc-950/70"></span>
+      <span class="h-9 animate-pulse rounded-sm bg-zinc-950/70"></span>
+    </div>
+
+    <div class="grid overflow-hidden rounded-lg bg-secondary max-lg:overflow-x-auto"
+      aria-label="Carregando tabela de gastos mensais" role="table">
+      <div
+        class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 px-4 py-3"
+        role="row">
+        <span class="h-3 w-14 animate-pulse rounded-sm bg-zinc-900/90"></span>
+        <span class="h-3 w-20 animate-pulse rounded-sm bg-zinc-900/90"></span>
+        <span class="h-3 w-20 animate-pulse rounded-sm bg-zinc-900/90"></span>
+        <span class="h-3 w-12 animate-pulse rounded-sm bg-zinc-900/90"></span>
+        <span class="h-3 w-14 animate-pulse rounded-sm bg-zinc-900/90"></span>
+        <span class="h-3 w-12 justify-self-end animate-pulse rounded-sm bg-zinc-900/90"></span>
+        <span class="h-3 w-14 justify-self-end animate-pulse rounded-sm bg-zinc-900/90"></span>
       </div>
 
-      <div class="grid overflow-hidden rounded-lg bg-secondary max-lg:overflow-x-auto" aria-label="Carregando tabela de gastos mensais" role="table">
-        <div class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 px-4 py-3" role="row">
-          <span class="h-3 w-14 animate-pulse rounded-sm bg-zinc-900/90"></span>
-          <span class="h-3 w-20 animate-pulse rounded-sm bg-zinc-900/90"></span>
-          <span class="h-3 w-20 animate-pulse rounded-sm bg-zinc-900/90"></span>
-          <span class="h-3 w-12 animate-pulse rounded-sm bg-zinc-900/90"></span>
-          <span class="h-3 w-14 animate-pulse rounded-sm bg-zinc-900/90"></span>
-          <span class="h-3 w-12 justify-self-end animate-pulse rounded-sm bg-zinc-900/90"></span>
-          <span class="h-3 w-14 justify-self-end animate-pulse rounded-sm bg-zinc-900/90"></span>
-        </div>
-
-        @for (row of [1, 2, 3, 4]; track row) {
-          <article class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 border-t border-border bg-secondary px-4 py-3" role="row">
-            <span class="h-5 animate-pulse rounded-sm bg-zinc-800/80" [class.w-40]="row === 1" [class.w-56]="row === 2" [class.w-32]="row === 3" [class.w-48]="row === 4"></span>
-            <span class="h-6 w-28 animate-pulse rounded-md bg-zinc-900/90"></span>
-            <span class="h-6 w-24 animate-pulse rounded-md bg-zinc-900/90"></span>
-            <span class="h-7 w-20 animate-pulse rounded-md bg-zinc-900/90"></span>
-            <span class="h-6 w-11 animate-pulse rounded-md bg-zinc-900/90"></span>
-            <span class="h-5 w-24 justify-self-end animate-pulse rounded-sm bg-zinc-800/80"></span>
-            <span class="h-8 w-16 justify-self-end animate-pulse rounded-sm bg-zinc-900/90"></span>
-          </article>
-        }
-      </div>
-    </section>
+      @for (row of [1, 2, 3, 4]; track row) {
+      <article
+        class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 border-t border-border bg-secondary px-4 py-3"
+        role="row">
+        <span class="h-5 animate-pulse rounded-sm bg-zinc-800/80" [class.w-40]="row === 1" [class.w-56]="row === 2"
+          [class.w-32]="row === 3" [class.w-48]="row === 4"></span>
+        <span class="h-6 w-28 animate-pulse rounded-md bg-zinc-900/90"></span>
+        <span class="h-6 w-24 animate-pulse rounded-md bg-zinc-900/90"></span>
+        <span class="h-7 w-20 animate-pulse rounded-md bg-zinc-900/90"></span>
+        <span class="h-6 w-11 animate-pulse rounded-md bg-zinc-900/90"></span>
+        <span class="h-5 w-24 justify-self-end animate-pulse rounded-sm bg-zinc-800/80"></span>
+        <span class="h-8 w-16 justify-self-end animate-pulse rounded-sm bg-zinc-900/90"></span>
+      </article>
+      }
+    </div>
+  </section>
   }
 
   @if (catalogModalOpen()) {
-    <div class="fixed inset-0 z-60 grid place-items-center bg-black/70 p-4" role="presentation" (click)="catalogModalOpen.set(false)">
-      <section class="grid max-h-[min(760px,calc(100dvh-2rem))] w-[min(860px,100%)] gap-5 overflow-auto rounded-xl bg-popover p-5 text-popover-foreground shadow-[0_24px_80px_rgb(0_0_0/0.55)]" role="dialog" aria-modal="true" aria-label="Categorias e pagamentos" (click)="$event.stopPropagation()">
-        <header class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="m-0 inline-flex items-center gap-2 text-[1.2rem] font-black">
-              <span class="grid size-8 place-items-center rounded-md bg-primary/15 text-primary">
-                <svg lucideSettings2 class="size-4" aria-hidden="true"></svg>
-              </span>
-              Categorias e pagamentos
-            </h2>
-            <p class="m-0 mt-1 text-sm text-muted-foreground">Dê cor e nome aos atalhos que aparecem nos novos gastos.</p>
-          </div>
-          <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Fechar modal" (click)="catalogModalOpen.set(false)">
-            <svg icon lucideX class="size-4" aria-hidden="true"></svg>
-            Fechar
-          </isumi-button>
-        </header>
-
-        <form class="grid gap-4 rounded-lg bg-secondary/55 p-3.5" (ngSubmit)="saveCatalogItem()">
-          <div class="grid gap-3">
-            <div class="grid gap-1.5" role="group" aria-labelledby="catalog-kind-label">
-              <span id="catalog-kind-label" class="min-h-5 text-sm font-extrabold leading-5 text-muted-foreground">Tipo</span>
-              <div class="grid h-12 grid-cols-2 gap-1 rounded-md bg-background p-1">
-                <isumi-button
-                  type="button"
-                  size="md"
-                  fullWidth
-                  [variant]="catalogKind() === 'category' ? 'primary' : 'ghost'"
-                  [ariaPressed]="catalogKind() === 'category'"
-                  (click)="catalogKind.set('category')">
-                  <svg icon lucideTags class="size-4" aria-hidden="true"></svg>
-                  Categoria
-                </isumi-button>
-                <isumi-button
-                  type="button"
-                  size="md"
-                  fullWidth
-                  [variant]="catalogKind() === 'payment' ? 'primary' : 'ghost'"
-                  [ariaPressed]="catalogKind() === 'payment'"
-                  (click)="catalogKind.set('payment')">
-                  <svg icon lucideCreditCard class="size-4" aria-hidden="true"></svg>
-                  Pagamento
-                </isumi-button>
-              </div>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-3 gap-y-3 max-sm:grid-cols-1">
-            <label class="grid gap-2">
-              <span class="text-sm font-extrabold text-muted-foreground">Nome</span>
-              <input isumiInput name="catalogName" [ngModel]="catalogName()" (ngModelChange)="catalogName.set($event.slice(0, 80))" maxlength="80" required [placeholder]="catalogKind() === 'category' ? 'Mercado, casa, lazer...' : 'Banco, dinheiro, VR...'">
-            </label>
-            <div class="grid gap-2" role="radiogroup" aria-label="Escolher cor">
-              <span class="inline-flex items-center gap-1.5 text-sm font-extrabold text-muted-foreground">
-                <svg lucidePalette class="size-4" aria-hidden="true"></svg>
-                Cor
-              </span>
-              <div class="grid grid-cols-10 gap-2 rounded-md bg-background p-2 max-sm:grid-cols-5">
-                @for (option of catalogPalette; track option.color) {
-                  <button
-                    type="button"
-                    [class]="paletteOptionClasses(option)"
-                    [attr.aria-label]="option.label"
-                    [attr.aria-pressed]="catalogColor() === option.color"
-                    (click)="selectCatalogColor(option)"
-                  >
-                    <span class="sr-only">{{ option.label }}</span>
-                  </button>
-                }
-              </div>
-            </div>
-            <isumi-button class="sm:col-span-2" fullWidth mobileFull type="submit" size="lg" [loading]="saving()">
-              <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
-              Criar
-            </isumi-button>
-            <span class="text-xs font-semibold text-muted-foreground max-sm:row-start-auto sm:col-span-2">{{ catalogHelperText() }}</span>
-          </div>
-        </form>
-
-        <div class="grid grid-cols-2 gap-4 max-md:grid-cols-1">
-          <section class="grid content-start gap-2">
-            <div class="flex items-center justify-between gap-3">
-              <h3 class="m-0 text-base font-black">Categorias</h3>
-              <isumi-tag tone="secondary">{{ activeCategories().length }} ativas</isumi-tag>
-            </div>
-            @for (category of categories(); track category.id) {
-              <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="category.archived">
-                <span class="inline-flex min-w-0 items-center gap-2">
-                  <i class="size-3 rounded-full" [style.background]="category.color"></i>
-                  <strong class="truncate">{{ category.name }}</strong>
-                </span>
-                @if (!category.archived) {
-                  <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Arquivar categoria" (click)="archiveCatalog('category', category)">
-                    <svg icon lucideArchive class="size-4" aria-hidden="true"></svg>
-                    Arquivar
-                  </isumi-button>
-                }
-              </div>
-            } @empty {
-              <div class="rounded-lg bg-secondary/60 px-3 py-4 text-sm font-semibold text-muted-foreground">
-                Comece com algo como Mercado, Casa ou Lazer.
-              </div>
-            }
-          </section>
-
-          <section class="grid content-start gap-2">
-            <div class="flex items-center justify-between gap-3">
-              <h3 class="m-0 text-base font-black">Pagamentos</h3>
-              <isumi-tag tone="secondary">{{ activePaymentMethods().length }} ativos</isumi-tag>
-            </div>
-            @for (method of paymentMethods(); track method.id) {
-              <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="method.archived">
-                <span class="inline-flex min-w-0 items-center gap-2">
-                  <i class="size-3 rounded-full" [style.background]="method.color"></i>
-                  <strong class="truncate">{{ method.name }}</strong>
-                </span>
-                @if (!method.archived) {
-                  <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Arquivar pagamento" (click)="archiveCatalog('payment', method)">
-                    <svg icon lucideArchive class="size-4" aria-hidden="true"></svg>
-                    Arquivar
-                  </isumi-button>
-                }
-              </div>
-            } @empty {
-              <div class="rounded-lg bg-secondary/60 px-3 py-4 text-sm font-semibold text-muted-foreground">
-                Adicione cartão, dinheiro ou conta principal.
-              </div>
-            }
-          </section>
+  <div class="fixed inset-0 z-60 grid place-items-center bg-black/70 p-4" role="presentation"
+    (click)="catalogModalOpen.set(false)">
+    <section
+      class="grid max-h-[min(760px,calc(100dvh-2rem))] w-[min(860px,100%)] gap-5 overflow-auto rounded-xl bg-popover p-5 text-popover-foreground shadow-[0_24px_80px_rgb(0_0_0/0.55)]"
+      role="dialog" aria-modal="true" aria-label="Categorias e pagamentos" (click)="$event.stopPropagation()">
+      <header class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h2 class="m-0 inline-flex items-center gap-2 text-[1.2rem] font-black">
+            <span class="grid size-8 place-items-center rounded-md bg-primary/15 text-primary">
+              <svg lucideSettings2 class="size-4" aria-hidden="true"></svg>
+            </span>
+            Categorias e pagamentos
+          </h2>
+          <p class="m-0 mt-1 text-sm text-muted-foreground">Dê cor e nome aos atalhos que aparecem nos novos gastos.</p>
         </div>
-      </section>
-    </div>
+        <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Fechar modal" (click)="catalogModalOpen.set(false)">
+          <svg icon lucideX class="size-4" aria-hidden="true"></svg>
+          Fechar
+        </isumi-button>
+      </header>
+
+      <form class="grid gap-4 rounded-lg bg-secondary/55 p-3.5" (ngSubmit)="saveCatalogItem()">
+        <div class="grid gap-3">
+          <div class="grid gap-1.5" role="group" aria-labelledby="catalog-kind-label">
+            <span id="catalog-kind-label"
+              class="min-h-5 text-sm font-extrabold leading-5 text-muted-foreground">Tipo</span>
+            <div class="grid h-12 grid-cols-2 gap-1 rounded-md bg-background p-1">
+              <isumi-button type="button" size="md" fullWidth
+                [variant]="catalogKind() === 'category' ? 'primary' : 'ghost'"
+                [ariaPressed]="catalogKind() === 'category'" (click)="catalogKind.set('category')">
+                <svg icon lucideTags class="size-4" aria-hidden="true"></svg>
+                Categoria
+              </isumi-button>
+              <isumi-button type="button" size="md" fullWidth
+                [variant]="catalogKind() === 'payment' ? 'primary' : 'ghost'"
+                [ariaPressed]="catalogKind() === 'payment'" (click)="catalogKind.set('payment')">
+                <svg icon lucideCreditCard class="size-4" aria-hidden="true"></svg>
+                Pagamento
+              </isumi-button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-3 gap-y-3 max-sm:grid-cols-1">
+          <label class="grid gap-2">
+            <span class="text-sm font-extrabold text-muted-foreground">Nome</span>
+            <input isumiInput name="catalogName" [ngModel]="catalogName()"
+              (ngModelChange)="catalogName.set($event.slice(0, 80))" maxlength="80" required
+              [placeholder]="catalogKind() === 'category' ? 'Mercado, casa, lazer...' : 'Banco, dinheiro, VR...'">
+          </label>
+          <div class="grid gap-2" role="radiogroup" aria-label="Escolher cor">
+            <span class="inline-flex items-center gap-1.5 text-sm font-extrabold text-muted-foreground">
+              <svg lucidePalette class="size-4" aria-hidden="true"></svg>
+              Cor
+            </span>
+            <div class="grid grid-cols-10 gap-2 rounded-md bg-background p-2 max-sm:grid-cols-5">
+              @for (option of catalogPalette; track option.color) {
+              <button type="button" [class]="paletteOptionClasses(option)" [attr.aria-label]="option.label"
+                [attr.aria-pressed]="catalogColor() === option.color" (click)="selectCatalogColor(option)">
+                <span class="sr-only">{{ option.label }}</span>
+              </button>
+              }
+            </div>
+          </div>
+          <isumi-button class="sm:col-span-2" fullWidth mobileFull type="submit" size="lg" [loading]="saving()">
+            <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
+            Criar
+          </isumi-button>
+          <span class="text-xs font-semibold text-muted-foreground max-sm:row-start-auto sm:col-span-2">{{
+            catalogHelperText() }}</span>
+        </div>
+      </form>
+
+      <div class="grid grid-cols-2 gap-4 max-md:grid-cols-1">
+        <section class="grid content-start gap-2">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="m-0 text-base font-black">Categorias</h3>
+            <isumi-tag tone="secondary">{{ activeCategories().length }} ativas</isumi-tag>
+          </div>
+          @for (category of categories(); track category.id) {
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5"
+            [class.opacity-50]="category.archived">
+            <span class="inline-flex min-w-0 items-center gap-2">
+              <i class="size-3 rounded-full" [style.background]="category.color"></i>
+              <strong class="truncate">{{ category.name }}</strong>
+            </span>
+            @if (!category.archived) {
+            <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Arquivar categoria"
+              (click)="archiveCatalog('category', category)">
+              <svg icon lucideArchive class="size-4" aria-hidden="true"></svg>
+              Arquivar
+            </isumi-button>
+            }
+          </div>
+          } @empty {
+          <div class="rounded-lg bg-secondary/60 px-3 py-4 text-sm font-semibold text-muted-foreground">
+            Comece com algo como Mercado, Casa ou Lazer.
+          </div>
+          }
+        </section>
+
+        <section class="grid content-start gap-2">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="m-0 text-base font-black">Pagamentos</h3>
+            <isumi-tag tone="secondary">{{ activePaymentMethods().length }} ativos</isumi-tag>
+          </div>
+          @for (method of paymentMethods(); track method.id) {
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5"
+            [class.opacity-50]="method.archived">
+            <span class="inline-flex min-w-0 items-center gap-2">
+              <i class="size-3 rounded-full" [style.background]="method.color"></i>
+              <strong class="truncate">{{ method.name }}</strong>
+            </span>
+            @if (!method.archived) {
+            <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Arquivar pagamento"
+              (click)="archiveCatalog('payment', method)">
+              <svg icon lucideArchive class="size-4" aria-hidden="true"></svg>
+              Arquivar
+            </isumi-button>
+            }
+          </div>
+          } @empty {
+          <div class="rounded-lg bg-secondary/60 px-3 py-4 text-sm font-semibold text-muted-foreground">
+            Adicione cartão, dinheiro ou conta principal.
+          </div>
+          }
+        </section>
+      </div>
+    </section>
+  </div>
   }
 
   @if (expenseModalOpen()) {
-    <div class="fixed inset-0 z-60 grid place-items-center bg-black/70 p-4" role="presentation" (click)="expenseModalOpen.set(false)">
-      <form class="grid max-h-[min(760px,calc(100dvh-2rem))] w-[min(860px,100%)] gap-5 overflow-auto rounded-xl bg-popover p-5 text-popover-foreground shadow-[0_24px_80px_rgb(0_0_0/0.55)]" role="dialog" aria-modal="true" aria-label="Gasto mensal" (click)="$event.stopPropagation()" (ngSubmit)="saveExpenseItem()">
-        <header class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="m-0 inline-flex items-center gap-2 text-[1.2rem] font-black">
-              <span class="grid size-8 place-items-center rounded-md bg-primary/15 text-primary">
-                <svg lucideReceiptText class="size-4" aria-hidden="true"></svg>
-              </span>
-              {{ editingItem() ? "Editar gasto" : "Adicionar gasto" }}
-            </h2>
-            <p class="m-0 mt-1 text-sm text-muted-foreground">Organize valor, categoria e pagamento antes de salvar no mês.</p>
-          </div>
-          <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Fechar modal" (click)="expenseModalOpen.set(false)">
-            <svg icon lucideX class="size-4" aria-hidden="true"></svg>
-            Fechar
-          </isumi-button>
-        </header>
+  <div class="fixed inset-0 z-60 grid place-items-center bg-black/70 p-4" role="presentation"
+    (click)="expenseModalOpen.set(false)">
+    <form
+      class="grid max-h-[min(760px,calc(100dvh-2rem))] w-[min(860px,100%)] gap-5 overflow-auto rounded-xl bg-popover p-5 text-popover-foreground shadow-[0_24px_80px_rgb(0_0_0/0.55)]"
+      role="dialog" aria-modal="true" aria-label="Gasto mensal" (click)="$event.stopPropagation()"
+      (ngSubmit)="saveExpenseItem()">
+      <header class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h2 class="m-0 inline-flex items-center gap-2 text-[1.2rem] font-black">
+            <span class="grid size-8 place-items-center rounded-md bg-primary/15 text-primary">
+              <svg lucideReceiptText class="size-4" aria-hidden="true"></svg>
+            </span>
+            {{ editingItem() ? "Editar gasto" : "Adicionar gasto" }}
+          </h2>
+          <p class="m-0 mt-1 text-sm text-muted-foreground">Organize valor, categoria e pagamento antes de salvar no
+            mês.</p>
+        </div>
+        <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Fechar modal" (click)="expenseModalOpen.set(false)">
+          <svg icon lucideX class="size-4" aria-hidden="true"></svg>
+          Fechar
+        </isumi-button>
+      </header>
 
-        <div class="grid gap-4 rounded-lg bg-secondary/55 p-3.5">
+      <div class="grid gap-4 rounded-lg bg-secondary/55 p-3.5">
+        <label class="grid gap-2">
+          <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+            <svg lucideReceiptText class="size-4" aria-hidden="true"></svg>
+            Descrição
+          </span>
+          <input isumiInput name="itemDescription" [ngModel]="itemDescription()"
+            (ngModelChange)="itemDescription.set($event.slice(0, 160))" maxlength="160" required
+            placeholder="Mercado, aluguel, academia...">
+        </label>
+
+        <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 max-sm:grid-cols-1">
           <label class="grid gap-2">
             <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-              <svg lucideReceiptText class="size-4" aria-hidden="true"></svg>
-              Descrição
+              <svg lucideTags class="size-4" aria-hidden="true"></svg>
+              Categoria
             </span>
-            <input isumiInput name="itemDescription" [ngModel]="itemDescription()" (ngModelChange)="itemDescription.set($event.slice(0, 160))" maxlength="160" required placeholder="Mercado, aluguel, academia...">
+            <select isumiSelect name="itemCategory" [ngModel]="itemCategoryId()"
+              (ngModelChange)="itemCategoryId.set($event)" required>
+              @for (category of activeCategories(); track category.id) {
+              <option [value]="category.id">{{ category.name }}</option>
+              }
+            </select>
           </label>
 
-          <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 max-sm:grid-cols-1">
-            <label class="grid gap-2">
-              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-                <svg lucideTags class="size-4" aria-hidden="true"></svg>
-                Categoria
-              </span>
-              <select isumiSelect name="itemCategory" [ngModel]="itemCategoryId()" (ngModelChange)="itemCategoryId.set($event)" required>
-                @for (category of activeCategories(); track category.id) {
-                  <option [value]="category.id">{{ category.name }}</option>
-                }
-              </select>
-            </label>
-
-            <label class="grid gap-2">
-              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-                <svg lucideCreditCard class="size-4" aria-hidden="true"></svg>
-                Pagamento
-              </span>
-              <select isumiSelect name="itemPayment" [ngModel]="itemPaymentMethodId()" (ngModelChange)="itemPaymentMethodId.set($event)" required>
-                @for (method of activePaymentMethods(); track method.id) {
-                  <option [value]="method.id">{{ method.name }}</option>
-                }
-              </select>
-            </label>
-          </div>
-
-          <div class="grid grid-cols-[1fr_120px_150px] gap-3 max-sm:grid-cols-1">
-            <label class="grid gap-2">
-              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-                <svg lucideDollarSign class="size-4" aria-hidden="true"></svg>
-                Valor total
-              </span>
-              <input isumiInput inputmode="decimal" name="itemTotal" [ngModel]="itemTotal()" (ngModelChange)="setItemTotal($event)" placeholder="0,00" required>
-            </label>
-
-            <label class="grid gap-2">
-              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-                <svg lucideCalendars class="size-4" aria-hidden="true"></svg>
-                Parcelas
-              </span>
-              <input isumiInput type="number" min="1" max="120" name="itemInstallments" [disabled]="!!editingItem()" [ngModel]="itemInstallments()" (ngModelChange)="itemInstallments.set($event)">
-            </label>
-
-            <label class="grid gap-2">
-              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-                <svg lucideFlag class="size-4" aria-hidden="true"></svg>
-                Tipo
-              </span>
-              <select isumiSelect name="itemType" [ngModel]="itemType()" (ngModelChange)="itemType.set($event)">
-                <option value="VARIAVEL">Variável</option>
-                <option value="FIXO">Fixo</option>
-                <option value="RESERVA">Reserva</option>
-              </select>
-            </label>
-          </div>
+          <label class="grid gap-2">
+            <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+              <svg lucideCreditCard class="size-4" aria-hidden="true"></svg>
+              Pagamento
+            </span>
+            <select isumiSelect name="itemPayment" [ngModel]="itemPaymentMethodId()"
+              (ngModelChange)="itemPaymentMethodId.set($event)" required>
+              @for (method of activePaymentMethods(); track method.id) {
+              <option [value]="method.id">{{ method.name }}</option>
+              }
+            </select>
+          </label>
         </div>
 
-        <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-2">
-          <isumi-button variant="secondary" type="button" (click)="expenseModalOpen.set(false)">Cancelar</isumi-button>
-          <isumi-button type="submit" [loading]="saving()">
-            <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
-            Salvar gasto
-          </isumi-button>
-        </footer>
-      </form>
-    </div>
+        <div class="grid grid-cols-[1fr_120px_150px] gap-3 max-sm:grid-cols-1">
+          <label class="grid gap-2">
+            <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+              <svg lucideDollarSign class="size-4" aria-hidden="true"></svg>
+              Valor total
+            </span>
+            <input isumiInput inputmode="decimal" name="itemTotal" [ngModel]="itemTotal()"
+              (ngModelChange)="setItemTotal($event)" placeholder="0,00" required>
+          </label>
+
+          <label class="grid gap-2">
+            <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+              <svg lucideCalendars class="size-4" aria-hidden="true"></svg>
+              Parcelas
+            </span>
+            <input isumiInput type="number" min="1" max="120" name="itemInstallments" [disabled]="!!editingItem()"
+              [ngModel]="itemInstallments()" (ngModelChange)="itemInstallments.set($event)">
+          </label>
+
+          <label class="grid gap-2">
+            <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+              <svg lucideFlag class="size-4" aria-hidden="true"></svg>
+              Tipo
+            </span>
+            <select isumiSelect name="itemType" [ngModel]="itemType()" (ngModelChange)="itemType.set($event)">
+              <option value="VARIAVEL">Variável</option>
+              <option value="FIXO">Fixo</option>
+              <option value="RESERVA">Reserva</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-2">
+        <isumi-button variant="secondary" type="button" (click)="expenseModalOpen.set(false)">Cancelar</isumi-button>
+        <isumi-button type="submit" [loading]="saving()">
+          <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
+          Salvar gasto
+        </isumi-button>
+      </footer>
+    </form>
+  </div>
   }
 </section>

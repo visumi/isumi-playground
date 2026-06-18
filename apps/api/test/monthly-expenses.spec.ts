@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { calculateMonthlyExpenseSummary, parseMonthlyExpenseCsv, serializeMonthlyExpenseCsv, splitInstallmentAmounts } from "../src/index";
+import {
+  calculateMonthlyExpenseSummary,
+  parseMonthlyExpenseCsv,
+  parseShortcutMoneyAmount,
+  sanitizeMonthlyExpenseShortcutPendingInput,
+  serializeMonthlyExpenseCsv,
+  splitInstallmentAmounts
+} from "../src/index";
 
 describe("monthly expense calculations", () => {
   it("calculates the monthly dashboard numbers", () => {
@@ -50,5 +57,51 @@ describe("monthly expense CSV", () => {
       metodo_pagamento: "PIX",
       tipo: "VARIAVEL"
     }]);
+  });
+});
+
+describe("monthly expense shortcut payload", () => {
+  it("accepts only merchant and amount in the shortcut body", () => {
+    const input = sanitizeMonthlyExpenseShortcutPendingInput({
+      merchant: "Mercado Exemplo",
+      amount: "R$ 45,90"
+    });
+
+    expect(input).toEqual({
+      description: "Mercado Exemplo",
+      amountCents: 4590,
+      transactionDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      merchantName: "Mercado Exemplo",
+      sourceId: null
+    });
+  });
+
+  it("rejects shortcut bodies with legacy or extra fields", () => {
+    expect(() => sanitizeMonthlyExpenseShortcutPendingInput({
+      merchant: "Mercado Exemplo",
+      amount: "R$ 45,90",
+      description: "Compra antiga"
+    } as never)).toThrow("invalid_shortcut_payload");
+
+    expect(() => sanitizeMonthlyExpenseShortcutPendingInput({
+      Merchant: "Mercado Exemplo",
+      amount: "R$ 45,90"
+    } as never)).toThrow("invalid_shortcut_payload");
+
+    expect(() => sanitizeMonthlyExpenseShortcutPendingInput({
+      merchant: "Mercado Exemplo"
+    } as never)).toThrow("invalid_shortcut_payload");
+  });
+
+  it("parses money strings sent by iPhone shortcuts", () => {
+    expect(parseShortcutMoneyAmount("R$ 45,90")).toBe(4590);
+    expect(parseShortcutMoneyAmount("$45.90")).toBe(4590);
+    expect(parseShortcutMoneyAmount("R$ 1.234,56")).toBe(123456);
+    expect(parseShortcutMoneyAmount("US$1,234.56")).toBe(123456);
+  });
+
+  it("rejects invalid money strings", () => {
+    expect(() => parseShortcutMoneyAmount("R$ 0,00")).toThrow("invalid_amount");
+    expect(() => parseShortcutMoneyAmount("sem valor")).toThrow("invalid_amount");
   });
 });

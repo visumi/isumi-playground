@@ -135,6 +135,35 @@ interface MonthlyExpenseItemRow {
   updated_at: string;
 }
 
+interface MonthlyExpenseIngestTokenRow {
+  id: string;
+  user_id: string;
+  token_hash: string;
+  token_last4: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+type MonthlyExpensePendingStatus = "PENDING" | "APPROVED" | "DISMISSED";
+
+interface MonthlyExpensePendingItemRow {
+  id: string;
+  user_id: string;
+  month_id: string;
+  description: string;
+  amount_cents: number;
+  transaction_date: string;
+  merchant_name: string | null;
+  raw_source: string | null;
+  source_id: string | null;
+  status: MonthlyExpensePendingStatus;
+  approved_item_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface MonthlyExpenseMonthInput {
   year?: number;
   month?: number;
@@ -164,6 +193,19 @@ interface MonthlyExpenseCsvImportInput {
   csv?: string;
 }
 
+interface MonthlyExpenseShortcutPendingInput {
+  merchant?: string;
+  amount?: string;
+}
+
+interface MonthlyExpensePendingApproveInput {
+  description?: string;
+  categoryId?: string;
+  paymentMethodId?: string;
+  installmentTotal?: number;
+  expenseType?: MonthlyExpenseType;
+}
+
 interface CalculatedSplit {
   participantId: string;
   shareUnits: number;
@@ -190,6 +232,7 @@ type FirebaseKey = Awaited<ReturnType<typeof importX509>>;
 let keyCache: { expiresAt: number; keys: Map<string, FirebaseKey> } | null = null;
 
 const jsonHeaders = { "Content-Type": "application/json; charset=utf-8" };
+const shortcutTransactionTimeZone = "America/Sao_Paulo";
 
 export default {
   async fetch(request, env): Promise<Response> {
@@ -211,6 +254,12 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json({ ok: true, service: "isumi-playground-api" }, 200, corsHeaders);
     }
 
+    if (request.method === "POST" && url.pathname === "/tools/monthly-expenses/apple-pay/pending") {
+      const db = createDatabaseClient(env);
+      const payload = await readJson<MonthlyExpenseShortcutPendingInput>(request);
+      return json(await createMonthlyExpensePendingFromShortcut(db, request, payload), 201, corsHeaders);
+    }
+
     const user = await authenticate(request, env);
 
     if (!user.allowed) {
@@ -222,6 +271,21 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
     if (request.method === "GET" && url.pathname === "/me") {
       return json(user, 200, corsHeaders);
+    }
+
+    if (url.pathname === "/tools/monthly-expenses/ingest-token") {
+      if (request.method === "GET") {
+        return json(await getMonthlyExpenseIngestTokenStatus(db, user.uid), 200, corsHeaders);
+      }
+
+      if (request.method === "POST") {
+        return json(await createMonthlyExpenseIngestToken(db, user.uid), 201, corsHeaders);
+      }
+
+      if (request.method === "DELETE") {
+        await revokeMonthlyExpenseIngestToken(db, user.uid);
+        return new Response(null, { status: 204, headers: corsHeaders });
+      }
     }
 
     if (url.pathname === "/tools/monthly-expenses/months") {
@@ -300,6 +364,27 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
       if (request.method === "DELETE" && itemId) {
         await deleteMonthlyExpenseItem(db, user.uid, monthId, itemId);
+        return new Response(null, { status: 204, headers: corsHeaders });
+      }
+    }
+
+    const monthlyExpensePendingMatch = url.pathname.match(/^\/tools\/monthly-expenses\/months\/([^/]+)\/pending(?:\/([^/]+))?(?:\/(approve))?$/);
+    if (monthlyExpensePendingMatch) {
+      const monthId = monthlyExpensePendingMatch[1];
+      const pendingId = monthlyExpensePendingMatch[2];
+      const action = monthlyExpensePendingMatch[3];
+
+      if (request.method === "GET" && !pendingId) {
+        return json(await listMonthlyExpensePendingItems(db, user.uid, monthId), 200, corsHeaders);
+      }
+
+      if (request.method === "POST" && pendingId && action === "approve") {
+        const payload = await readJson<MonthlyExpensePendingApproveInput>(request);
+        return json(await approveMonthlyExpensePendingItem(db, user.uid, monthId, pendingId, payload), 200, corsHeaders);
+      }
+
+      if (request.method === "DELETE" && pendingId && !action) {
+        await dismissMonthlyExpensePendingItem(db, user.uid, monthId, pendingId);
         return new Response(null, { status: 204, headers: corsHeaders });
       }
     }
@@ -1168,6 +1253,255 @@ async function importMonthlyExpenseCsv(db: Client, userId: string, monthId: stri
   return { imported: validRows.length, errors: [], detail: await getMonthlyExpenseMonthDetail(db, userId, monthId) };
 }
 
+async function getMonthlyExpenseIngestTokenStatus(db: Client, userId: string) {
+  const token = await findActiveMonthlyExpenseIngestToken(db, userId);
+
+  if (!token) {
+    return { active: false };
+  }
+
+  return {
+    active: true,
+    tokenLast4: token.token_last4,
+    lastUsedAt: token.last_used_at ? toUtcIsoTimestamp(token.last_used_at) : null,
+    createdAt: toUtcIsoTimestamp(token.created_at)
+  };
+}
+
+async function createMonthlyExpenseIngestToken(db: Client, userId: string) {
+  const token = generateShortcutToken();
+  const tokenHash = await hashShortcutToken(token);
+  const tokenId = crypto.randomUUID();
+
+  await db.execute({
+    sql: `
+      UPDATE monthly_expense_ingest_tokens
+      SET revoked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ? AND revoked_at IS NULL
+    `,
+    args: [userId]
+  });
+
+  await db.execute({
+    sql: `
+      INSERT INTO monthly_expense_ingest_tokens (id, user_id, token_hash, token_last4, created_at, updated_at)
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `,
+    args: [tokenId, userId, tokenHash, token.slice(-4)]
+  });
+
+  return {
+    active: true,
+    token,
+    tokenLast4: token.slice(-4),
+    lastUsedAt: null,
+    createdAt: new Date().toISOString()
+  };
+}
+
+async function revokeMonthlyExpenseIngestToken(db: Client, userId: string): Promise<void> {
+  await db.execute({
+    sql: `
+      UPDATE monthly_expense_ingest_tokens
+      SET revoked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ? AND revoked_at IS NULL
+    `,
+    args: [userId]
+  });
+}
+
+async function createMonthlyExpensePendingFromShortcut(db: Client, request: Request, payload: MonthlyExpenseShortcutPendingInput) {
+  const token = await authenticateMonthlyExpenseShortcutToken(db, request);
+  await touchMonthlyExpenseIngestToken(db, token.id);
+  const input = sanitizeMonthlyExpenseShortcutPendingInput(payload);
+  const existing = input.sourceId ? await findMonthlyExpensePendingBySource(db, token.user_id, input.sourceId) : null;
+
+  if (existing) {
+    return { pending: mapMonthlyExpensePendingItem(existing), duplicate: true };
+  }
+
+  const period = monthlyExpensePeriodFromDate(input.transactionDate);
+  const month = await ensureMonthlyExpenseMonthByPeriod(db, token.user_id, period.year, period.month);
+  const pendingId = crypto.randomUUID();
+
+  await db.execute({
+    sql: `
+      INSERT INTO monthly_expense_pending_items (
+        id, user_id, month_id, description, amount_cents, transaction_date, merchant_name,
+        raw_source, source_id, status, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `,
+    args: [
+      pendingId,
+      token.user_id,
+      month.id,
+      input.description,
+      input.amountCents,
+      input.transactionDate,
+      input.merchantName,
+      JSON.stringify(payload),
+      input.sourceId
+    ]
+  });
+
+  const created = await findMonthlyExpensePendingItem(db, token.user_id, month.id, pendingId, { includeClosed: true });
+  if (!created) {
+    throw new HttpError(500, "monthly_expense_pending_create_failed");
+  }
+
+  return { pending: mapMonthlyExpensePendingItem(created), duplicate: false };
+}
+
+async function touchMonthlyExpenseIngestToken(db: Client, tokenId: string): Promise<void> {
+  await db.execute({
+    sql: "UPDATE monthly_expense_ingest_tokens SET last_used_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+    args: [tokenId]
+  });
+}
+
+async function listMonthlyExpensePendingItems(db: Client, userId: string, monthId: string) {
+  await assertMonthlyExpenseMonth(db, userId, monthId);
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, month_id, description, amount_cents, transaction_date, merchant_name, raw_source,
+        source_id, status, approved_item_id, created_at, updated_at
+      FROM monthly_expense_pending_items
+      WHERE user_id = ? AND month_id = ? AND status = 'PENDING'
+      ORDER BY transaction_date DESC, created_at DESC, id DESC
+    `,
+    args: [userId, monthId]
+  });
+
+  return (result.rows as unknown as MonthlyExpensePendingItemRow[]).map(mapMonthlyExpensePendingItem);
+}
+
+async function approveMonthlyExpensePendingItem(
+  db: Client,
+  userId: string,
+  monthId: string,
+  pendingId: string,
+  payload: MonthlyExpensePendingApproveInput
+) {
+  await assertMonthlyExpenseMonth(db, userId, monthId);
+  const pending = await findMonthlyExpensePendingItem(db, userId, monthId, pendingId);
+  if (!pending) {
+    throw new HttpError(404, "not_found");
+  }
+
+  const detail = await createMonthlyExpenseItem(db, userId, monthId, {
+    description: typeof payload.description === "string" && payload.description.trim()
+      ? payload.description
+      : pending.merchant_name || pending.description,
+    categoryId: payload.categoryId,
+    paymentMethodId: payload.paymentMethodId,
+    totalPurchaseCents: pending.amount_cents,
+    installmentTotal: payload.installmentTotal,
+    expenseType: payload.expenseType
+  });
+
+  await db.execute({
+    sql: `
+      UPDATE monthly_expense_pending_items
+      SET status = 'APPROVED', updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND user_id = ? AND month_id = ? AND status = 'PENDING'
+    `,
+    args: [pendingId, userId, monthId]
+  });
+
+  return detail;
+}
+
+async function dismissMonthlyExpensePendingItem(db: Client, userId: string, monthId: string, pendingId: string): Promise<void> {
+  await assertMonthlyExpenseMonth(db, userId, monthId);
+  await db.execute({
+    sql: `
+      UPDATE monthly_expense_pending_items
+      SET status = 'DISMISSED', updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND user_id = ? AND month_id = ? AND status = 'PENDING'
+    `,
+    args: [pendingId, userId, monthId]
+  });
+}
+
+async function authenticateMonthlyExpenseShortcutToken(db: Client, request: Request): Promise<MonthlyExpenseIngestTokenRow> {
+  const header = request.headers.get("Authorization");
+  const token = header?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+
+  if (!token) {
+    throw new HttpError(401, "missing_token");
+  }
+
+  const tokenHash = await hashShortcutToken(token);
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, token_hash, token_last4, last_used_at, revoked_at, created_at, updated_at
+      FROM monthly_expense_ingest_tokens
+      WHERE token_hash = ? AND revoked_at IS NULL
+      LIMIT 1
+    `,
+    args: [tokenHash]
+  });
+  const row = result.rows[0] as unknown as MonthlyExpenseIngestTokenRow | undefined;
+
+  if (!row) {
+    throw new HttpError(401, "invalid_token");
+  }
+
+  return row;
+}
+
+async function findActiveMonthlyExpenseIngestToken(db: Client, userId: string): Promise<MonthlyExpenseIngestTokenRow | null> {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, token_hash, token_last4, last_used_at, revoked_at, created_at, updated_at
+      FROM monthly_expense_ingest_tokens
+      WHERE user_id = ? AND revoked_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    args: [userId]
+  });
+
+  return (result.rows[0] as unknown as MonthlyExpenseIngestTokenRow | undefined) || null;
+}
+
+async function findMonthlyExpensePendingBySource(db: Client, userId: string, sourceId: string): Promise<MonthlyExpensePendingItemRow | null> {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, month_id, description, amount_cents, transaction_date, merchant_name, raw_source,
+        source_id, status, approved_item_id, created_at, updated_at
+      FROM monthly_expense_pending_items
+      WHERE user_id = ? AND source_id = ?
+      LIMIT 1
+    `,
+    args: [userId, sourceId]
+  });
+
+  return (result.rows[0] as unknown as MonthlyExpensePendingItemRow | undefined) || null;
+}
+
+async function findMonthlyExpensePendingItem(
+  db: Client,
+  userId: string,
+  monthId: string,
+  pendingId: string,
+  options: { includeClosed?: boolean } = {}
+): Promise<MonthlyExpensePendingItemRow | null> {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, month_id, description, amount_cents, transaction_date, merchant_name, raw_source,
+        source_id, status, approved_item_id, created_at, updated_at
+      FROM monthly_expense_pending_items
+      WHERE id = ? AND user_id = ? AND month_id = ? ${options.includeClosed ? "" : "AND status = 'PENDING'"}
+      LIMIT 1
+    `,
+    args: [pendingId, userId, monthId]
+  });
+
+  return (result.rows[0] as unknown as MonthlyExpensePendingItemRow | undefined) || null;
+}
+
 async function findMonthlyExpenseMonth(db: Client, userId: string, monthId: string): Promise<MonthlyExpenseMonthRow | null> {
   const result = await db.execute({
     sql: `
@@ -1501,6 +1835,20 @@ function mapMonthlyExpensePaymentMethod(row: MonthlyExpensePaymentMethodRow) {
   };
 }
 
+function mapMonthlyExpensePendingItem(row: MonthlyExpensePendingItemRow) {
+  return {
+    id: row.id,
+    monthId: row.month_id,
+    merchantName: row.merchant_name || row.description,
+    amount: row.amount_cents,
+    transactionDate: row.transaction_date,
+    sourceId: row.source_id,
+    status: row.status,
+    createdAt: toUtcIsoTimestamp(row.created_at),
+    updatedAt: toUtcIsoTimestamp(row.updated_at)
+  };
+}
+
 function sanitizeMonthlyExpensePeriod(year: unknown, month: unknown): { year: number; month: number } {
   if (typeof year !== "number" || !Number.isInteger(year) || year < 2000 || year > 2100) {
     throw new HttpError(400, "invalid_year");
@@ -1549,6 +1897,127 @@ function sanitizeMonthlyExpenseType(value: unknown): MonthlyExpenseType {
   }
 
   throw new HttpError(400, "invalid_expense_type");
+}
+
+export function sanitizeMonthlyExpenseShortcutPendingInput(payload: MonthlyExpenseShortcutPendingInput) {
+  assertExactShortcutPayload(payload);
+  const merchantName = sanitizeShortcutMerchant(payload.merchant);
+
+  return {
+    description: sanitizeItemDescription(merchantName),
+    amountCents: parseShortcutMoneyAmount(payload.amount),
+    transactionDate: currentShortcutTransactionDate(),
+    merchantName,
+    sourceId: null
+  };
+}
+
+function assertExactShortcutPayload(payload: MonthlyExpenseShortcutPendingInput): void {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new HttpError(400, "invalid_shortcut_payload");
+  }
+
+  const keys = Object.keys(payload).sort();
+  if (keys.length !== 2 || keys[0] !== "amount" || keys[1] !== "merchant") {
+    throw new HttpError(400, "invalid_shortcut_payload");
+  }
+}
+
+function sanitizeShortcutMerchant(value: unknown): string {
+  const merchant = sanitizeOptionalText(value, 160);
+
+  if (!merchant) {
+    throw new HttpError(400, "invalid_merchant");
+  }
+
+  return merchant;
+}
+
+export function parseShortcutMoneyAmount(value: unknown): number {
+  if (typeof value !== "string") {
+    throw new HttpError(400, "invalid_amount");
+  }
+
+  const compact = value
+    .trim()
+    .replace(/\s/g, "")
+    .replace(/[^\d,.-]/g, "");
+  const normalized = normalizeMoneyNumber(compact);
+  const parsed = Number(normalized);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new HttpError(400, "invalid_amount");
+  }
+
+  return sanitizeAmountCents(Math.round(parsed * 100));
+}
+
+function normalizeMoneyNumber(value: string): string {
+  const negative = value.startsWith("-");
+  const unsigned = value.replace(/-/g, "");
+  const lastComma = unsigned.lastIndexOf(",");
+  const lastDot = unsigned.lastIndexOf(".");
+  const decimalIndex = Math.max(lastComma, lastDot);
+
+  if (decimalIndex === -1) {
+    return `${negative ? "-" : ""}${unsigned}`;
+  }
+
+  const fraction = unsigned.slice(decimalIndex + 1);
+
+  if (fraction.length === 0 || fraction.length > 2) {
+    return `${negative ? "-" : ""}${unsigned.replace(/[,.]/g, "")}`;
+  }
+
+  const whole = unsigned.slice(0, decimalIndex).replace(/[,.]/g, "");
+  return `${negative ? "-" : ""}${whole || "0"}.${fraction}`;
+}
+
+function currentShortcutTransactionDate(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: shortcutTransactionTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return sanitizeTransactionDate(`${values["year"]}-${values["month"]}-${values["day"]}`);
+}
+
+function sanitizeTransactionDate(value: unknown): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!match) {
+    throw new HttpError(400, "invalid_transaction_date");
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day ||
+    year < 2000 ||
+    year > 2100
+  ) {
+    throw new HttpError(400, "invalid_transaction_date");
+  }
+
+  return raw;
+}
+
+function monthlyExpensePeriodFromDate(value: string): { year: number; month: number } {
+  const [year, month] = value.split("-").map(Number);
+  return sanitizeMonthlyExpensePeriod(year, month);
+}
+
+function sanitizeOptionalText(value: unknown, maxLength: number): string | null {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text ? text.slice(0, maxLength) : null;
 }
 
 function addMonths(year: number, month: number, offset: number): { year: number; month: number } {
@@ -2124,6 +2593,27 @@ function sanitizeSplitInputs(value: unknown): Array<{ participantId: string; sha
   }
 
   return [...splits.entries()].map(([participantId, shareUnits]) => ({ participantId, shareUnits }));
+}
+
+function generateShortcutToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return `mexp_${base64UrlEncode(bytes)}`;
+}
+
+async function hashShortcutToken(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function base64UrlEncode(bytes: Uint8Array): string {
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 async function readJson<T>(request: Request): Promise<T> {

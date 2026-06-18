@@ -134,7 +134,7 @@ export class IsumiModalHostComponent {
 
   panelClasses(entry: IsumiModalEntry): string {
     return [
-      "relative z-10 max-h-[min(720px,calc(100dvh_-_32px))] w-[min(100%,560px)] overscroll-contain overflow-y-auto rounded-lg bg-popover p-5 text-popover-foreground shadow-2xl shadow-black/40 outline-none max-sm:max-h-[calc(100dvh_-_24px)] max-sm:w-full max-sm:rounded-b-none max-sm:rounded-t-lg max-sm:border-t max-sm:border-border max-sm:p-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]",
+      "relative z-10 max-h-[min(720px,calc(100dvh_-_32px))] w-[min(100%,560px)] overscroll-contain overflow-hidden rounded-lg bg-popover p-5 text-popover-foreground shadow-2xl shadow-black/40 outline-none max-sm:max-h-[calc(100dvh_-_24px)] max-sm:w-full max-sm:rounded-b-none max-sm:rounded-t-lg max-sm:border-t max-sm:border-border max-sm:p-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]",
       this.restoringEntryId === entry.id ? "transition-transform duration-200 ease-out" : "",
       entry.closing ? "pointer-events-none opacity-0 transition-[opacity,transform] duration-200 ease-in" : "",
       entry.panelClass

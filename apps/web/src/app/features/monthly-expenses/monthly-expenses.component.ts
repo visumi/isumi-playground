@@ -7,6 +7,7 @@ import {
   LucideCalendar,
   LucideCalendarDays,
   LucideCalendars,
+  LucideCheck,
   LucideChevronLeft,
   LucideChevronRight,
   LucideCreditCard,
@@ -26,15 +27,21 @@ import {
   LucideTags,
   LucideTrash2,
   LucideCalendarRange,
+  LucideCopy,
   LucideUpload,
   LucideX,
   LucideBrickWall,
-  LucideDollarSign
+  LucideDollarSign,
+  LucideKeyRound,
+  LucideLink,
+  LucideRefreshCw,
+  LucideWalletCards
 } from "@lucide/angular";
 import { MonthlyExpensesService } from "../../core/api/monthly-expenses.service";
-import { MonthlyExpenseCatalogItem, MonthlyExpenseDetail, MonthlyExpenseItem, MonthlyExpenseMonth, MonthlyExpenseType, UpsertMonthlyExpenseItemRequest } from "../../core/api/api.types";
+import { MonthlyExpenseCatalogItem, MonthlyExpenseDetail, MonthlyExpenseIngestTokenStatus, MonthlyExpenseItem, MonthlyExpenseMonth, MonthlyExpensePendingItem, MonthlyExpenseType, UpsertMonthlyExpenseItemRequest } from "../../core/api/api.types";
 import { IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiTagComponent, IsumiTagTone, IsumiToastService, IsumiTooltipComponent, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
 import { IsumiPageHeaderComponent } from "../../shared/ui/page-header.component";
+import { environment } from "../../../environments/environment";
 import { finalize } from "rxjs";
 
 type CatalogKind = "category" | "payment";
@@ -51,8 +58,14 @@ interface MonthlyExpenseCatalogModalData {
 
 interface MonthlyExpenseItemModalData {
   item?: MonthlyExpenseItem;
+  initialDescription?: string;
+  initialTotalCents?: number;
   activeCategories: MonthlyExpenseCatalogItem[];
   activePaymentMethods: MonthlyExpenseCatalogItem[];
+}
+
+interface MonthlyExpenseShortcutModalData {
+  endpointUrl: string;
 }
 
 const MONTH_NAMES = [
@@ -66,7 +79,7 @@ const MONTH_NAMES = [
   "AGO",
   "SET",
   "OUT",
-  "NOVE",
+  "NOV",
   "DEZ"
 ];
 
@@ -198,38 +211,42 @@ function normalizeMoneyInput(value: string | number): string {
         </div>
       </form>
 
-      <div class="grid min-h-0 grid-cols-2 gap-4 overflow-y-auto overscroll-contain pr-1 max-md:grid-cols-1">
-        <section class="grid content-start gap-2">
+      <div class="grid min-h-0 grid-cols-2 gap-4 overflow-hidden max-md:grid-cols-1">
+        <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
           <div class="flex items-center justify-between gap-3">
             <h3 class="m-0 text-base font-black">Categorias</h3>
             <isumi-tag tone="secondary">{{ (data?.activeCategories() || []).length }} ativas</isumi-tag>
           </div>
-          @for (category of data?.categories() || []; track category.id) {
-            <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="category.archived">
-              <span class="inline-flex min-w-0 items-center gap-2">
-                <i class="size-3 rounded-full" [style.background]="category.color"></i>
-                <strong class="truncate">{{ category.name }}</strong>
-              </span>
-              @if (!category.archived) {
-                <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Arquivar categoria" (click)="data?.archiveCatalog('category', category)">
-                  <svg icon lucideArchive class="size-4" aria-hidden="true"></svg>
-                  Arquivar
-                </isumi-button>
-              }
-            </div>
-          } @empty {
-            <div class="rounded-lg bg-secondary/60 px-3 py-4 text-sm font-semibold text-muted-foreground">
-              Comece com algo como Mercado, Casa ou Lazer.
-            </div>
-          }
+
+          <div class="grid min-h-0 content-start gap-2 overflow-y-auto overscroll-contain pr-1">
+            @for (category of data?.categories() || []; track category.id) {
+              <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="category.archived">
+                <span class="inline-flex min-w-0 items-center gap-2">
+                  <i class="size-3 rounded-full" [style.background]="category.color"></i>
+                  <strong class="truncate">{{ category.name }}</strong>
+                </span>
+                @if (!category.archived) {
+                  <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Arquivar categoria" (click)="data?.archiveCatalog('category', category)">
+                    <svg icon lucideArchive class="size-4" aria-hidden="true"></svg>
+                    Arquivar
+                  </isumi-button>
+                }
+              </div>
+            } @empty {
+              <div class="rounded-lg bg-secondary/60 px-3 py-4 text-sm font-semibold text-muted-foreground">
+                Comece com algo como Mercado, Casa ou Lazer.
+              </div>
+            }
+          </div>
         </section>
 
-        <section class="grid content-start gap-2">
+        <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
           <div class="flex items-center justify-between gap-3">
             <h3 class="m-0 text-base font-black">Pagamentos</h3>
             <isumi-tag tone="secondary">{{ (data?.activePaymentMethods() || []).length }} ativos</isumi-tag>
           </div>
-          @for (method of data?.paymentMethods() || []; track method.id) {
+          <div class="grid min-h-0 content-start gap-2 overflow-y-auto overscroll-contain pr-1">
+            @for (method of data?.paymentMethods() || []; track method.id) {
             <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="method.archived">
               <span class="inline-flex min-w-0 items-center gap-2">
                 <i class="size-3 rounded-full" [style.background]="method.color"></i>
@@ -247,6 +264,7 @@ function normalizeMoneyInput(value: string | number): string {
               Adicione cartão, dinheiro ou conta principal.
             </div>
           }
+          </div>
         </section>
       </div>
     </div>
@@ -314,6 +332,247 @@ export class MonthlyExpenseCatalogModalComponent {
       },
       error: () => this.toast.error("Não foi possível salvar este cadastro.", { id: "monthly-expense-catalog-save-error" })
     });
+  }
+}
+
+@Component({
+  selector: "isumi-monthly-expense-shortcut-modal",
+  standalone: true,
+  imports: [
+    IsumiButtonComponent,
+    IsumiInputDirective,
+    IsumiTagComponent,
+    LucideCopy,
+    LucideKeyRound,
+    LucideLink,
+    LucideRefreshCw,
+    LucideWalletCards,
+    LucideTrash2,
+    LucideX
+  ],
+  template: `
+    <div class="flex max-h-[calc(min(720px,calc(100dvh-32px))-40px)] min-h-0 flex-col gap-3 overflow-hidden max-sm:max-h-[calc(100dvh-112px)]">
+      <header class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="m-0 inline-flex items-center gap-2 text-[1.15rem] font-black leading-6">
+            <span class="grid size-8 place-items-center rounded-md bg-primary/15 text-primary">
+              <svg lucideWalletCards class="size-4" aria-hidden="true"></svg>
+            </span>
+            Integração com Atalhos
+          </h2>
+          <p class="m-0 mt-1 text-sm text-muted-foreground">Gere a configuração para o atalho da Wallet.</p>
+        </div>
+        <isumi-button class="max-sm:hidden" variant="ghost" size="sm" iconOnly ariaLabel="Fechar modal" (click)="modalRef.close()">
+          <svg icon lucideX class="size-4" aria-hidden="true"></svg>
+          Fechar
+        </isumi-button>
+      </header>
+
+      <section class="grid gap-2 rounded-lg bg-secondary/55 p-2.5">
+        <div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2.5">
+          <div class="grid min-w-0 gap-1">
+            <strong class="inline-flex min-w-0 items-center gap-2">
+              <svg lucideKeyRound class="size-4 shrink-0 text-primary" aria-hidden="true"></svg>
+              <span class="truncate">Token do Atalho</span>
+            </strong>
+            @if (loadingStatus()) {
+              <span class="h-3 w-40 max-w-full animate-pulse rounded-sm bg-muted"></span>
+            } @else {
+              <span class="text-xs leading-5 text-muted-foreground">{{ tokenStatusText() }}</span>
+            }
+          </div>
+          @if (loadingStatus()) {
+            <span class="h-5 w-12 animate-pulse rounded-full bg-muted"></span>
+          } @else {
+            <isumi-tag [tone]="status()?.active ? 'emerald' : 'secondary'">{{ status()?.active ? "Ativo" : "Não configurado" }}</isumi-tag>
+          }
+        </div>
+
+        @if (!loadingStatus() && generatedToken()) {
+          <label class="grid gap-1.5 rounded-md bg-zinc-950/35 p-2">
+            <span class="flex flex-wrap items-center justify-between gap-2 text-xs font-bold leading-4 text-muted-foreground">
+              <span>Token gerado agora</span>
+              <span class="text-amber-200">Copie agora. Ele não será exibido novamente.</span>
+            </span>
+            <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 items-center">
+              <input isumiInput readonly [value]="generatedToken()" aria-label="Token gerado para o Atalho">
+              <isumi-button type="button" size="lg" iconOnly variant="secondary" [disabled]="actionsBlocked()" (click)="copyText(generatedToken(), 'Token copiado.', 'shortcut-token-copy')">
+                <svg icon lucideCopy class="size-4" aria-hidden="true"></svg>
+              </isumi-button>
+            </div>
+          </label>
+        }
+
+        <div class="flex flex-wrap gap-2">
+          <isumi-button type="button" mobileFull size="sm" [disabled]="actionsBlocked()" [loading]="saving()" (click)="generateToken()">
+            <svg icon lucideRefreshCw class="size-4" aria-hidden="true"></svg>
+            {{ status()?.active ? "Gerar novo token" : "Gerar token" }}
+          </isumi-button>
+          <isumi-button mobileFull type="button" variant="secondary" size="sm" [disabled]="actionsBlocked() || !status()?.active" [loading]="saving()" (click)="revokeToken()">
+            <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
+            Revogar
+          </isumi-button>
+        </div>
+      </section>
+
+      <section class="grid gap-2 rounded-lg bg-secondary/55 p-2.5">
+        <div class="grid gap-1.5">
+          <strong class="inline-flex items-center gap-2">
+            <svg lucideLink class="size-4 text-primary" aria-hidden="true"></svg>
+            Configuração do Atalho
+          </strong>
+          <span class="text-xs font-bold text-muted-foreground">URL do endpoint</span>
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5">
+            <input isumiInput readonly [value]="data?.endpointUrl || ''" aria-label="URL do endpoint do Atalho">
+            <isumi-button type="button" size="lg" iconOnly variant="secondary" [disabled]="actionsBlocked()" (click)="copyText(data?.endpointUrl || '', 'URL copiada.', 'shortcut-url-copy')">
+              <svg icon lucideCopy class="size-4" aria-hidden="true"></svg>
+            </isumi-button>
+          </div>
+        </div>
+
+        <div class="grid gap-2 min-[720px]:grid-cols-[0.9fr_1.1fr]">
+          <ol class="m-0 grid content-start gap-1 rounded-md bg-zinc-950/60 p-2 text-xs leading-4 text-muted-foreground">
+            <li>1. Use Obter conteúdo de URL no app Atalhos.</li>
+            <li>2. Método POST com Authorization: Bearer + token.</li>
+            <li>3. Body somente com merchant e amount. A API preenche a data.</li>
+          </ol>
+
+          <pre class="m-0 overflow-x-auto whitespace-pre rounded-md bg-zinc-950/70 p-2 text-[0.7rem] leading-4 text-zinc-100"><code>{{ examplePayload }}</code></pre>
+        </div>
+      </section>
+    </div>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class MonthlyExpenseShortcutModalComponent implements OnInit {
+  readonly data = injectIsumiModalData<MonthlyExpenseShortcutModalData>();
+  readonly modalRef = injectIsumiModalRef<MonthlyExpenseShortcutModalData, void>();
+  private readonly api = inject(MonthlyExpensesService);
+  private readonly toast = inject(IsumiToastService);
+
+  readonly status = signal<MonthlyExpenseIngestTokenStatus | null>(null);
+  readonly generatedToken = signal("");
+  readonly loadingStatus = signal(true);
+  readonly saving = signal(false);
+  readonly actionsBlocked = computed(() => this.loadingStatus() || this.saving());
+  readonly examplePayload = `Authorization: Bearer SEU_TOKEN
+Content-Type: application/json
+Body: {"merchant":"Mercado Exemplo","amount":"R$ 45,90"}`;
+
+  ngOnInit(): void {
+    this.loadStatus();
+  }
+
+  tokenStatusText(): string {
+    const status = this.status();
+
+    if (!status && this.loadingStatus()) {
+      return "Carregando status do token.";
+    }
+
+    if (!status) {
+      return "Status indisponível. Tente novamente em instantes.";
+    }
+
+    if (!status.active) {
+      return "Nenhum token ativo. Gere um token para configurar o Atalho.";
+    }
+
+    const lastUsed = status.lastUsedAt
+      ? ` Último uso: ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(status.lastUsedAt))}.`
+      : " Ainda não usado.";
+
+    return `Token ativo terminado em ${status.tokenLast4}.${lastUsed}`;
+  }
+
+  generateToken(): void {
+    if (this.actionsBlocked()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.api.createIngestToken().pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
+      next: (status) => {
+        this.status.set(status);
+        this.generatedToken.set(status.token || "");
+        this.toast.success("Token gerado. Copie agora para configurar o Atalho.", { id: "monthly-expense-shortcut-token-created" });
+      },
+      error: () => this.toast.error("Não foi possível gerar o token.", { id: "monthly-expense-shortcut-token-error" })
+    });
+  }
+
+  revokeToken(): void {
+    if (this.actionsBlocked() || !this.status()?.active) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.api.revokeIngestToken().pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
+      next: () => {
+        this.status.set({ active: false });
+        this.generatedToken.set("");
+        this.toast.success("Token revogado.", { id: "monthly-expense-shortcut-token-revoked" });
+      },
+      error: () => this.toast.error("Não foi possível revogar o token.", { id: "monthly-expense-shortcut-token-revoke-error" })
+    });
+  }
+
+  async copyText(value: string, successMessage: string, toastId: string): Promise<void> {
+    if (!value || this.actionsBlocked()) {
+      return;
+    }
+
+    try {
+      let copied = false;
+
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(value);
+          copied = true;
+        } catch {
+          copied = false;
+        }
+      }
+
+      if (!copied) {
+        this.copyWithTextarea(value);
+      }
+
+      this.toast.success(successMessage, { id: toastId });
+    } catch {
+      this.toast.error("Não foi possível copiar.", { id: `${toastId}-error` });
+    }
+  }
+
+  private loadStatus(): void {
+    this.loadingStatus.set(true);
+    this.api.getIngestToken().pipe(
+      finalize(() => this.loadingStatus.set(false))
+    ).subscribe({
+      next: (status) => this.status.set(status),
+      error: () => this.toast.error("Não foi possível carregar a integração.", { id: "monthly-expense-shortcut-status-error" })
+    });
+  }
+
+  private copyWithTextarea(value: string): void {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    const copied = document.execCommand("copy");
+    textarea.remove();
+
+    if (!copied) {
+      throw new Error("Copy command failed");
+    }
   }
 }
 
@@ -438,10 +697,15 @@ export class MonthlyExpenseItemModalComponent {
 
   readonly activeCategories = signal(this.data?.activeCategories || []);
   readonly activePaymentMethods = signal(this.data?.activePaymentMethods || []);
-  readonly itemDescription = signal(this.data?.item?.description || "");
+  readonly itemDescription = signal(this.data?.item?.description || this.data?.initialDescription || "");
   readonly itemCategoryId = signal(this.data?.item?.categoryId || this.activeCategories()[0]?.id || "");
   readonly itemPaymentMethodId = signal(this.data?.item?.paymentMethodId || this.activePaymentMethods()[0]?.id || "");
-  readonly itemTotal = signal(this.data?.item ? this.formatMoneyInput(this.data.item.totalPurchaseCents) : "");
+  readonly itemTotal = signal(this.data?.item
+    ? this.formatMoneyInput(this.data.item.totalPurchaseCents)
+    : this.data?.initialTotalCents
+      ? this.formatMoneyInput(this.data.initialTotalCents)
+      : ""
+  );
   readonly itemInstallments = signal(1);
   readonly itemType = signal<MonthlyExpenseType>(this.data?.item?.expenseType || "VARIAVEL");
 
@@ -513,6 +777,7 @@ export class MonthlyExpenseItemModalComponent {
     LucideCalendar,
     LucideCalendarDays,
     LucideCalendars,
+    LucideCheck,
     LucideChevronLeft,
     LucideChevronRight,
     LucideCreditCard,
@@ -531,11 +796,11 @@ export class MonthlyExpenseItemModalComponent {
     LucideDollarSign,
     LucideSave,
     LucideSearch,
-
     LucideSettings2,
     LucideTags,
     LucideTrash2,
     LucideUpload,
+    LucideWalletCards,
     LucideX
   ],
   templateUrl: "./monthly-expenses.component.html",
@@ -549,7 +814,9 @@ export class MonthlyExpensesComponent implements OnInit {
 
   readonly months = signal<MonthlyExpenseMonth[]>([]);
   readonly detail = signal<MonthlyExpenseDetail | null>(null);
+  readonly pendingItems = signal<MonthlyExpensePendingItem[]>([]);
   readonly loading = signal(false);
+  readonly loadingPending = signal(false);
   readonly saving = signal(false);
   readonly selectedYear = signal(new Date().getFullYear());
   readonly selectedMonth = signal(new Date().getMonth() + 1);
@@ -573,6 +840,7 @@ export class MonthlyExpensesComponent implements OnInit {
   readonly itemInstallments = signal(1);
   readonly itemType = signal<MonthlyExpenseType>("VARIAVEL");
   readonly csvErrors = signal<Array<{ line: number; message: string }>>([]);
+  readonly shortcutEndpointUrl = `${environment.apiBaseUrl}/tools/monthly-expenses/apple-pay/pending`;
 
   readonly activeMonth = computed(() =>
     this.months().find((month) => month.year === this.selectedYear() && month.month === this.selectedMonth()) || null
@@ -630,6 +898,7 @@ export class MonthlyExpensesComponent implements OnInit {
           this.loadDetail(active.id);
         } else {
           this.detail.set(null);
+          this.pendingItems.set([]);
           this.loading.set(false);
         }
       },
@@ -670,6 +939,7 @@ export class MonthlyExpensesComponent implements OnInit {
       this.loadDetail(active.id);
     } else {
       this.currentDetailRequestId = null;
+      this.pendingItems.set([]);
       this.loading.set(false);
     }
   }
@@ -787,6 +1057,76 @@ export class MonthlyExpensesComponent implements OnInit {
     });
   }
 
+  openShortcutModal(): void {
+    this.modal.open<MonthlyExpenseShortcutModalComponent, MonthlyExpenseShortcutModalData, void>(MonthlyExpenseShortcutModalComponent, {
+      data: { endpointUrl: this.shortcutEndpointUrl },
+      ariaLabel: "Integração com Atalhos do iPhone",
+      panelClass: "w-[min(100%,820px)]"
+    });
+  }
+
+  openPendingApproval(pending: MonthlyExpensePendingItem): void {
+    const ref = this.modal.open<MonthlyExpenseItemModalComponent, MonthlyExpenseItemModalData, UpsertMonthlyExpenseItemRequest>(MonthlyExpenseItemModalComponent, {
+      data: {
+        initialDescription: pending.merchantName,
+        initialTotalCents: pending.amount,
+        activeCategories: this.activeCategories(),
+        activePaymentMethods: this.activePaymentMethods()
+      },
+      ariaLabel: "Aprovar compra pendente",
+      panelClass: "w-[min(100%,860px)]"
+    });
+
+    ref.afterClosed().subscribe((payload) => {
+      if (payload) {
+        this.approvePendingItem(pending, payload);
+      }
+    });
+  }
+
+  approvePendingItem(pending: MonthlyExpensePendingItem, payload: UpsertMonthlyExpenseItemRequest): void {
+    const detail = this.detail();
+    if (!detail) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.api.approvePendingItem(detail.month.id, pending.id, {
+      description: payload.description,
+      categoryId: payload.categoryId,
+      paymentMethodId: payload.paymentMethodId,
+      installmentTotal: payload.installmentTotal,
+      expenseType: payload.expenseType
+    }).pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
+      next: (updated) => {
+        this.setDetail(updated);
+        this.reloadMonthsOnly();
+        this.toast.success("Compra aprovada.", { id: "monthly-expense-pending-approved" });
+      },
+      error: () => this.toast.error("Não foi possível aprovar esta compra.", { id: "monthly-expense-pending-approve-error" })
+    });
+  }
+
+  dismissPendingItem(pending: MonthlyExpensePendingItem): void {
+    const detail = this.detail();
+    if (!detail) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.api.dismissPendingItem(detail.month.id, pending.id).pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
+      next: () => {
+        this.pendingItems.update((items) => items.filter((item) => item.id !== pending.id));
+        this.toast.success("Compra descartada.", { id: "monthly-expense-pending-dismissed" });
+      },
+      error: () => this.toast.error("Não foi possível descartar esta compra.", { id: "monthly-expense-pending-dismiss-error" })
+    });
+  }
+
   saveExpenseItem(payload?: UpsertMonthlyExpenseItemRequest, item?: MonthlyExpenseItem): void {
     const detail = this.detail();
     const requestPayload = payload || this.buildItemPayload();
@@ -880,6 +1220,11 @@ export class MonthlyExpensesComponent implements OnInit {
 
   money(amountCents: number): string {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(amountCents / 100);
+  }
+
+  transactionDateLabel(value: string): string {
+    const [year, month, day] = value.split("-");
+    return year && month && day ? `${day}/${month}/${year}` : value;
   }
 
   typeLabel(type: MonthlyExpenseType): string {
@@ -989,6 +1334,20 @@ export class MonthlyExpensesComponent implements OnInit {
     this.detail.set(detail);
     this.income.set(this.formatMoneyInput(detail.month.incomeCents));
     this.variableLimit.set(this.formatMoneyInput(detail.month.variableLimitCents));
+    this.loadPendingItems(detail.month.id);
+  }
+
+  private loadPendingItems(monthId: string): void {
+    this.loadingPending.set(true);
+    this.api.listPendingItems(monthId).pipe(
+      finalize(() => this.loadingPending.set(false))
+    ).subscribe({
+      next: (items) => this.pendingItems.set(items),
+      error: () => {
+        this.pendingItems.set([]);
+        this.toast.error("Não foi possível carregar as compras pendentes.", { id: "monthly-expense-pending-load-error" });
+      }
+    });
   }
 
   private buildItemPayload(): UpsertMonthlyExpenseItemRequest | null {

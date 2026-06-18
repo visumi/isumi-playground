@@ -3,11 +3,14 @@ import { Injectable, inject } from "@angular/core";
 import { Observable } from "rxjs";
 import { environment } from "../../../environments/environment";
 import {
+  ApproveMonthlyExpensePendingItemRequest,
   CreateMonthlyExpenseMonthRequest,
   MonthlyExpenseCatalogItem,
   MonthlyExpenseCsvImportResponse,
   MonthlyExpenseDetail,
+  MonthlyExpenseIngestTokenStatus,
   MonthlyExpenseMonth,
+  MonthlyExpensePendingItem,
   UpdateMonthlyExpenseMonthRequest,
   UpsertMonthlyExpenseCatalogItemRequest,
   UpsertMonthlyExpenseItemRequest
@@ -24,6 +27,18 @@ export class MonthlyExpensesService {
 
   createMonth(payload: CreateMonthlyExpenseMonthRequest): Observable<MonthlyExpenseDetail> {
     return this.http.post<MonthlyExpenseDetail>(`${this.baseUrl}/months`, payload);
+  }
+
+  getIngestToken(): Observable<MonthlyExpenseIngestTokenStatus> {
+    return this.http.get<MonthlyExpenseIngestTokenStatus>(`${this.baseUrl}/ingest-token`);
+  }
+
+  createIngestToken(): Observable<MonthlyExpenseIngestTokenStatus> {
+    return this.http.post<MonthlyExpenseIngestTokenStatus>(`${this.baseUrl}/ingest-token`, {});
+  }
+
+  revokeIngestToken(): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/ingest-token`);
   }
 
   getMonth(monthId: string): Observable<MonthlyExpenseDetail> {
@@ -68,6 +83,18 @@ export class MonthlyExpensesService {
 
   deleteItem(monthId: string, itemId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/months/${monthId}/items/${itemId}`);
+  }
+
+  listPendingItems(monthId: string): Observable<MonthlyExpensePendingItem[]> {
+    return this.http.get<MonthlyExpensePendingItem[]>(`${this.baseUrl}/months/${monthId}/pending`);
+  }
+
+  approvePendingItem(monthId: string, pendingId: string, payload: ApproveMonthlyExpensePendingItemRequest): Observable<MonthlyExpenseDetail> {
+    return this.http.post<MonthlyExpenseDetail>(`${this.baseUrl}/months/${monthId}/pending/${pendingId}/approve`, payload);
+  }
+
+  dismissPendingItem(monthId: string, pendingId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/months/${monthId}/pending/${pendingId}`);
   }
 
   exportCsv(monthId: string): Observable<string> {

@@ -57,7 +57,7 @@ export class IsumiButtonComponent {
       lg: "min-h-12 px-4"
     };
     const iconSizeClasses: Record<IsumiButtonSize, string> = {
-      sm: "size-8",
+      sm: "size-9",
       md: "size-10",
       lg: "size-12"
     };

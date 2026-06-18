@@ -141,6 +141,28 @@ export interface MonthlyExpenseItem {
   updatedAt: string;
 }
 
+export type MonthlyExpensePendingStatus = "PENDING" | "APPROVED" | "DISMISSED";
+
+export interface MonthlyExpensePendingItem {
+  id: string;
+  monthId: string;
+  merchantName: string;
+  amount: number;
+  transactionDate: string;
+  sourceId: string | null;
+  status: MonthlyExpensePendingStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MonthlyExpenseIngestTokenStatus {
+  active: boolean;
+  tokenLast4?: string;
+  token?: string;
+  lastUsedAt?: string | null;
+  createdAt?: string;
+}
+
 export interface MonthlyExpenseSummary {
   incomeCents: number;
   variableLimitCents: number;
@@ -181,6 +203,14 @@ export interface UpsertMonthlyExpenseItemRequest {
   categoryId: string;
   paymentMethodId: string;
   totalPurchaseCents: number;
+  installmentTotal: number;
+  expenseType: MonthlyExpenseType;
+}
+
+export interface ApproveMonthlyExpensePendingItemRequest {
+  description?: string;
+  categoryId: string;
+  paymentMethodId: string;
   installmentTotal: number;
   expenseType: MonthlyExpenseType;
 }
