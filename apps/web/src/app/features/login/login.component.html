@@ -1,41 +1,49 @@
-<main class="mx-auto grid min-h-screen w-[min(1120px,calc(100%_-_40px))] grid-cols-[minmax(0,1fr)_minmax(320px,410px)] items-center gap-10 py-14 max-lg:grid-cols-1 max-lg:py-8 max-sm:w-[min(100%_-_32px,1120px)] max-sm:content-center max-sm:gap-10">
-  <section class="max-w-[680px] max-sm:mx-auto max-sm:text-center" aria-labelledby="login-title">
-    <div class="mb-6 inline-flex items-center gap-3 max-sm:mb-4 max-sm:justify-center">
-      <span class="relative left-0.5 grid h-10 w-10 place-items-center rounded-sm bg-purple-700 font-slab text-2xl font-bold text-purple-100" aria-hidden="true">泉</span>
-      <strong class="font-extrabold font-slab text-2xl text-purple-200">playground.</strong>
-    </div>
-    <h1 class="m-0 max-w-[660px] text-[3.2rem] font-black leading-none tracking-[-0.035em] text-balance max-lg:text-[2.65rem] max-sm:text-[2.2rem]" id="login-title">Uma coleção de ferramentas para facilitar</h1>
-    <p class="mt-6 max-w-[560px] text-[1.04rem] leading-7 text-muted-foreground text-pretty max-sm:mx-auto max-sm:mt-4">
-      Desde pequenas conveniências a controles complexos, tudo gratuito e em um só lugar.
-    </p>
-  </section>
+<main class="relative isolate min-h-screen overflow-hidden bg-background">
+  <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_18%_24%,rgb(126_34_206_/_0.22),transparent_26rem),radial-gradient(circle_at_77%_38%,rgb(126_34_206_/_0.13),transparent_24rem),linear-gradient(135deg,rgb(4_4_7),rgb(12_12_18)_58%,rgb(14_6_22))]"></div>
+    <div class="absolute inset-0 opacity-[0.16] [background-image:linear-gradient(rgb(255_255_255_/_0.08)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255_/_0.08)_1px,transparent_1px)] [background-size:72px_72px] [mask-image:radial-gradient(circle_at_50%_42%,black,transparent_72%)]"></div>
+    <div class="absolute left-[8%] top-[13%] h-44 w-44 rounded-full border border-purple-300/10 bg-purple-500/10 blur-3xl"></div>
+    <div class="absolute bottom-[12%] right-[14%] h-52 w-52 rounded-full border border-purple-200/10 bg-purple-400/10 blur-3xl"></div>
+  </div>
 
-  <section class="rounded-lg bg-card p-7 text-card-foreground max-sm:mx-auto max-sm:w-full max-sm:max-w-[410px]" aria-label="Entrar">
-    <h2 class="mb-2 text-[1.8rem] font-black tracking-[-0.02em]">Entrar</h2>
-    <p class="m-0 leading-6 text-muted-foreground">O acesso e os dados ficam vinculados a sua conta do Google.</p>
+  <div class="mx-auto grid min-h-screen w-[min(1180px,calc(100%_-_48px))] grid-cols-[minmax(0,1.08fr)_minmax(340px,430px)] items-center gap-12 py-16 max-lg:w-[min(760px,calc(100%_-_40px))] max-lg:grid-cols-1 max-lg:content-center max-lg:gap-8 max-lg:py-10 max-sm:min-h-dvh max-sm:w-[min(100%_-_32px,1120px)] max-sm:gap-6 max-sm:py-8">
+    <section class="relative max-w-[700px] max-lg:mx-auto max-lg:text-center" aria-labelledby="login-title">
+      <div class="mb-6 inline-flex items-center gap-3 max-sm:mb-4 max-sm:justify-center">
+        <span class="relative left-0.5 grid h-10 w-10 place-items-center rounded-sm bg-purple-700 font-slab text-2xl font-bold text-purple-100" aria-hidden="true">泉</span>
+        <strong class="font-extrabold font-slab text-2xl text-purple-200">playground.</strong>
+      </div>
+      <h1 class="m-0 max-w-[680px] text-[3.4rem] font-black leading-[0.96] tracking-[-0.020em] text-balance max-lg:text-[2.8rem] max-sm:text-[2.25rem]" id="login-title">Seu painel particular de pequenos poderes</h1>
+      <p class="mt-6 max-w-[590px] text-[1.06rem] leading-7 text-zinc-300 text-pretty max-lg:mx-auto max-sm:mt-4">
+        Entre para acessar ferramentas pessoais, divisões compartilhadas e fluxos que ficam prontos quando você precisa.
+      </p>
+    </section>
 
-    <button
-      type="button"
-      class="group relative mt-5 flex h-12 w-full items-center justify-center overflow-hidden rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 transition-[background-color,box-shadow,opacity] hover:cursor-pointer hover:bg-zinc-100 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-55"
-      [disabled]="loading()"
-      [attr.aria-busy]="loading() ? true : null"
-      (click)="login()"
-    >
-      <span class="pointer-events-none absolute inset-0 bg-zinc-950 opacity-0 transition-opacity group-hover:opacity-5"></span>
-      <span class="relative flex items-center justify-center gap-3">
-        <span class="grid size-5 place-items-center" aria-hidden="true">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="size-5">
-            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-            <path fill="none" d="M0 0h48v48H0z" />
-          </svg>
+    <section class="rounded-lg bg-card p-7 text-card-foreground max-lg:mx-auto max-lg:w-full max-lg:max-w-[410px]" aria-label="Entrar">
+      <h2 class="mb-2 text-[1.8rem] font-black tracking-[-0.02em]">Entrar</h2>
+      <p class="m-0 leading-6 text-muted-foreground">O acesso e os dados ficam vinculados a sua conta do Google.</p>
+
+      <button
+        type="button"
+        class="group relative mt-5 flex h-12 w-full items-center justify-center overflow-hidden rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 transition-[background-color,box-shadow,opacity] hover:cursor-pointer hover:bg-zinc-100 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-55"
+        [disabled]="loading()"
+        [attr.aria-busy]="loading() ? true : null"
+        (click)="login()"
+      >
+        <span class="pointer-events-none absolute inset-0 bg-zinc-950 opacity-0 transition-opacity group-hover:opacity-5"></span>
+        <span class="relative flex items-center justify-center gap-3">
+          <span class="grid size-5 place-items-center" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="size-5">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+              <path fill="none" d="M0 0h48v48H0z" />
+            </svg>
+          </span>
+          <span>{{ loading() ? "Conectando..." : "Continuar com Google" }}</span>
+          <span class="hidden">Continuar com Google</span>
         </span>
-        <span>{{ loading() ? "Conectando..." : "Continuar com Google" }}</span>
-        <span class="hidden">Continuar com Google</span>
-      </span>
-    </button>
-
-  </section>
+      </button>
+    </section>
+  </div>
 </main>
