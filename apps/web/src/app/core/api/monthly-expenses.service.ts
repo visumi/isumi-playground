@@ -8,6 +8,7 @@ import {
   MonthlyExpenseCatalogItem,
   MonthlyExpenseCsvImportResponse,
   MonthlyExpenseDetail,
+  MonthlyExpenseFixedMigrationResponse,
   MonthlyExpenseIngestTokenStatus,
   MonthlyExpenseMonth,
   MonthlyExpensePendingItem,
@@ -47,6 +48,10 @@ export class MonthlyExpensesService {
 
   updateMonth(monthId: string, payload: UpdateMonthlyExpenseMonthRequest): Observable<MonthlyExpenseDetail> {
     return this.http.patch<MonthlyExpenseDetail>(`${this.baseUrl}/months/${monthId}`, payload);
+  }
+
+  migrateFixedExpensesToNextMonth(monthId: string): Observable<MonthlyExpenseFixedMigrationResponse> {
+    return this.http.post<MonthlyExpenseFixedMigrationResponse>(`${this.baseUrl}/months/${monthId}/fixed-expenses/next`, {});
   }
 
   listCategories(): Observable<MonthlyExpenseCatalogItem[]> {

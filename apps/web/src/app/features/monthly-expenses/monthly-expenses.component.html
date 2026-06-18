@@ -209,8 +209,9 @@
     </div>
   </section>
 
-  @if (pendingItems().length > 0) {
-  <section class="relative isolate overflow-hidden rounded-lg bg-card p-4 sm:p-5" aria-labelledby="pending-expenses-title">
+  @if (visiblePendingItems().length > 0) {
+  <section class="relative isolate overflow-hidden rounded-lg bg-card p-4 sm:p-5"
+    aria-labelledby="pending-expenses-title">
     <div class="pointer-events-none absolute inset-x-0 top-0 h-px"></div>
 
     <div class="grid gap-4">
@@ -220,13 +221,14 @@
             <svg lucideBlocks class="size-5" aria-hidden="true"></svg>
             Gastos pendentes
           </h2>
-          <p class="m-0 mt-1 text-sm text-muted-foreground">{{ pendingItems().length }} compra(s) necessitando validação.</p>
+          <p class="m-0 mt-1 text-sm text-muted-foreground">{{ visiblePendingItems().length }} compra(s) necessitando
+            validação.</p>
         </div>
         <isumi-tag tone="amber">Atalho do iPhone</isumi-tag>
       </div>
 
       <div class="grid gap-2">
-        @for (pending of pendingItems(); track pending.id) {
+        @for (pending of visiblePendingItems(); track pending.id) {
         <article
           class="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary/75 px-3 py-3 ring-1 ring-white/5 transition-[background,box-shadow,transform] duration-200 sm:px-4 max-sm:grid-cols-[auto_minmax(0,1fr)]">
           <span class="grid size-10 place-items-center rounded-md bg-zinc-950/45 text-amber-200">
@@ -245,8 +247,10 @@
             </span>
           </div>
 
-          <div class="grid grid-cols-[auto_auto_auto] items-center justify-end gap-2 max-sm:col-span-2 max-sm:grid-cols-[auto_minmax(0,1fr)_auto] max-sm:justify-stretch">
-            <strong class="rounded-md bg-zinc-950/45 px-3 py-2 text-sm ring-1 ring-white/5 max-sm:text-center">{{ money(pending.amount)
+          <div
+            class="grid grid-cols-[auto_auto_auto] items-center justify-end gap-2 max-sm:col-span-2 max-sm:grid-cols-[auto_minmax(0,1fr)_auto] max-sm:justify-stretch">
+            <strong class="rounded-md bg-zinc-950/45 px-3 py-2 text-sm ring-1 ring-white/5 max-sm:text-center">{{
+              money(pending.amount)
               }}</strong>
             <isumi-button class="max-sm:w-full" variant="primary" size="sm" mobileFull
               [disabled]="saving() || activeCategories().length === 0 || activePaymentMethods().length === 0"
@@ -304,6 +308,13 @@
             <svg lucideUpload class="size-4" aria-hidden="true"></svg>
             <input class="sr-only" type="file" accept=".csv,text/csv" (change)="importCsv($event)">
           </label>
+        </isumi-tooltip>
+        <isumi-tooltip label="Migrar fixos para o próximo mês">
+          <isumi-button variant="secondary" iconOnly ariaLabel="Migrar gastos fixos para o próximo mês"
+            [disabled]="!hasMigratableFixedExpenses()" [loading]="saving()" (click)="migrateFixedExpensesToNextMonth()">
+            <svg icon lucideArrowBigRightDash class="size-4" aria-hidden="true"></svg>
+            Migrar fixos
+          </isumi-button>
         </isumi-tooltip>
         <isumi-button mobileFull [disabled]="activeCategories().length === 0 || activePaymentMethods().length === 0"
           (click)="openExpenseModal()">
@@ -564,7 +575,8 @@
             <isumi-tag tone="secondary">{{ activeCategories().length }} ativas</isumi-tag>
           </div>
           @for (category of categories(); track category.id) {
-          <div class="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5"
+          <div
+            class="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5"
             [class.opacity-50]="category.archived">
             <span class="inline-flex min-w-0 items-center gap-2">
               <i class="size-3 rounded-full" [style.background]="category.color"></i>
@@ -579,7 +591,8 @@
             }
           </div>
           } @empty {
-          <div class="flex min-h-14 items-center rounded-lg bg-secondary/60 px-3 py-2.5 text-sm font-semibold text-muted-foreground">
+          <div
+            class="flex min-h-14 items-center rounded-lg bg-secondary/60 px-3 py-2.5 text-sm font-semibold text-muted-foreground">
             Comece com algo como Mercado, Casa ou Lazer.
           </div>
           }
@@ -591,7 +604,8 @@
             <isumi-tag tone="secondary">{{ activePaymentMethods().length }} ativos</isumi-tag>
           </div>
           @for (method of paymentMethods(); track method.id) {
-          <div class="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5"
+          <div
+            class="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5"
             [class.opacity-50]="method.archived">
             <span class="inline-flex min-w-0 items-center gap-2">
               <i class="size-3 rounded-full" [style.background]="method.color"></i>
@@ -606,7 +620,8 @@
             }
           </div>
           } @empty {
-          <div class="flex min-h-14 items-center rounded-lg bg-secondary/60 px-3 py-2.5 text-sm font-semibold text-muted-foreground">
+          <div
+            class="flex min-h-14 items-center rounded-lg bg-secondary/60 px-3 py-2.5 text-sm font-semibold text-muted-foreground">
             Adicione cartão, dinheiro ou conta principal.
           </div>
           }

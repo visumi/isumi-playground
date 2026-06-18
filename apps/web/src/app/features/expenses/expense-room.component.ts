@@ -9,6 +9,7 @@ import { ExpenseItem, ExpenseParticipant, ExpenseParticipantTotal, ExpenseRoomDe
 import { AuthService } from "../../core/auth/auth.service";
 import { IsumiBreadcrumbComponent } from "../../shared/ui/breadcrumb.component";
 import { IsumiAvatarComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiTagComponent, IsumiToastService, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
+import { formatBrl, formatMoneyInput, normalizeDecimalInput, parseMoneyCents } from "../../shared/utils/money";
 
 interface ExpenseItemModalData {
   participants: ExpenseParticipant[];
@@ -20,19 +21,6 @@ interface DeleteExpenseRoomModalData {
 }
 
 const MAX_SPLIT_UNITS = 99;
-
-function normalizeDecimalInput(value: string | number, decimalPlaces: number): string {
-  const rawValue = String(value).replace(/[^\d,.]/g, "");
-  const separatorIndex = rawValue.search(/[,.]/);
-
-  if (separatorIndex === -1) {
-    return rawValue;
-  }
-
-  const whole = rawValue.slice(0, separatorIndex).replace(/[,.]/g, "");
-  const decimal = rawValue.slice(separatorIndex + 1).replace(/[,.]/g, "").slice(0, decimalPlaces);
-  return `${whole},${decimal}`;
-}
 
 @Component({
   selector: "isumi-expense-item-modal",
@@ -186,7 +174,7 @@ export class ExpenseItemModalComponent {
   private readonly toast = inject(IsumiToastService);
   readonly participants = computed(() => this.data?.participants || []);
   readonly description = signal(this.data?.item?.description || "");
-  readonly amount = signal(this.data?.item ? (this.data.item.amountCents / 100).toFixed(2).replace(".", ",") : "");
+  readonly amount = signal(this.data?.item ? formatMoneyInput(this.data.item.amountCents) : "");
   readonly payerParticipantId = signal(this.data?.item?.payerParticipantId || this.participants()[0]?.id || "");
   readonly splitUnits = signal<Record<string, number>>(this.initialSplitUnits());
   readonly maxSplitUnits = MAX_SPLIT_UNITS;
@@ -194,7 +182,7 @@ export class ExpenseItemModalComponent {
     Object.values(this.splitUnits()).reduce((total, shareUnits) => total + Math.max(0, shareUnits), 0)
   );
   readonly canSubmit = computed(() =>
-    Boolean(this.parseMoney(this.amount()) && this.payerParticipantId() && this.totalSplitUnits() > 0)
+    Boolean(parseMoneyCents(this.amount()) && this.payerParticipantId() && this.totalSplitUnits() > 0)
   );
 
   splitUnit(participantId: string): number {
@@ -207,7 +195,7 @@ export class ExpenseItemModalComponent {
   }
 
   setAmount(value: string | number): void {
-    this.amount.set(normalizeDecimalInput(value, 2));
+    this.amount.set(normalizeDecimalInput(value));
   }
 
   incrementSplitUnit(participantId: string): void {
@@ -246,7 +234,7 @@ export class ExpenseItemModalComponent {
   }
 
   private buildPayload(): UpsertExpenseItemRequest | null {
-    const amountCents = this.parseMoney(this.amount());
+    const amountCents = parseMoneyCents(this.amount());
     const splits = Object.entries(this.splitUnits())
       .filter(([, shareUnits]) => shareUnits > 0)
       .map(([participantId, shareUnits]) => ({ participantId, shareUnits }));
@@ -264,17 +252,6 @@ export class ExpenseItemModalComponent {
       payerParticipantId: this.payerParticipantId(),
       splits
     };
-  }
-
-  private parseMoney(value: string): number | null {
-    const normalized = value.replace(/\./g, "").replace(",", ".").trim();
-    const parsed = Number(normalized);
-
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      return null;
-    }
-
-    return Math.round(parsed * 100);
   }
 }
 
@@ -581,7 +558,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   }
 
   money(amountCents: number): string {
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(amountCents / 100);
+    return formatBrl(amountCents);
   }
 
   participantTotal(participantId: string): ExpenseParticipantTotal {

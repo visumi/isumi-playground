@@ -87,7 +87,7 @@ interface ExpensePaidSettlementInput {
 
 type MonthlyExpenseType = "FIXO" | "VARIAVEL" | "RESERVA";
 
-interface MonthlyExpenseMonthRow {
+export interface MonthlyExpenseMonthRow {
   id: string;
   user_id: string;
   year: number;
@@ -311,6 +311,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         const payload = await readJson<MonthlyExpenseMonthSettingsInput>(request);
         return json(await updateMonthlyExpenseMonthSettings(db, user.uid, monthId, payload), 200, corsHeaders);
       }
+    }
+
+    const monthlyExpenseFixedCarryOverMatch = url.pathname.match(/^\/tools\/monthly-expenses\/months\/([^/]+)\/fixed-expenses\/next$/);
+    if (monthlyExpenseFixedCarryOverMatch && request.method === "POST") {
+      return json(await migrateMonthlyFixedExpensesToNextMonth(db, user.uid, monthlyExpenseFixedCarryOverMatch[1]), 200, corsHeaders);
     }
 
     if (url.pathname === "/tools/monthly-expenses/categories") {
@@ -1126,6 +1131,18 @@ async function createMonthlyExpenseItem(db: Client, userId: string, monthId: str
   return getMonthlyExpenseMonthDetail(db, userId, monthId);
 }
 
+export async function migrateMonthlyFixedExpensesToNextMonth(db: Client, userId: string, monthId: string) {
+  const month = await assertMonthlyExpenseMonth(db, userId, monthId);
+  const nextPeriod = addMonths(month.year, month.month, 1);
+  const nextMonth = await ensureMonthlyExpenseMonthByPeriod(db, userId, nextPeriod.year, nextPeriod.month);
+  const copied = await copyMonthlySimpleFixedExpenses(db, userId, month.id, nextMonth.id);
+
+  return {
+    copied,
+    detail: await getMonthlyExpenseMonthDetail(db, userId, nextMonth.id)
+  };
+}
+
 async function updateMonthlyExpenseItem(db: Client, userId: string, monthId: string, itemId: string, payload: MonthlyExpenseItemInput) {
   await assertMonthlyExpenseMonth(db, userId, monthId);
   await assertMonthlyExpenseItem(db, userId, monthId, itemId);
@@ -1643,6 +1660,56 @@ async function listMonthlyExpenseItems(db: Client, userId: string, monthId: stri
   });
 
   return result.rows as unknown as MonthlyExpenseItemRow[];
+}
+
+async function copyMonthlySimpleFixedExpenses(db: Client, userId: string, sourceMonthId: string, targetMonthId: string): Promise<number> {
+  const [sourceItems, targetItems] = await Promise.all([
+    listMonthlyExpenseItems(db, userId, sourceMonthId),
+    listMonthlyExpenseItems(db, userId, targetMonthId)
+  ]);
+  const targetKeys = new Set(
+    targetItems
+      .filter(isSimpleMonthlyFixedExpense)
+      .map(monthlyExpenseSimpleFixedKey)
+  );
+  let copied = 0;
+
+  for (const item of sourceItems.filter(isSimpleMonthlyFixedExpense)) {
+    const key = monthlyExpenseSimpleFixedKey(item);
+    if (targetKeys.has(key)) {
+      continue;
+    }
+
+    await insertMonthlyExpenseItem(db, userId, targetMonthId, {
+      description: item.description,
+      categoryId: item.category_id,
+      paymentMethodId: item.payment_method_id,
+      totalPurchaseCents: item.total_purchase_cents,
+      amountCents: item.amount_cents,
+      installmentNumber: 1,
+      installmentTotal: 1,
+      expenseType: "FIXO",
+      installmentGroupId: crypto.randomUUID()
+    });
+    targetKeys.add(key);
+    copied += 1;
+  }
+
+  return copied;
+}
+
+function isSimpleMonthlyFixedExpense(item: MonthlyExpenseItemRow): boolean {
+  return item.expense_type === "FIXO" && item.installment_number === 1 && item.installment_total === 1;
+}
+
+function monthlyExpenseSimpleFixedKey(item: MonthlyExpenseItemRow): string {
+  return [
+    item.description.trim().toLocaleLowerCase("pt-BR"),
+    item.category_id,
+    item.payment_method_id,
+    item.amount_cents,
+    item.total_purchase_cents
+  ].join("|");
 }
 
 async function assertMonthlyExpenseItem(db: Client, userId: string, monthId: string, itemId: string): Promise<void> {

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from "@angular/forms";
 import {
   LucideArchive,
+  LucideArrowBigRightDash,
   LucideBanknoteArrowUp,
   LucideCalendar,
   LucideCalendarDays,
@@ -41,6 +42,7 @@ import { MonthlyExpensesService } from "../../core/api/monthly-expenses.service"
 import { MonthlyExpenseCatalogItem, MonthlyExpenseDetail, MonthlyExpenseIngestTokenStatus, MonthlyExpenseItem, MonthlyExpenseMonth, MonthlyExpensePendingItem, MonthlyExpenseType, UpsertMonthlyExpenseItemRequest } from "../../core/api/api.types";
 import { IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiTagComponent, IsumiTagTone, IsumiToastService, IsumiTooltipComponent, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
 import { IsumiPageHeaderComponent } from "../../shared/ui/page-header.component";
+import { formatBrl, formatMoneyInput, normalizeDecimalInput, parseMoneyCents } from "../../shared/utils/money";
 import { environment } from "../../../environments/environment";
 import { finalize } from "rxjs";
 
@@ -114,19 +116,6 @@ const CATALOG_PALETTE: CatalogPaletteOption[] = [
   { tone: "pink", label: "Pink", color: "#ec4899", swatchClass: "bg-pink-500" },
   { tone: "cyan", label: "Ciano", color: "#06b6d4", swatchClass: "bg-cyan-500" }
 ];
-
-function normalizeMoneyInput(value: string | number): string {
-  const raw = String(value).replace(/[^\d,.]/g, "");
-  const separatorIndex = raw.search(/[,.]/);
-
-  if (separatorIndex === -1) {
-    return raw;
-  }
-
-  const whole = raw.slice(0, separatorIndex).replace(/[,.]/g, "");
-  const decimal = raw.slice(separatorIndex + 1).replace(/[,.]/g, "").slice(0, 2);
-  return `${whole},${decimal}`;
-}
 
 @Component({
   selector: "isumi-monthly-expense-catalog-modal",
@@ -696,16 +685,16 @@ export class MonthlyExpenseItemModalComponent {
   readonly itemCategoryId = signal(this.data?.item?.categoryId || this.activeCategories()[0]?.id || "");
   readonly itemPaymentMethodId = signal(this.data?.item?.paymentMethodId || this.activePaymentMethods()[0]?.id || "");
   readonly itemTotal = signal(this.data?.item
-    ? this.formatMoneyInput(this.data.item.totalPurchaseCents)
+    ? formatMoneyInput(this.data.item.totalPurchaseCents)
     : this.data?.initialTotalCents
-      ? this.formatMoneyInput(this.data.initialTotalCents)
+      ? formatMoneyInput(this.data.initialTotalCents)
       : ""
   );
   readonly itemInstallments = signal(1);
   readonly itemType = signal<MonthlyExpenseType>(this.data?.item?.expenseType || "VARIAVEL");
 
   setItemTotal(value: string | number): void {
-    this.itemTotal.set(normalizeMoneyInput(value));
+    this.itemTotal.set(normalizeDecimalInput(value));
   }
 
   submit(): void {
@@ -717,7 +706,7 @@ export class MonthlyExpenseItemModalComponent {
   }
 
   private buildItemPayload(): UpsertMonthlyExpenseItemRequest | null {
-    const totalPurchaseCents = this.parseMoney(this.itemTotal());
+    const totalPurchaseCents = parseMoneyCents(this.itemTotal(), { allowZero: true });
     const description = this.itemDescription().trim();
 
     if (!description || !this.itemCategoryId() || !this.itemPaymentMethodId() || totalPurchaseCents === null) {
@@ -734,25 +723,6 @@ export class MonthlyExpenseItemModalComponent {
       expenseType: this.itemType()
     };
   }
-
-  private parseMoney(value: string): number | null {
-    const normalized = value.replace(/\./g, "").replace(",", ".").trim();
-
-    if (!normalized) {
-      return 0;
-    }
-
-    const parsed = Number(normalized);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      return null;
-    }
-
-    return Math.round(parsed * 100);
-  }
-
-  private formatMoneyInput(amountCents: number): string {
-    return (amountCents / 100).toFixed(2).replace(".", ",");
-  }
 }
 
 @Component({
@@ -768,6 +738,7 @@ export class MonthlyExpenseItemModalComponent {
     IsumiTagComponent,
     IsumiTooltipComponent,
     LucideArchive,
+    LucideArrowBigRightDash,
     LucideBanknoteArrowUp,
     LucideCalendar,
     LucideCalendarDays,
@@ -806,10 +777,12 @@ export class MonthlyExpensesComponent implements OnInit {
   private readonly modal = inject(IsumiModalService);
   private readonly toast = inject(IsumiToastService);
   private currentDetailRequestId: string | null = null;
+  private currentPendingRequestId: string | null = null;
 
   readonly months = signal<MonthlyExpenseMonth[]>([]);
   readonly detail = signal<MonthlyExpenseDetail | null>(null);
   readonly pendingItems = signal<MonthlyExpensePendingItem[]>([]);
+  readonly pendingItemsMonthId = signal<string | null>(null);
   readonly loading = signal(false);
   readonly loadingPending = signal(false);
   readonly saving = signal(false);
@@ -846,6 +819,9 @@ export class MonthlyExpensesComponent implements OnInit {
   readonly paymentMethods = computed(() => this.detail()?.paymentMethods || []);
   readonly activePaymentMethods = computed(() => this.paymentMethods().filter((item) => !item.archived));
   readonly catalogKindLabel = computed(() => this.catalogKind() === "category" ? "Categoria" : "Pagamento");
+  readonly visiblePendingItems = computed(() =>
+    this.pendingItemsMonthId() === this.detail()?.month.id ? this.pendingItems() : []
+  );
   readonly variableProgress = computed(() => {
     const summary = this.detail()?.summary;
     if (!summary || summary.variableLimitCents <= 0) {
@@ -871,6 +847,13 @@ export class MonthlyExpensesComponent implements OnInit {
       return matchesSearch && matchesType && matchesCategory && matchesPayment;
     });
   });
+  readonly hasMigratableFixedExpenses = computed(() =>
+    (this.detail()?.items || []).some((item) =>
+      item.expenseType === "FIXO" &&
+      item.installmentNumber === 1 &&
+      item.installmentTotal === 1
+    )
+  );
 
   ngOnInit(): void {
     this.loadMonths();
@@ -890,6 +873,8 @@ export class MonthlyExpensesComponent implements OnInit {
         } else {
           this.detail.set(null);
           this.pendingItems.set([]);
+          this.pendingItemsMonthId.set(null);
+          this.currentPendingRequestId = null;
           this.loading.set(false);
         }
       },
@@ -930,7 +915,9 @@ export class MonthlyExpensesComponent implements OnInit {
       this.loadDetail(active.id);
     } else {
       this.currentDetailRequestId = null;
+      this.currentPendingRequestId = null;
       this.pendingItems.set([]);
+      this.pendingItemsMonthId.set(null);
       this.loading.set(false);
     }
   }
@@ -952,8 +939,8 @@ export class MonthlyExpensesComponent implements OnInit {
       return;
     }
 
-    const incomeCents = this.parseMoney(this.income());
-    const variableLimitCents = this.parseMoney(this.variableLimit());
+    const incomeCents = parseMoneyCents(this.income(), { allowZero: true });
+    const variableLimitCents = parseMoneyCents(this.variableLimit(), { allowZero: true });
 
     if (incomeCents === null || variableLimitCents === null) {
       this.toast.error("Informe entrada e limite variável válidos.", { id: "monthly-expense-settings-invalid" });
@@ -966,6 +953,35 @@ export class MonthlyExpensesComponent implements OnInit {
     ).subscribe({
       next: (updated) => this.setDetail(updated),
       error: () => this.toast.error("Não foi possível salvar os valores do mês.", { id: "monthly-expense-settings-save-error" })
+    });
+  }
+
+  migrateFixedExpensesToNextMonth(): void {
+    const detail = this.detail();
+    if (!detail || this.saving()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.api.migrateFixedExpensesToNextMonth(detail.month.id).pipe(
+      finalize(() => this.saving.set(false))
+    ).subscribe({
+      next: (result) => {
+        this.setDetail(result.detail);
+        this.selectedYear.set(result.detail.month.year);
+        this.selectedMonth.set(result.detail.month.month);
+        this.months.update((months) => [
+          result.detail.month,
+          ...months.filter((month) => month.id !== result.detail.month.id)
+        ].sort((a, b) => b.year - a.year || b.month - a.month));
+        this.toast.success(
+          result.copied === 1
+            ? "1 gasto fixo migrado para o próximo mês."
+            : `${result.copied} gastos fixos migrados para o próximo mês.`,
+          { id: "monthly-expense-fixed-migration" }
+        );
+      },
+      error: () => this.toast.error("Não foi possível migrar os gastos fixos.", { id: "monthly-expense-fixed-migration-error" })
     });
   }
 
@@ -1210,7 +1226,7 @@ export class MonthlyExpensesComponent implements OnInit {
   }
 
   money(amountCents: number): string {
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(amountCents / 100);
+    return formatBrl(amountCents);
   }
 
   transactionDateLabel(value: string): string {
@@ -1263,15 +1279,15 @@ export class MonthlyExpensesComponent implements OnInit {
   }
 
   setIncome(value: string | number): void {
-    this.income.set(normalizeMoneyInput(value));
+    this.income.set(normalizeDecimalInput(value));
   }
 
   setVariableLimit(value: string | number): void {
-    this.variableLimit.set(normalizeMoneyInput(value));
+    this.variableLimit.set(normalizeDecimalInput(value));
   }
 
   setItemTotal(value: string | number): void {
-    this.itemTotal.set(normalizeMoneyInput(value));
+    this.itemTotal.set(normalizeDecimalInput(value));
   }
 
   selectCatalogColor(option: CatalogPaletteOption): void {
@@ -1322,27 +1338,53 @@ export class MonthlyExpensesComponent implements OnInit {
   }
 
   private setDetail(detail: MonthlyExpenseDetail): void {
+    if (this.pendingItemsMonthId() !== detail.month.id) {
+      this.pendingItems.set([]);
+      this.pendingItemsMonthId.set(null);
+    }
+
     this.detail.set(detail);
-    this.income.set(this.formatMoneyInput(detail.month.incomeCents));
-    this.variableLimit.set(this.formatMoneyInput(detail.month.variableLimitCents));
+    this.income.set(formatMoneyInput(detail.month.incomeCents));
+    this.variableLimit.set(formatMoneyInput(detail.month.variableLimitCents));
     this.loadPendingItems(detail.month.id);
   }
 
   private loadPendingItems(monthId: string): void {
+    if (this.pendingItemsMonthId() !== monthId) {
+      this.pendingItems.set([]);
+      this.pendingItemsMonthId.set(null);
+    }
+
+    this.currentPendingRequestId = monthId;
     this.loadingPending.set(true);
     this.api.listPendingItems(monthId).pipe(
-      finalize(() => this.loadingPending.set(false))
+      finalize(() => {
+        if (this.currentPendingRequestId === monthId) {
+          this.currentPendingRequestId = null;
+          this.loadingPending.set(false);
+        }
+      })
     ).subscribe({
-      next: (items) => this.pendingItems.set(items),
+      next: (items) => {
+        if (this.currentPendingRequestId === monthId) {
+          this.pendingItems.set(items);
+          this.pendingItemsMonthId.set(monthId);
+        }
+      },
       error: () => {
+        if (this.currentPendingRequestId !== monthId) {
+          return;
+        }
+
         this.pendingItems.set([]);
+        this.pendingItemsMonthId.set(monthId);
         this.toast.error("Não foi possível carregar as compras pendentes.", { id: "monthly-expense-pending-load-error" });
       }
     });
   }
 
   private buildItemPayload(): UpsertMonthlyExpenseItemRequest | null {
-    const totalPurchaseCents = this.parseMoney(this.itemTotal());
+    const totalPurchaseCents = parseMoneyCents(this.itemTotal(), { allowZero: true });
     const description = this.itemDescription().trim();
 
     if (!description || !this.itemCategoryId() || !this.itemPaymentMethodId() || totalPurchaseCents === null) {
@@ -1358,25 +1400,6 @@ export class MonthlyExpensesComponent implements OnInit {
       installmentTotal: Math.max(1, Math.trunc(Number(this.itemInstallments()) || 1)),
       expenseType: this.itemType()
     };
-  }
-
-  private parseMoney(value: string): number | null {
-    const normalized = value.replace(/\./g, "").replace(",", ".").trim();
-
-    if (!normalized) {
-      return 0;
-    }
-
-    const parsed = Number(normalized);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      return null;
-    }
-
-    return Math.round(parsed * 100);
-  }
-
-  private formatMoneyInput(amountCents: number): string {
-    return (amountCents / 100).toFixed(2).replace(".", ",");
   }
 
   private rgbHue(red: number, green: number, blue: number): number {

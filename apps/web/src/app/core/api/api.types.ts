@@ -220,3 +220,8 @@ export interface MonthlyExpenseCsvImportResponse {
   errors: Array<{ line: number; message: string }>;
   detail: MonthlyExpenseDetail;
 }
+
+export interface MonthlyExpenseFixedMigrationResponse {
+  copied: number;
+  detail: MonthlyExpenseDetail;
+}
