@@ -19,13 +19,13 @@
       </isumi-tag>
     </div>
 
-    <form class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 max-sm:grid-cols-1" (ngSubmit)="addUser()">
+    <form class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3" (ngSubmit)="addUser()">
       <label class="grid gap-2">
         <input isumiInput type="email" name="accessEmail" [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="pessoa@exemplo.com" autocomplete="email" required>
       </label>
 
       <div class="flex items-end">
-        <isumi-button mobileFull type="submit" [loading]="saving()">
+        <isumi-button iconOnly ariaLabel="Liberar acesso" type="submit" [loading]="saving()">
           <svg icon lucideUserPlus class="size-4" aria-hidden="true"></svg>
           Liberar acesso
         </isumi-button>

@@ -1,43 +1,41 @@
 <section class="grid gap-6" aria-labelledby="expenses-title">
   <isumi-page-header eyebrow="Ferramenta" title="Dividir gastos" titleId="expenses-title" />
 
-  <form class="grid gap-4" (ngSubmit)="createRoom()">
-    <div class="rounded-lg bg-card p-5 text-card-foreground">
-      <div class="grid w-full gap-5">
-        <div class="flex items-center gap-4 max-sm:flex-col max-sm:text-center">
-          <span class="grid size-11 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground" aria-hidden="true">
-            <svg lucideWalletCards class="size-5"></svg>
+  <form class="grid gap-4 rounded-lg bg-card p-4 text-card-foreground shadow-2xl shadow-black/10" aria-labelledby="create-room-title" (ngSubmit)="createRoom()">
+    <div class="flex items-start justify-between gap-4 max-md:grid">
+      <div class="grid gap-1">
+        <h2 id="create-room-title" class="m-0 inline-flex items-center gap-2 text-[1.15rem] font-black">
+          <span class="grid size-8 place-items-center rounded-md bg-primary/15 text-primary" aria-hidden="true">
+            <svg lucideWalletCards class="size-4"></svg>
           </span>
-
-          <div>
-            <h2 class="m-0 text-[1.35rem] font-black leading-tight">Criar sala</h2>
-            <p class="m-0 max-w-[58ch] leading-6 text-muted-foreground">
-              Nomeie a sala e envie o convite para quem vai participar.
-            </p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 max-sm:grid-cols-1">
-          <label class="grid gap-2">
-            <span class="text-sm font-extrabold text-muted-foreground">Nome da sala</span>
-            <input
-              isumiInput
-              name="roomName"
-              [ngModel]="roomName()"
-              (ngModelChange)="roomName.set($event.slice(0, 120))"
-              maxlength="120"
-              autocomplete="off"
-              placeholder="Viagem, churrasco, mercado..."
-              aria-label="Nome da sala"
-            >
-          </label>
-
-          <isumi-button type="submit" size="lg" mobileFull [loading]="saving()">
-            <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
-            Criar sala
-          </isumi-button>
-        </div>
+          Criar sala
+        </h2>
+        <p class="m-0 text-sm leading-6 text-muted-foreground">Nomeie a sala e envie o convite para quem vai participar.</p>
       </div>
+
+      @if (!loading()) {
+        <isumi-tag tone="primary">{{ rooms().length }} sala(s)</isumi-tag>
+      }
+    </div>
+
+    <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+      <label class="grid gap-2">
+        <input
+          isumiInput
+          name="roomName"
+          [ngModel]="roomName()"
+          (ngModelChange)="roomName.set($event.slice(0, 120))"
+          maxlength="120"
+          autocomplete="off"
+          placeholder="Viagem, churrasco, mercado..."
+          aria-label="Nome da sala"
+        >
+      </label>
+
+      <isumi-button iconOnly ariaLabel="Criar sala" type="submit" [loading]="saving()">
+        <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
+        Criar sala
+      </isumi-button>
     </div>
   </form>
 
@@ -47,9 +45,6 @@
         <h2 id="rooms-title" class="m-0 text-[1.15rem] font-black">Suas salas</h2>
         <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">Continue uma divisão aberta ou crie uma nova acima.</p>
       </div>
-      @if (!loading()) {
-        <isumi-tag tone="primary">{{ rooms().length }} sala(s)</isumi-tag>
-      }
     </div>
 
     <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 max-sm:grid-cols-1" aria-live="polite">

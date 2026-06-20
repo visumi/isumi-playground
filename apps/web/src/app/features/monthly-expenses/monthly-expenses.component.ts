@@ -824,6 +824,9 @@ export class MonthlyExpensesComponent implements OnInit {
   readonly activeMonth = computed(() =>
     this.months().find((month) => month.year === this.selectedYear() && month.month === this.selectedMonth()) || null
   );
+  readonly monthOptions = computed(() =>
+    [...this.months()].sort((a, b) => a.year - b.year || a.month - b.month)
+  );
   readonly monthLabel = computed(() => `${MONTH_NAMES[this.selectedMonth() - 1]} ${this.selectedYear()}`);
   readonly categories = computed(() => this.detail()?.categories || []);
   readonly activeCategories = computed(() => this.categories().filter((item) => !item.archived));
