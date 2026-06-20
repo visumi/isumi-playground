@@ -36,7 +36,7 @@ const POSITIONS: IsumiToastPosition[] = ["top-center", "top-right", "bottom-cent
                 }
               </span>
 
-              <span class="min-w-0 flex-1 truncate text-sm font-bold leading-5">{{ toast.message }}</span>
+              <span class="min-w-0 flex-1 text-wrap text-sm font-bold leading-5 break-words">{{ toast.message }}</span>
 
               @if (toast.type !== "loading") {
                 <button
@@ -154,12 +154,12 @@ export class IsumiToastHostComponent {
   });
 
   containerClasses(position: IsumiToastPosition): string {
-    const base = "fixed z-[60] grid w-[min(100%-24px,420px)] gap-2 p-3";
+    const base = "fixed z-[60] grid w-[min(calc(100vw_-_1.5rem),420px)] max-w-[calc(100vw_-_1.5rem)] gap-2";
     const positionClasses: Record<IsumiToastPosition, string> = {
-      "top-center": "left-1/2 top-0 -translate-x-1/2 pt-[max(0.75rem,env(safe-area-inset-top))]",
-      "top-right": "right-0 top-0 pt-[max(0.75rem,env(safe-area-inset-top))]",
-      "bottom-center": "bottom-0 left-1/2 -translate-x-1/2 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
-      "bottom-right": "bottom-0 right-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      "top-center": "left-1/2 top-[max(0.75rem,env(safe-area-inset-top))] -translate-x-1/2",
+      "top-right": "right-3 top-[max(0.75rem,env(safe-area-inset-top))]",
+      "bottom-center": "bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2",
+      "bottom-right": "bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-3"
     };
 
     return `${base} ${positionClasses[position]}`;
