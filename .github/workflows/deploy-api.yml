@@ -33,6 +33,8 @@ jobs:
         env:
           TURSO_URL: ${{ secrets.TURSO_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          OWNER_EMAIL: ${{ vars.OWNER_EMAIL }}
+          ALLOWED_EMAILS: ${{ secrets.ALLOWED_EMAILS }}
 
       - name: Write Worker secrets file
         run: |
@@ -40,13 +42,11 @@ jobs:
           TURSO_URL="${TURSO_URL}"
           TURSO_AUTH_TOKEN="${TURSO_AUTH_TOKEN}"
           FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID}"
-          ALLOWED_EMAILS="${ALLOWED_EMAILS}"
           EOF
         env:
           TURSO_URL: ${{ secrets.TURSO_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          ALLOWED_EMAILS: ${{ secrets.ALLOWED_EMAILS }}
 
       - name: Deploy Worker
         run: npx wrangler deploy --config apps/api/wrangler.jsonc --secrets-file apps/api/.secrets.production
