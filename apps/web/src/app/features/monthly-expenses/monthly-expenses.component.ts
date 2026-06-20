@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from "@angular/common/http";
-import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, inject, signal } from "@angular/core";
+import { ChangeDetectionStrategy, Component, ElementRef, HostListener, OnInit, afterNextRender, computed, inject, signal, viewChild } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import {
   LucideArchive,
@@ -602,7 +602,7 @@ Body: {"merchant":"Mercado Exemplo","amount":"R$ 45,90"}`;
             <svg lucideReceiptText class="size-4" aria-hidden="true"></svg>
             Descrição
           </span>
-          <input isumiInput name="itemDescription" [ngModel]="itemDescription()" (ngModelChange)="itemDescription.set($event.slice(0, 160))" maxlength="160" required placeholder="Mercado, aluguel, academia...">
+          <input #descriptionInput isumiInput name="itemDescription" [ngModel]="itemDescription()" (ngModelChange)="itemDescription.set($event.slice(0, 160))" maxlength="160" required placeholder="Mercado, aluguel, academia...">
         </label>
 
         <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 max-sm:grid-cols-1">
@@ -679,6 +679,7 @@ export class MonthlyExpenseItemModalComponent {
   readonly data = injectIsumiModalData<MonthlyExpenseItemModalData>();
   readonly modalRef = injectIsumiModalRef<MonthlyExpenseItemModalData, UpsertMonthlyExpenseItemRequest>();
   private readonly toast = inject(IsumiToastService);
+  private readonly descriptionInput = viewChild<ElementRef<HTMLInputElement>>("descriptionInput");
 
   readonly activeCategories = signal(this.data?.activeCategories || []);
   readonly activePaymentMethods = signal(this.data?.activePaymentMethods || []);
@@ -693,6 +694,12 @@ export class MonthlyExpenseItemModalComponent {
   );
   readonly itemInstallments = signal(1);
   readonly itemType = signal<MonthlyExpenseType>(this.data?.item?.expenseType || "VARIAVEL");
+
+  constructor() {
+    afterNextRender(() => {
+      this.descriptionInput()?.nativeElement.focus();
+    });
+  }
 
   setItemTotal(value: string | number): void {
     this.itemTotal.set(normalizeDecimalInput(value));
