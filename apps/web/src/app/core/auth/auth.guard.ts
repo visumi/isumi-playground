@@ -35,3 +35,18 @@ export const publicOnlyGuard: CanActivateFn = async () => {
 
   return auth.isAllowed() ? router.createUrlTree(["/dashboard"]) : true;
 };
+
+export const ownerGuard: CanActivateFn = async () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  await auth.waitUntilReady();
+
+  if (!auth.isAuthenticated()) {
+    return router.createUrlTree(["/login"]);
+  }
+
+  await auth.refreshProfile();
+
+  return auth.isOwner() ? true : router.createUrlTree(["/dashboard"]);
+};

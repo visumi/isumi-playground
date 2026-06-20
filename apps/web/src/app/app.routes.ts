@@ -1,5 +1,6 @@
 import { Routes } from "@angular/router";
-import { authGuard, publicOnlyGuard } from "./core/auth/auth.guard";
+import { authGuard, ownerGuard, publicOnlyGuard } from "./core/auth/auth.guard";
+import { AccessAdminComponent } from "./features/access-admin/access-admin.component";
 import { ExpenseInviteComponent } from "./features/expenses/expense-invite.component";
 import { DashboardComponent } from "./features/dashboard/dashboard.component";
 import { ExpenseRoomComponent } from "./features/expenses/expense-room.component";
@@ -26,6 +27,7 @@ export const routes: Routes = [
     children: [
       { path: "", pathMatch: "full", redirectTo: "dashboard" },
       { path: "dashboard", component: DashboardComponent },
+      { path: "admin/access", component: AccessAdminComponent, canActivate: [ownerGuard] },
       { path: "tools/monthly-expenses", component: MonthlyExpensesComponent },
       { path: "tools/expenses", component: ExpenseRoomsComponent },
       { path: "tools/expenses/:roomId/room", component: ExpenseRoomComponent }

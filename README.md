@@ -51,6 +51,7 @@ FIREBASE_APP_ID=
 FIREBASE_MESSAGING_SENDER_ID=
 TURSO_URL=
 TURSO_AUTH_TOKEN=
+OWNER_EMAIL=
 ALLOWED_EMAILS=
 ```
 
@@ -64,7 +65,8 @@ Preencha assim:
 - `FIREBASE_MESSAGING_SENDER_ID`: sender ID do Firebase.
 - `TURSO_URL`: URL do banco Turso/libSQL.
 - `TURSO_AUTH_TOKEN`: token de acesso ao banco.
-- `ALLOWED_EMAILS`: lista de e-mails que podem acessar a aplicação, separados por vírgula.
+- `OWNER_EMAIL`: e-mail do dono da plataforma. Esse usuário sempre pode acessar a tela de administração.
+- `ALLOWED_EMAILS`: lista opcional usada somente para migrar e-mails antigos para a nova gestão de acessos.
 
 ### 4. Gere o ambiente do frontend
 
@@ -110,7 +112,7 @@ Abra:
 http://localhost:4200
 ```
 
-Entre com uma conta Firebase cujo e-mail esteja em `ALLOWED_EMAILS`.
+Entre com a conta Firebase configurada em `OWNER_EMAIL`. Depois, gerencie os demais acessos pela tela "Acessos".
 
 ## Comandos úteis
 
@@ -172,7 +174,7 @@ O Worker usa `apps/api/wrangler.jsonc`.
 Variáveis públicas configuradas no `wrangler.jsonc`:
 
 - `ALLOWED_ORIGIN`
-- `ALLOWED_EMAILS`
+- `OWNER_EMAIL`
 
 Secrets obrigatórios no Cloudflare:
 

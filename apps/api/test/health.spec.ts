@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { handleRequest, isEmailAllowed, type Env } from "../src/index";
+import { handleRequest, isEmailAllowed, normalizeEmail, resolveAccessDecision, type Env } from "../src/index";
 
 const env: Env = {
   TURSO_URL: "libsql://example.turso.io",
   TURSO_AUTH_TOKEN: "secret",
   FIREBASE_PROJECT_ID: "demo",
-  ALLOWED_EMAILS: "allowed@example.com",
+  OWNER_EMAIL: "owner@example.com",
   ALLOWED_ORIGIN: "http://localhost:4200"
 };
 
@@ -76,5 +76,38 @@ describe("email allowlist", () => {
     expect(isEmailAllowed("FRIEND@example.com", allowedEmails)).toBe(true);
     expect(isEmailAllowed("outro@example.com", allowedEmails)).toBe(true);
     expect(isEmailAllowed("missing@example.com", allowedEmails)).toBe(false);
+  });
+
+  it("normalizes emails before comparisons", () => {
+    expect(normalizeEmail("  Pessoa@Example.COM ")).toBe("pessoa@example.com");
+  });
+
+  it("always allows the configured owner email", () => {
+    expect(resolveAccessDecision("OWNER@example.com", null, env)).toEqual({
+      allowed: true,
+      role: "owner"
+    });
+  });
+
+  it("allows active access grants and blocks inactive or missing grants", () => {
+    expect(resolveAccessDecision("member@example.com", { role: "member", active: 1 }, env)).toEqual({
+      allowed: true,
+      role: "member"
+    });
+    expect(resolveAccessDecision("member@example.com", { role: "member", active: 0 }, env)).toEqual({
+      allowed: false,
+      role: null
+    });
+    expect(resolveAccessDecision("missing@example.com", null, env)).toEqual({
+      allowed: false,
+      role: null
+    });
+  });
+
+  it("does not grant owner privileges from a database row alone", () => {
+    expect(resolveAccessDecision("member@example.com", { role: "owner", active: 1 }, env)).toEqual({
+      allowed: true,
+      role: "member"
+    });
   });
 });

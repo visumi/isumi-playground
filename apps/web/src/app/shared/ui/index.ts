@@ -9,6 +9,7 @@ export * from "./modal.service";
 export * from "./nav-item.directive";
 export * from "./page-header.component";
 export * from "./select.directive";
+export * from "./switch.component";
 export * from "./tag.component";
 export * from "./toast-host.component";
 export * from "./toast.service";

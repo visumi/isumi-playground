@@ -4,6 +4,29 @@ export interface MeResponse {
   name: string | null;
   picture: string | null;
   allowed: boolean;
+  role: "owner" | "member" | null;
+}
+
+export interface AccessUser {
+  email: string;
+  role: "owner" | "member";
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    uid: string;
+    name: string | null;
+    picture: string | null;
+    lastLoginAt: string | null;
+  } | null;
+}
+
+export interface CreateAccessUserRequest {
+  email: string;
+}
+
+export interface UpdateAccessUserRequest {
+  active: boolean;
 }
 
 export interface ExpenseRoom {

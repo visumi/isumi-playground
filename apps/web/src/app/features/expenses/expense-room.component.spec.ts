@@ -24,7 +24,8 @@ describe("ExpenseRoomComponent", () => {
               email: "owner@example.com",
               name: "Owner",
               picture: null,
-              allowed: true
+              allowed: true,
+              role: "owner"
             })
           }
         },

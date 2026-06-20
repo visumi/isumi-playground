@@ -18,6 +18,14 @@
         <svg lucideLayoutDashboard class="size-4" aria-hidden="true"></svg>
         <span class="block max-md:hidden">Dashboard</span>
       </a>
+      @if (auth.isOwner()) {
+      <a isumiNavItem routerLink="/admin/access"
+        routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25"
+        (click)="closeAccountMenu()">
+        <svg lucideShieldCheck class="size-4" aria-hidden="true"></svg>
+        <span class="block max-md:hidden">Acessos</span>
+      </a>
+      }
       <a isumiNavItem routerLink="/tools/expenses"
         routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25"
         (click)="closeAccountMenu()">
@@ -86,6 +94,14 @@
       <svg lucideLayoutDashboard class="size-4" aria-hidden="true"></svg>
       <span class="block max-md:hidden">Dashboard</span>
     </a>
+    @if (auth.isOwner()) {
+    <a isumiNavItem routerLink="/admin/access"
+      routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25"
+      (click)="closeAccountMenu()">
+      <svg lucideShieldCheck class="size-4" aria-hidden="true"></svg>
+      <span class="block max-md:hidden">Acessos</span>
+    </a>
+    }
     <a isumiNavItem routerLink="/tools/expenses"
       routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring/25"
       (click)="closeAccountMenu()">

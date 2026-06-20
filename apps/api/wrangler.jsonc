@@ -8,7 +8,7 @@
   },
   "vars": {
     "ALLOWED_ORIGIN": "http://localhost:4200",
-    "ALLOWED_EMAILS": "pancake.tf2@gmail.com,vinicius.isumi@gmail.com"
+    "OWNER_EMAIL": "pancake.tf2@gmail.com"
   },
   "secrets": {
     "required": [

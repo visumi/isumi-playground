@@ -33,6 +33,7 @@ export class AuthService {
   readonly authError = this.authErrorState.asReadonly();
   readonly isAuthenticated = computed(() => this.readyState() && !!this.firebaseUserState());
   readonly isAllowed = computed(() => this.profileState()?.allowed === true);
+  readonly isOwner = computed(() => this.profileState()?.role === "owner");
 
   constructor() {
     const app = initializeApp(environment.firebase);

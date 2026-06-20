@@ -1,0 +1,105 @@
+<section class="grid gap-6" aria-labelledby="access-admin-title">
+  <isumi-page-header eyebrow="Administração" title="Acessos" titleId="access-admin-title" />
+
+  <section class="grid gap-4 rounded-lg bg-card p-4 text-card-foreground shadow-2xl shadow-black/10" aria-labelledby="access-form-title">
+    <div class="flex items-start justify-between gap-4 max-md:grid">
+      <div class="grid gap-1">
+        <h2 id="access-form-title" class="m-0 inline-flex items-center gap-2 text-[1.15rem] font-black">
+          <span class="grid size-8 place-items-center rounded-md bg-primary/15 text-primary">
+            <svg lucideUserPlus class="size-4" aria-hidden="true"></svg>
+          </span>
+          Liberar novo acesso
+        </h2>
+        <p class="m-0 text-sm leading-6 text-muted-foreground">Adicione o e-mail da conta Google que poderá entrar na plataforma.</p>
+      </div>
+
+      <isumi-tag tone="primary">
+        <svg icon lucideUsersRound aria-hidden="true"></svg>
+        {{ activeCount() }} ativo(s)
+      </isumi-tag>
+    </div>
+
+    <form class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 max-sm:grid-cols-1" (ngSubmit)="addUser()">
+      <label class="grid gap-2">
+        <input isumiInput type="email" name="accessEmail" [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="pessoa@exemplo.com" autocomplete="email" required>
+      </label>
+
+      <div class="flex items-end">
+        <isumi-button mobileFull type="submit" [loading]="saving()">
+          <svg icon lucideUserPlus class="size-4" aria-hidden="true"></svg>
+          Liberar acesso
+        </isumi-button>
+      </div>
+    </form>
+  </section>
+
+  <section class="grid gap-3" aria-label="Usuários com acesso configurado">
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="m-0 text-[1.15rem] font-black">Usuários</h2>
+      <isumi-button variant="secondary" size="sm" type="button" [loading]="loading()" (click)="loadUsers()">
+        <svg icon lucideRefreshCw class="size-4" aria-hidden="true"></svg>
+        Atualizar
+      </isumi-button>
+    </div>
+
+    @if (loading() && users().length === 0) {
+      <div class="grid gap-2" aria-label="Carregando acessos">
+        @for (_ of [1, 2, 3]; track _) {
+          <div class="grid grid-cols-[minmax(0,1fr)_6rem] items-center gap-3 rounded-lg bg-card p-3 shadow-xl shadow-black/5 max-md:grid-cols-1">
+            <div class="flex min-w-0 items-center gap-3">
+              <span class="size-10 shrink-0 animate-pulse rounded-full bg-secondary" aria-hidden="true"></span>
+              <div class="grid min-w-0 flex-1 gap-2">
+                <span class="h-4 w-44 max-w-full animate-pulse rounded-sm bg-secondary" aria-hidden="true"></span>
+                <span class="h-3 w-64 max-w-full animate-pulse rounded-sm bg-secondary/80" aria-hidden="true"></span>
+              </div>
+            </div>
+            <span class="h-9 w-24 animate-pulse rounded-sm bg-secondary max-md:w-full" aria-hidden="true"></span>
+          </div>
+        }
+      </div>
+    } @else if (users().length === 0) {
+      <isumi-empty-state title="Nenhum acesso cadastrado" description="Libere o primeiro e-mail para começar a gerenciar quem entra na plataforma.">
+        <svg icon lucideUsersRound aria-hidden="true"></svg>
+      </isumi-empty-state>
+    } @else {
+      <div class="grid gap-2">
+        @for (user of users(); track user.email) {
+          <article class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-card p-3 text-card-foreground shadow-xl shadow-black/5">
+            <div class="flex min-w-0 items-center gap-3">
+              <isumi-avatar size="md" [src]="user.user?.picture" [name]="user.user?.name || user.email" />
+              <div class="grid min-w-0 gap-1">
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                  <strong class="truncate text-sm font-extrabold">{{ user.user?.name || user.email }}</strong>
+                  @if (user.active && user.role !== "owner") {
+                    <isumi-tag tone="emerald">
+                      <svg icon lucideCheck aria-hidden="true"></svg>
+                      Ativo
+                    </isumi-tag>
+                  } @else if (!user.active) {
+                    <isumi-tag tone="slate">
+                      <svg icon lucideX aria-hidden="true"></svg>
+                      Inativo
+                    </isumi-tag>
+                  }
+                </div>
+                <span class="truncate text-xs font-semibold text-muted-foreground">{{ user.email }}</span>
+                @if (user.user?.lastLoginAt) {
+                  <span class="text-xs text-muted-foreground">Último login: {{ user.user?.lastLoginAt | date:"dd/MM/yyyy 'às' HH:mm" }}</span>
+                }
+              </div>
+            </div>
+
+            <div class="flex justify-end self-center">
+              <isumi-switch
+                [checked]="user.active"
+                [disabled]="user.role === 'owner'"
+                [loading]="updatingEmail() === user.email"
+                [ariaLabel]="user.role === 'owner' ? 'Acesso do dono protegido' : 'Alterar acesso de ' + user.email"
+                (checkedChange)="setActive(user, $event)" />
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+</section>

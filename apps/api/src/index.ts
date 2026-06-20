@@ -5,8 +5,15 @@ export interface Env {
   TURSO_URL: string;
   TURSO_AUTH_TOKEN: string;
   FIREBASE_PROJECT_ID: string;
-  ALLOWED_EMAILS: string;
+  OWNER_EMAIL: string;
   ALLOWED_ORIGIN?: string;
+}
+
+interface AuthIdentity {
+  uid: string;
+  email: string;
+  name: string | null;
+  picture: string | null;
 }
 
 interface AuthUser {
@@ -15,6 +22,30 @@ interface AuthUser {
   name: string | null;
   picture: string | null;
   allowed: boolean;
+  role: AccessRole | null;
+}
+
+type AccessRole = "owner" | "member";
+
+interface AccessGrantRow {
+  email: string;
+  role: AccessRole;
+  active: number;
+  created_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+  user_id?: string | null;
+  name?: string | null;
+  picture?: string | null;
+  last_login_at?: string | null;
+}
+
+interface AccessGrantInput {
+  email?: string;
+}
+
+interface AccessGrantPatchInput {
+  active?: boolean;
 }
 
 interface ExpenseRoomRow {
@@ -260,17 +291,38 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json(await createMonthlyExpensePendingFromShortcut(db, request, payload), 201, corsHeaders);
     }
 
-    const user = await authenticate(request, env);
+    const identity = await authenticate(request, env);
+    const db = createDatabaseClient(env);
+    const user = await resolveAuthenticatedUser(db, identity, env);
+
+    if (request.method === "GET" && url.pathname === "/me") {
+      return json(user, 200, corsHeaders);
+    }
 
     if (!user.allowed) {
       return json({ error: "forbidden" }, 403, corsHeaders);
     }
 
-    const db = createDatabaseClient(env);
     await upsertUser(db, user);
 
-    if (request.method === "GET" && url.pathname === "/me") {
-      return json(user, 200, corsHeaders);
+    if (url.pathname === "/admin/access-users") {
+      requireOwner(user);
+
+      if (request.method === "GET") {
+        return json(await listAccessGrants(db, env), 200, corsHeaders);
+      }
+
+      if (request.method === "POST") {
+        const payload = await readJson<AccessGrantInput>(request);
+        return json(await createAccessGrant(db, user, env, payload), 201, corsHeaders);
+      }
+    }
+
+    const accessGrantMatch = url.pathname.match(/^\/admin\/access-users\/([^/]+)$/);
+    if (accessGrantMatch && request.method === "PATCH") {
+      requireOwner(user);
+      const payload = await readJson<AccessGrantPatchInput>(request);
+      return json(await updateAccessGrant(db, env, accessGrantMatch[1], payload), 200, corsHeaders);
     }
 
     if (url.pathname === "/tools/monthly-expenses/ingest-token") {
@@ -509,7 +561,7 @@ function createDatabaseClient(env: Env): Client {
   });
 }
 
-async function authenticate(request: Request, env: Env): Promise<AuthUser> {
+async function authenticate(request: Request, env: Env): Promise<AuthIdentity> {
   const header = request.headers.get("Authorization");
   const token = header?.match(/^Bearer\s+(.+)$/i)?.[1];
 
@@ -518,18 +570,21 @@ async function authenticate(request: Request, env: Env): Promise<AuthUser> {
   }
 
   const payload = await verifyFirebaseToken(token, env);
-  const email = typeof payload["email"] === "string" ? payload["email"].toLowerCase() : "";
+  const email = normalizeEmail(typeof payload["email"] === "string" ? payload["email"] : "");
 
   if (!email) {
     throw new HttpError(401, "missing_email");
+  }
+
+  if (payload["email_verified"] !== true) {
+    throw new HttpError(401, "email_not_verified");
   }
 
   return {
     uid: String(payload.sub),
     email,
     name: typeof payload["name"] === "string" ? payload["name"] : null,
-    picture: typeof payload["picture"] === "string" ? payload["picture"] : null,
-    allowed: isEmailAllowed(email, env.ALLOWED_EMAILS)
+    picture: typeof payload["picture"] === "string" ? payload["picture"] : null
   };
 }
 
@@ -588,10 +643,188 @@ async function getFirebaseKey(kid: string): Promise<FirebaseKey> {
 export function isEmailAllowed(email: string, allowedEmails: string): boolean {
   const allowlist = allowedEmails
     .split(/[,\r\n\t ;]+/)
-    .map((item) => item.trim().toLowerCase())
+    .map(normalizeEmail)
     .filter(Boolean);
 
-  return allowlist.includes(email.trim().toLowerCase());
+  return allowlist.includes(normalizeEmail(email));
+}
+
+export function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+export function isOwnerEmail(email: string, env: Pick<Env, "OWNER_EMAIL">): boolean {
+  const ownerEmail = normalizeEmail(requiredEnv(env.OWNER_EMAIL, "OWNER_EMAIL"));
+  return normalizeEmail(email) === ownerEmail;
+}
+
+async function resolveAuthenticatedUser(db: Client, identity: AuthIdentity, env: Env): Promise<AuthUser> {
+  const grant = isOwnerEmail(identity.email, env) ? null : await findAccessGrant(db, identity.email);
+  const access = resolveAccessDecision(identity.email, grant, env);
+
+  return {
+    ...identity,
+    allowed: access.allowed,
+    role: access.role
+  };
+}
+
+export function resolveAccessDecision(
+  email: string,
+  grant: Pick<AccessGrantRow, "role" | "active"> | null | undefined,
+  env: Pick<Env, "OWNER_EMAIL">
+): { allowed: boolean; role: AccessRole | null } {
+  if (isOwnerEmail(email, env)) {
+    return { allowed: true, role: "owner" };
+  }
+
+  if (grant?.active === 1) {
+    return { allowed: true, role: "member" };
+  }
+
+  return { allowed: false, role: null };
+}
+
+async function findAccessGrant(db: Client, email: string): Promise<AccessGrantRow | null> {
+  const result = await db.execute({
+    sql: `
+      SELECT email, role, active, created_by_user_id, created_at, updated_at
+      FROM access_grants
+      WHERE email = ?
+      LIMIT 1
+    `,
+    args: [normalizeEmail(email)]
+  });
+
+  return (result.rows[0] as unknown as AccessGrantRow | undefined) || null;
+}
+
+function requireOwner(user: AuthUser): void {
+  if (user.role !== "owner") {
+    throw new HttpError(403, "owner_required");
+  }
+}
+
+async function listAccessGrants(db: Client, env: Env) {
+  await ensureOwnerAccessGrant(db, env);
+
+  const result = await db.execute({
+    sql: `
+      SELECT
+        g.email,
+        g.role,
+        g.active,
+        g.created_by_user_id,
+        g.created_at,
+        g.updated_at,
+        u.id AS user_id,
+        u.name,
+        u.picture,
+        u.last_login_at
+      FROM access_grants g
+      LEFT JOIN users u ON u.email = g.email
+      ORDER BY g.email = ? DESC, g.active DESC, g.email ASC
+    `,
+    args: [normalizeEmail(requiredEnv(env.OWNER_EMAIL, "OWNER_EMAIL"))]
+  });
+
+  return (result.rows as unknown as AccessGrantRow[]).map((row) => mapAccessGrant(row, env));
+}
+
+async function createAccessGrant(db: Client, user: AuthUser, env: Env, payload: AccessGrantInput) {
+  const email = normalizeEmail(payload.email || "");
+
+  if (!isValidEmail(email)) {
+    throw new HttpError(400, "invalid_email");
+  }
+
+  const owner = isOwnerEmail(email, env);
+  await db.execute({
+    sql: `
+      INSERT INTO access_grants (email, role, active, created_by_user_id, created_at, updated_at)
+      VALUES (?, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT(email) DO UPDATE SET
+        role = excluded.role,
+        active = 1,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    args: [email, owner ? "owner" : "member", user.uid]
+  });
+
+  const grant = await findAccessGrant(db, email);
+  return mapAccessGrant(grant!, env);
+}
+
+async function updateAccessGrant(db: Client, env: Env, rawEmail: string, payload: AccessGrantPatchInput) {
+  const email = normalizeEmail(decodeURIComponent(rawEmail));
+
+  if (!isValidEmail(email)) {
+    throw new HttpError(400, "invalid_email");
+  }
+
+  if (isOwnerEmail(email, env) && payload.active === false) {
+    throw new HttpError(400, "cannot_disable_owner");
+  }
+
+  if (typeof payload.active !== "boolean") {
+    throw new HttpError(400, "invalid_active");
+  }
+
+  const existing = await findAccessGrant(db, email);
+  if (!existing) {
+    throw new HttpError(404, "not_found");
+  }
+
+  await db.execute({
+    sql: `
+      UPDATE access_grants
+      SET active = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE email = ?
+    `,
+    args: [payload.active ? 1 : 0, email]
+  });
+
+  const updated = await findAccessGrant(db, email);
+  return mapAccessGrant(updated!, env);
+}
+
+async function ensureOwnerAccessGrant(db: Client, env: Env): Promise<void> {
+  const ownerEmail = normalizeEmail(requiredEnv(env.OWNER_EMAIL, "OWNER_EMAIL"));
+  await db.execute({
+    sql: `
+      INSERT INTO access_grants (email, role, active, created_at, updated_at)
+      VALUES (?, 'owner', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT(email) DO UPDATE SET
+        role = 'owner',
+        active = 1,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    args: [ownerEmail]
+  });
+}
+
+function mapAccessGrant(row: AccessGrantRow, env: Env) {
+  const owner = isOwnerEmail(row.email, env);
+
+  return {
+    email: row.email,
+    role: owner ? "owner" : "member",
+    active: owner || row.active === 1,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    user: row.user_id
+      ? {
+        uid: row.user_id,
+        name: row.name || null,
+        picture: row.picture || null,
+        lastLoginAt: row.last_login_at || null
+      }
+      : null
+  };
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 async function upsertUser(db: Client, user: AuthUser): Promise<void> {
