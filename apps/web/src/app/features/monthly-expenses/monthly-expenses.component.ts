@@ -409,7 +409,7 @@ export class MonthlyExpenseCatalogModalComponent {
           <span class="text-xs font-bold text-muted-foreground">URL do endpoint</span>
           <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5">
             <input isumiInput readonly [value]="data?.endpointUrl || ''" aria-label="URL do endpoint do Atalho">
-            <isumi-button type="button" size="lg" iconOnly variant="secondary" [disabled]="actionsBlocked()" (click)="copyText(data?.endpointUrl || '', 'URL copiada.', 'shortcut-url-copy')">
+            <isumi-button type="button" iconOnly variant="secondary" [disabled]="actionsBlocked()" (click)="copyText(data?.endpointUrl || '', 'URL copiada.', 'shortcut-url-copy')">
               <svg icon lucideCopy class="size-4" aria-hidden="true"></svg>
             </isumi-button>
           </div>

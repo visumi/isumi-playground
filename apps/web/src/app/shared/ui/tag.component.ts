@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, OnChanges, OnInit, Rend
 import { splitClasses } from "./class-list";
 
 export type IsumiTagTone = "slate" | "primary" | "secondary" | "red" | "rose" | "amber" | "emerald" | "blue" | "indigo" | "violet" | "pink" | "cyan";
+export type IsumiTagSize = "md" | "small";
 
 @Component({
   selector: "isumi-tag",
@@ -20,6 +21,7 @@ export class IsumiTagComponent implements OnChanges, OnInit {
   private appliedClasses: string[] = [];
 
   readonly tone = input<IsumiTagTone>("slate");
+  readonly size = input<IsumiTagSize>("md");
 
   ngOnInit(): void {
     this.syncClasses();
@@ -48,8 +50,12 @@ export class IsumiTagComponent implements OnChanges, OnInit {
       pink: "bg-pink-950/55 text-pink-300",
       cyan: "bg-cyan-950/55 text-cyan-300"
     };
+    const sizeClasses: Record<IsumiTagSize, string> = {
+      md: "gap-1.5 rounded-md px-2.5 py-1.5 text-xs [&_[icon]]:size-3.5",
+      small: "gap-1 rounded-sm px-2 py-1 text-[0.6875rem] [&_[icon]]:size-3"
+    };
 
-    this.appliedClasses = splitClasses(`inline-flex w-fit max-w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold uppercase leading-none [&_[icon]]:size-3.5 [&_[icon]]:shrink-0 ${toneClasses[this.tone()]}`);
+    this.appliedClasses = splitClasses(`inline-flex w-fit max-w-full items-center font-bold uppercase leading-none [&_[icon]]:shrink-0 ${sizeClasses[this.size()]} ${toneClasses[this.tone()]}`);
 
     for (const className of this.appliedClasses) {
       this.renderer.addClass(this.element.nativeElement, className);

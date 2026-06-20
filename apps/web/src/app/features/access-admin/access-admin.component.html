@@ -71,12 +71,12 @@
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
                   <strong class="truncate text-sm font-extrabold">{{ user.user?.name || user.email }}</strong>
                   @if (user.active && user.role !== "owner") {
-                    <isumi-tag tone="emerald">
+                    <isumi-tag tone="emerald" size="small">
                       <svg icon lucideCheck aria-hidden="true"></svg>
                       Ativo
                     </isumi-tag>
                   } @else if (!user.active) {
-                    <isumi-tag tone="slate">
+                    <isumi-tag tone="slate" size="small">
                       <svg icon lucideX aria-hidden="true"></svg>
                       Inativo
                     </isumi-tag>

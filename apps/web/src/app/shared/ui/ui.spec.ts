@@ -35,6 +35,10 @@ import { IsumiTooltipComponent } from "./tooltip.component";
       <span icon data-testid="tag-icon"></span>
       Junho 2026
     </isumi-tag>
+    <isumi-tag tone="emerald" size="small">
+      <span icon data-testid="small-tag-icon"></span>
+      Ativo
+    </isumi-tag>
     <isumi-tooltip label="Texto simples">
       <button type="button" data-testid="simple-tooltip-trigger">Ação</button>
     </isumi-tooltip>
@@ -149,6 +153,19 @@ describe("shared ui", () => {
     expect(tag.classList).toContain("gap-1.5");
     expect(tag.classList).toContain("uppercase");
     expect(tag.classList).toContain("[&_[icon]]:size-3.5");
+  });
+
+  it("supports small tags without changing the default size", () => {
+    const tags = fixture.debugElement.queryAll(By.css("isumi-tag"));
+    const defaultTag = tags[0].nativeElement as HTMLElement;
+    const smallTag = tags[1].nativeElement as HTMLElement;
+
+    expect(defaultTag.classList).toContain("px-2.5");
+    expect(defaultTag.classList).toContain("[&_[icon]]:size-3.5");
+    expect(smallTag.classList).toContain("px-2");
+    expect(smallTag.classList).toContain("text-[0.6875rem]");
+    expect(smallTag.classList).toContain("[&_[icon]]:size-3");
+    expect(smallTag.textContent).toContain("Ativo");
   });
 
   it("supports simple and custom tooltip content", () => {
