@@ -49,7 +49,7 @@ export class IsumiTagComponent implements OnChanges, OnInit {
       cyan: "bg-cyan-950/55 text-cyan-300"
     };
 
-    this.appliedClasses = splitClasses(`inline-flex w-fit max-w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold leading-none [&_[icon]]:size-3.5 [&_[icon]]:shrink-0 ${toneClasses[this.tone()]}`);
+    this.appliedClasses = splitClasses(`inline-flex w-fit max-w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold uppercase leading-none [&_[icon]]:size-3.5 [&_[icon]]:shrink-0 ${toneClasses[this.tone()]}`);
 
     for (const className of this.appliedClasses) {
       this.renderer.addClass(this.element.nativeElement, className);

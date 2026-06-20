@@ -6,10 +6,11 @@ import { IsumiEmptyStateComponent } from "./empty-state.component";
 import { IsumiInputDirective } from "./input.directive";
 import { IsumiSelectDirective } from "./select.directive";
 import { IsumiTagComponent } from "./tag.component";
+import { IsumiTooltipComponent } from "./tooltip.component";
 
 @Component({
   standalone: true,
-  imports: [IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective, IsumiTagComponent],
+  imports: [IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective, IsumiTagComponent, IsumiTooltipComponent],
   template: `
     <isumi-button variant="secondary" size="sm" disabled>
       <span icon data-testid="icon"></span>
@@ -34,6 +35,18 @@ import { IsumiTagComponent } from "./tag.component";
       <span icon data-testid="tag-icon"></span>
       Junho 2026
     </isumi-tag>
+    <isumi-tooltip label="Texto simples">
+      <button type="button" data-testid="simple-tooltip-trigger">Ação</button>
+    </isumi-tooltip>
+    <isumi-tooltip>
+      <button type="button" data-testid="custom-tooltip-trigger">Adicionar gasto</button>
+      <span tooltip data-testid="custom-tooltip-content">
+        <span>Atalho</span>
+        <kbd>Alt</kbd>
+        <span>+</span>
+        <kbd>N</kbd>
+      </span>
+    </isumi-tooltip>
   `
 })
 class UiSpecHostComponent {}
@@ -134,6 +147,19 @@ describe("shared ui", () => {
     expect(tag.querySelector("[data-testid='tag-icon']")).not.toBeNull();
     expect(tag.textContent).toContain("Junho 2026");
     expect(tag.classList).toContain("gap-1.5");
+    expect(tag.classList).toContain("uppercase");
     expect(tag.classList).toContain("[&_[icon]]:size-3.5");
+  });
+
+  it("supports simple and custom tooltip content", () => {
+    const tooltipHosts = fixture.debugElement.queryAll(By.css("isumi-tooltip"));
+    const simpleTooltip = tooltipHosts[0].nativeElement as HTMLElement;
+    const customTooltip = tooltipHosts[1].nativeElement as HTMLElement;
+
+    expect(simpleTooltip.querySelector("[role='tooltip']")?.textContent).toContain("Texto simples");
+    expect(simpleTooltip.querySelector("[data-testid='simple-tooltip-trigger']")).not.toBeNull();
+    expect(customTooltip.querySelector("[role='tooltip']")?.textContent).toContain("Alt");
+    expect(customTooltip.querySelector("[role='tooltip']")?.querySelector("[data-testid='custom-tooltip-content']")).not.toBeNull();
+    expect(customTooltip.querySelector("[data-testid='custom-tooltip-trigger']")).not.toBeNull();
   });
 });

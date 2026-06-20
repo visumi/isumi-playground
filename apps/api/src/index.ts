@@ -1654,7 +1654,7 @@ async function listMonthlyExpenseItems(db: Client, userId: string, monthId: stri
         installment_number, installment_total, expense_type, installment_group_id, created_at, updated_at
       FROM monthly_expense_items
       WHERE user_id = ? AND month_id = ?
-      ORDER BY created_at DESC, id DESC
+      ORDER BY created_at ASC, id ASC
     `,
     args: [userId, monthId]
   });
@@ -2338,7 +2338,7 @@ async function listExpenseItems(db: Client, roomId: string): Promise<ExpenseItem
       SELECT id, room_id, payer_participant_id, description, amount_cents, created_by_user_id, created_at, updated_at
       FROM expense_items
       WHERE room_id = ?
-      ORDER BY created_at DESC
+      ORDER BY created_at ASC, id ASC
     `,
     args: [roomId]
   });

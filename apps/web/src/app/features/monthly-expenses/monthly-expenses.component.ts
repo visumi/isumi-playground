@@ -1,9 +1,10 @@
 import { HttpErrorResponse } from "@angular/common/http";
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from "@angular/core";
+import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import {
   LucideArchive,
   LucideArrowBigRightDash,
+  LucideArrowUp,
   LucideBanknoteArrowUp,
   LucideCalendar,
   LucideCalendarDays,
@@ -739,6 +740,7 @@ export class MonthlyExpenseItemModalComponent {
     IsumiTooltipComponent,
     LucideArchive,
     LucideArrowBigRightDash,
+    LucideArrowUp,
     LucideBanknoteArrowUp,
     LucideCalendar,
     LucideCalendarDays,
@@ -776,6 +778,7 @@ export class MonthlyExpensesComponent implements OnInit {
   private readonly api = inject(MonthlyExpensesService);
   private readonly modal = inject(IsumiModalService);
   private readonly toast = inject(IsumiToastService);
+  private readonly backToTopThreshold = 640;
   private currentDetailRequestId: string | null = null;
   private currentPendingRequestId: string | null = null;
 
@@ -786,6 +789,7 @@ export class MonthlyExpensesComponent implements OnInit {
   readonly loading = signal(false);
   readonly loadingPending = signal(false);
   readonly saving = signal(false);
+  readonly showBackToTop = signal(false);
   readonly selectedYear = signal(new Date().getFullYear());
   readonly selectedMonth = signal(new Date().getMonth() + 1);
   readonly income = signal("");
@@ -856,7 +860,39 @@ export class MonthlyExpensesComponent implements OnInit {
   );
 
   ngOnInit(): void {
+    this.updateBackToTopVisibility();
     this.loadMonths();
+  }
+
+  @HostListener("window:scroll")
+  onWindowScroll(): void {
+    this.updateBackToTopVisibility();
+  }
+
+  @HostListener("window:keydown", ["$event"])
+  onWindowKeydown(event: KeyboardEvent): void {
+    if (!this.isAddExpenseShortcut(event)) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (this.modal.hasOpenModals() || this.catalogModalOpen() || this.expenseModalOpen()) {
+      return;
+    }
+
+    if (!this.detail()) {
+      return;
+    }
+
+    if (this.activeCategories().length === 0 || this.activePaymentMethods().length === 0) {
+      this.toast.error("Crie uma categoria e um pagamento antes de adicionar gastos.", {
+        id: "monthly-expense-shortcut-catalog-required"
+      });
+      return;
+    }
+
+    this.openExpenseModal();
   }
 
   loadMonths(): void {
@@ -1229,6 +1265,11 @@ export class MonthlyExpensesComponent implements OnInit {
     return formatBrl(amountCents);
   }
 
+  scrollToTop(): void {
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    window.scrollTo({ top: 0, behavior });
+  }
+
   transactionDateLabel(value: string): string {
     const [year, month, day] = value.split("-");
     return year && month && day ? `${day}/${month}/${year}` : value;
@@ -1244,38 +1285,7 @@ export class MonthlyExpensesComponent implements OnInit {
 
   tagTone(color: string): IsumiTagTone {
     const normalized = color.trim().toLowerCase();
-
-    if (/^#(?:[0-9a-f]{3}){1,2}$/.test(normalized)) {
-      const hex = normalized.length === 4
-        ? `#${normalized[1]}${normalized[1]}${normalized[2]}${normalized[2]}${normalized[3]}${normalized[3]}`
-        : normalized;
-      const red = parseInt(hex.slice(1, 3), 16);
-      const green = parseInt(hex.slice(3, 5), 16);
-      const blue = parseInt(hex.slice(5, 7), 16);
-      const hue = this.rgbHue(red, green, blue);
-
-      if (hue < 15 || hue >= 345) {
-        return "red";
-      }
-      if (hue < 70) {
-        return "amber";
-      }
-      if (hue < 165) {
-        return "emerald";
-      }
-      if (hue < 220) {
-        return "blue";
-      }
-      if (hue < 255) {
-        return "indigo";
-      }
-      if (hue < 295) {
-        return "violet";
-      }
-      return "pink";
-    }
-
-    return "slate";
+    return CATALOG_PALETTE.find((option) => option.color === normalized)?.tone ?? "slate";
   }
 
   setIncome(value: string | number): void {
@@ -1402,28 +1412,19 @@ export class MonthlyExpensesComponent implements OnInit {
     };
   }
 
-  private rgbHue(red: number, green: number, blue: number): number {
-    const r = red / 255;
-    const g = green / 255;
-    const b = blue / 255;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const delta = max - min;
-
-    if (delta === 0) {
-      return 0;
+  private updateBackToTopVisibility(): void {
+    const shouldShow = window.scrollY > this.backToTopThreshold;
+    if (this.showBackToTop() !== shouldShow) {
+      this.showBackToTop.set(shouldShow);
     }
+  }
 
-    let hue = 0;
-    if (max === r) {
-      hue = ((g - b) / delta) % 6;
-    } else if (max === g) {
-      hue = (b - r) / delta + 2;
-    } else {
-      hue = (r - g) / delta + 4;
-    }
-
-    return (hue * 60 + 360) % 360;
+  private isAddExpenseShortcut(event: KeyboardEvent): boolean {
+    return event.altKey &&
+      !event.metaKey &&
+      !event.shiftKey &&
+      !event.repeat &&
+      event.key.toLocaleLowerCase("pt-BR") === "n";
   }
 
   private handleError(error: unknown, fallback: string): void {
