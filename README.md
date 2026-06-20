@@ -174,13 +174,13 @@ O Worker usa `apps/api/wrangler.jsonc`.
 Variáveis públicas configuradas no `wrangler.jsonc`:
 
 - `ALLOWED_ORIGIN`
-- `OWNER_EMAIL`
 
 Secrets obrigatórios no Cloudflare:
 
 - `TURSO_URL`
 - `TURSO_AUTH_TOKEN`
 - `FIREBASE_PROJECT_ID`
+- `OWNER_EMAIL`
 
 Configure os secrets com:
 
@@ -188,6 +188,7 @@ Configure os secrets com:
 npx wrangler secret put TURSO_URL --config apps/api/wrangler.jsonc
 npx wrangler secret put TURSO_AUTH_TOKEN --config apps/api/wrangler.jsonc
 npx wrangler secret put FIREBASE_PROJECT_ID --config apps/api/wrangler.jsonc
+npx wrangler secret put OWNER_EMAIL --config apps/api/wrangler.jsonc
 ```
 
 ## Produção
