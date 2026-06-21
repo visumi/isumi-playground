@@ -1,4 +1,4 @@
-import { createClient, type Client } from "@libsql/client/web";
+import { createClient, type Client, type InStatement } from "@libsql/client/web";
 import { decodeProtectedHeader, importX509, jwtVerify, type JWTPayload } from "jose";
 
 export interface Env {
@@ -561,6 +561,24 @@ function createDatabaseClient(env: Env): Client {
   });
 }
 
+type ExecuteDb = Pick<Client, "execute">;
+type AtomicDb = ExecuteDb & Partial<Pick<Client, "batch">>;
+
+async function executeStatementsAtomically(db: AtomicDb, statements: InStatement[]): Promise<void> {
+  if (statements.length === 0) {
+    return;
+  }
+
+  if (typeof db.batch === "function") {
+    await db.batch(statements, "write");
+    return;
+  }
+
+  for (const statement of statements) {
+    await db.execute(statement);
+  }
+}
+
 async function authenticate(request: Request, env: Env): Promise<AuthIdentity> {
   const header = request.headers.get("Authorization");
   const token = header?.match(/^Bearer\s+(.+)$/i)?.[1];
@@ -864,21 +882,22 @@ async function createExpenseRoom(db: Client, user: AuthUser, payload: { name?: s
   const name = sanitizeRoomName(payload.name);
   const participantName = sanitizeParticipantName(user.name || user.email);
 
-  await db.execute({
-    sql: `
-      INSERT INTO expense_rooms (id, owner_user_id, name, created_at, updated_at)
-      VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `,
-    args: [roomId, user.uid, name]
-  });
-
-  await db.execute({
-    sql: `
-      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'user', 'owner', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `,
-    args: [participantId, roomId, user.uid, participantName]
-  });
+  await executeStatementsAtomically(db, [
+    {
+      sql: `
+        INSERT INTO expense_rooms (id, owner_user_id, name, created_at, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `,
+      args: [roomId, user.uid, name]
+    },
+    {
+      sql: `
+        INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'user', 'owner', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `,
+      args: [participantId, roomId, user.uid, participantName]
+    }
+  ]);
 
   return buildExpenseRoomDetail(db, roomId);
 }
@@ -945,50 +964,54 @@ async function getExpenseRoomDetail(db: Client, user: AuthUser, roomId: string, 
 async function deleteExpenseRoom(db: Client, userId: string, roomId: string): Promise<void> {
   await assertExpenseRoomOwner(db, roomId, userId);
 
-  await db.execute({
-    sql: `
-      DELETE FROM expense_paid_settlements
-      WHERE room_id = ?
-    `,
-    args: [roomId]
-  });
-  await db.execute({
-    sql: `
-      DELETE FROM expense_item_splits
-      WHERE item_id IN (
-        SELECT id
-        FROM expense_items
+  await executeStatementsAtomically(db, [
+    {
+      sql: `
+        DELETE FROM expense_paid_settlements
         WHERE room_id = ?
-      )
-    `,
-    args: [roomId]
-  });
-  await db.execute({
-    sql: "DELETE FROM expense_items WHERE room_id = ?",
-    args: [roomId]
-  });
-  await db.execute({
-    sql: "DELETE FROM expense_participants WHERE room_id = ?",
-    args: [roomId]
-  });
-  await db.execute({
-    sql: "DELETE FROM expense_rooms WHERE id = ?",
-    args: [roomId]
-  });
+      `,
+      args: [roomId]
+    },
+    {
+      sql: `
+        DELETE FROM expense_item_splits
+        WHERE item_id IN (
+          SELECT id
+          FROM expense_items
+          WHERE room_id = ?
+        )
+      `,
+      args: [roomId]
+    },
+    {
+      sql: "DELETE FROM expense_items WHERE room_id = ?",
+      args: [roomId]
+    },
+    {
+      sql: "DELETE FROM expense_participants WHERE room_id = ?",
+      args: [roomId]
+    },
+    {
+      sql: "DELETE FROM expense_rooms WHERE id = ?",
+      args: [roomId]
+    }
+  ]);
 }
 
 async function createGuestParticipant(db: Client, userId: string, roomId: string, payload: ExpenseParticipantInput) {
   await assertExpenseRoomOwner(db, roomId, userId);
   const participantId = crypto.randomUUID();
 
-  await db.execute({
-    sql: `
-      INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, created_at, updated_at)
-      VALUES (?, ?, NULL, ?, 'guest', 'guest', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `,
-    args: [participantId, roomId, sanitizeParticipantName(payload.name)]
-  });
-  await touchExpenseRoom(db, roomId);
+  await executeStatementsAtomically(db, [
+    {
+      sql: `
+        INSERT INTO expense_participants (id, room_id, user_id, name, kind, role, created_at, updated_at)
+        VALUES (?, ?, NULL, ?, 'guest', 'guest', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `,
+      args: [participantId, roomId, sanitizeParticipantName(payload.name)]
+    },
+    touchExpenseRoomStatement(roomId)
+  ]);
 
   return buildExpenseRoomDetail(db, roomId);
 }
@@ -1005,15 +1028,17 @@ async function updateGuestParticipant(db: Client, userId: string, roomId: string
     throw new HttpError(403, "cannot_edit_user_participant");
   }
 
-  await db.execute({
-    sql: `
-      UPDATE expense_participants
-      SET name = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND room_id = ?
-    `,
-    args: [sanitizeParticipantName(payload.name), participantId, roomId]
-  });
-  await touchExpenseRoom(db, roomId);
+  await executeStatementsAtomically(db, [
+    {
+      sql: `
+        UPDATE expense_participants
+        SET name = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND room_id = ?
+      `,
+      args: [sanitizeParticipantName(payload.name), participantId, roomId]
+    },
+    touchExpenseRoomStatement(roomId)
+  ]);
 
   return buildExpenseRoomDetail(db, roomId);
 }
@@ -1028,12 +1053,14 @@ async function deleteExpenseParticipant(db: Client, userId: string, roomId: stri
 
   await assertExpenseParticipantCanBeDeleted(db, roomId, participant);
 
-  await db.execute({
-    sql: "DELETE FROM expense_participants WHERE id = ? AND room_id = ?",
-    args: [participantId, roomId]
-  });
-  await clearPaidSettlements(db, roomId);
-  await touchExpenseRoom(db, roomId);
+  await executeStatementsAtomically(db, [
+    {
+      sql: "DELETE FROM expense_participants WHERE id = ? AND room_id = ?",
+      args: [participantId, roomId]
+    },
+    clearPaidSettlementsStatement(roomId),
+    touchExpenseRoomStatement(roomId)
+  ]);
 }
 
 export async function assertExpenseParticipantCanBeDeleted(
@@ -1074,16 +1101,18 @@ async function createExpenseItem(db: Client, userId: string, roomId: string, pay
   const itemId = crypto.randomUUID();
   const item = await sanitizeExpenseItemInput(db, roomId, payload);
 
-  await db.execute({
-    sql: `
-      INSERT INTO expense_items (id, room_id, payer_participant_id, description, amount_cents, created_by_user_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `,
-    args: [itemId, roomId, item.payerParticipantId, item.description, item.amountCents, userId]
-  });
-  await replaceExpenseItemSplits(db, itemId, item.splits);
-  await clearPaidSettlements(db, roomId);
-  await touchExpenseRoom(db, roomId);
+  await executeStatementsAtomically(db, [
+    {
+      sql: `
+        INSERT INTO expense_items (id, room_id, payer_participant_id, description, amount_cents, created_by_user_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `,
+      args: [itemId, roomId, item.payerParticipantId, item.description, item.amountCents, userId]
+    },
+    ...replaceExpenseItemSplitsStatements(itemId, item.splits),
+    clearPaidSettlementsStatement(roomId),
+    touchExpenseRoomStatement(roomId)
+  ]);
 
   return buildExpenseRoomDetail(db, roomId);
 }
@@ -1093,30 +1122,35 @@ async function updateExpenseItem(db: Client, userId: string, roomId: string, ite
   await assertExpenseItemExists(db, roomId, itemId);
   const item = await sanitizeExpenseItemInput(db, roomId, payload);
 
-  await db.execute({
-    sql: `
-      UPDATE expense_items
-      SET payer_participant_id = ?, description = ?, amount_cents = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND room_id = ?
-    `,
-    args: [item.payerParticipantId, item.description, item.amountCents, itemId, roomId]
-  });
-  await replaceExpenseItemSplits(db, itemId, item.splits);
-  await clearPaidSettlements(db, roomId);
-  await touchExpenseRoom(db, roomId);
+  await executeStatementsAtomically(db, [
+    {
+      sql: `
+        UPDATE expense_items
+        SET payer_participant_id = ?, description = ?, amount_cents = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND room_id = ?
+      `,
+      args: [item.payerParticipantId, item.description, item.amountCents, itemId, roomId]
+    },
+    ...replaceExpenseItemSplitsStatements(itemId, item.splits),
+    clearPaidSettlementsStatement(roomId),
+    touchExpenseRoomStatement(roomId)
+  ]);
 
   return buildExpenseRoomDetail(db, roomId);
 }
 
 async function deleteExpenseItem(db: Client, userId: string, roomId: string, itemId: string): Promise<void> {
   await assertExpenseRoomMember(db, roomId, userId);
+  await assertExpenseItemExists(db, roomId, itemId);
 
-  await db.execute({
-    sql: "DELETE FROM expense_items WHERE id = ? AND room_id = ?",
-    args: [itemId, roomId]
-  });
-  await clearPaidSettlements(db, roomId);
-  await touchExpenseRoom(db, roomId);
+  await executeStatementsAtomically(db, [
+    {
+      sql: "DELETE FROM expense_items WHERE id = ? AND room_id = ?",
+      args: [itemId, roomId]
+    },
+    clearPaidSettlementsStatement(roomId),
+    touchExpenseRoomStatement(roomId)
+  ]);
 }
 
 async function buildExpenseRoomDetail(db: Client, roomId: string) {
@@ -1342,10 +1376,18 @@ async function updateMonthlyExpensePaymentMethod(db: Client, userId: string, met
 }
 
 async function createMonthlyExpenseItem(db: Client, userId: string, monthId: string, payload: MonthlyExpenseItemInput) {
+  const { statements } = await prepareMonthlyExpenseItemInsertStatements(db, userId, monthId, payload);
+  await executeStatementsAtomically(db, statements);
+
+  return getMonthlyExpenseMonthDetail(db, userId, monthId);
+}
+
+async function prepareMonthlyExpenseItemInsertStatements(db: Client, userId: string, monthId: string, payload: MonthlyExpenseItemInput) {
   const month = await assertMonthlyExpenseMonth(db, userId, monthId);
   const item = await sanitizeMonthlyExpenseItemInput(db, userId, payload);
   const installmentAmounts = splitInstallmentAmounts(item.totalPurchaseCents, item.installmentTotal);
   const groupId = crypto.randomUUID();
+  const statements: InStatement[] = [];
 
   for (let index = 0; index < item.installmentTotal; index += 1) {
     const target = addMonths(month.year, month.month, index);
@@ -1353,15 +1395,15 @@ async function createMonthlyExpenseItem(db: Client, userId: string, monthId: str
       ? month
       : await ensureMonthlyExpenseMonthByPeriod(db, userId, target.year, target.month);
 
-    await insertMonthlyExpenseItem(db, userId, targetMonth.id, {
+    statements.push(monthlyExpenseItemInsertStatement(userId, targetMonth.id, {
       ...item,
       amountCents: installmentAmounts[index],
       installmentNumber: index + 1,
       installmentGroupId: groupId
-    });
+    }));
   }
 
-  return getMonthlyExpenseMonthDetail(db, userId, monthId);
+  return { month, statements };
 }
 
 export async function migrateMonthlyFixedExpensesToNextMonth(db: Client, userId: string, monthId: string) {
@@ -1486,8 +1528,7 @@ async function importMonthlyExpenseCsv(db: Client, userId: string, monthId: stri
     return { imported: 0, errors, detail: await getMonthlyExpenseMonthDetail(db, userId, monthId) };
   }
 
-  for (const row of validRows) {
-    await insertMonthlyExpenseItem(db, userId, monthId, {
+  await executeStatementsAtomically(db, validRows.map((row) => monthlyExpenseItemInsertStatement(userId, monthId, {
       description: row.descricao,
       categoryId: row.categoryId,
       paymentMethodId: row.paymentMethodId,
@@ -1497,8 +1538,7 @@ async function importMonthlyExpenseCsv(db: Client, userId: string, monthId: stri
       installmentTotal: row.numero_parcelas,
       expenseType: row.tipo,
       installmentGroupId: crypto.randomUUID()
-    });
-  }
+    })));
 
   return { imported: validRows.length, errors: [], detail: await getMonthlyExpenseMonthDetail(db, userId, monthId) };
 }
@@ -1523,22 +1563,23 @@ async function createMonthlyExpenseIngestToken(db: Client, userId: string) {
   const tokenHash = await hashShortcutToken(token);
   const tokenId = crypto.randomUUID();
 
-  await db.execute({
-    sql: `
-      UPDATE monthly_expense_ingest_tokens
-      SET revoked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = ? AND revoked_at IS NULL
-    `,
-    args: [userId]
-  });
-
-  await db.execute({
-    sql: `
-      INSERT INTO monthly_expense_ingest_tokens (id, user_id, token_hash, token_last4, created_at, updated_at)
-      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `,
-    args: [tokenId, userId, tokenHash, token.slice(-4)]
-  });
+  await executeStatementsAtomically(db, [
+    {
+      sql: `
+        UPDATE monthly_expense_ingest_tokens
+        SET revoked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND revoked_at IS NULL
+      `,
+      args: [userId]
+    },
+    {
+      sql: `
+        INSERT INTO monthly_expense_ingest_tokens (id, user_id, token_hash, token_last4, created_at, updated_at)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `,
+      args: [tokenId, userId, tokenHash, token.slice(-4)]
+    }
+  ]);
 
   return {
     active: true,
@@ -1562,7 +1603,6 @@ async function revokeMonthlyExpenseIngestToken(db: Client, userId: string): Prom
 
 async function createMonthlyExpensePendingFromShortcut(db: Client, request: Request, payload: MonthlyExpenseShortcutPendingInput) {
   const token = await authenticateMonthlyExpenseShortcutToken(db, request);
-  await touchMonthlyExpenseIngestToken(db, token.id);
   const input = sanitizeMonthlyExpenseShortcutPendingInput(payload);
   const existing = input.sourceId ? await findMonthlyExpensePendingBySource(db, token.user_id, input.sourceId) : null;
 
@@ -1574,26 +1614,29 @@ async function createMonthlyExpensePendingFromShortcut(db: Client, request: Requ
   const month = await ensureMonthlyExpenseMonthByPeriod(db, token.user_id, period.year, period.month);
   const pendingId = crypto.randomUUID();
 
-  await db.execute({
-    sql: `
-      INSERT INTO monthly_expense_pending_items (
-        id, user_id, month_id, description, amount_cents, transaction_date, merchant_name,
-        raw_source, source_id, status, created_at, updated_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `,
-    args: [
-      pendingId,
-      token.user_id,
-      month.id,
-      input.description,
-      input.amountCents,
-      input.transactionDate,
-      input.merchantName,
-      JSON.stringify(payload),
-      input.sourceId
-    ]
-  });
+  await executeStatementsAtomically(db, [
+    touchMonthlyExpenseIngestTokenStatement(token.id),
+    {
+      sql: `
+        INSERT INTO monthly_expense_pending_items (
+          id, user_id, month_id, description, amount_cents, transaction_date, merchant_name,
+          raw_source, source_id, status, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `,
+      args: [
+        pendingId,
+        token.user_id,
+        month.id,
+        input.description,
+        input.amountCents,
+        input.transactionDate,
+        input.merchantName,
+        JSON.stringify(payload),
+        input.sourceId
+      ]
+    }
+  ]);
 
   const created = await findMonthlyExpensePendingItem(db, token.user_id, month.id, pendingId, { includeClosed: true });
   if (!created) {
@@ -1603,11 +1646,11 @@ async function createMonthlyExpensePendingFromShortcut(db: Client, request: Requ
   return { pending: mapMonthlyExpensePendingItem(created), duplicate: false };
 }
 
-async function touchMonthlyExpenseIngestToken(db: Client, tokenId: string): Promise<void> {
-  await db.execute({
+function touchMonthlyExpenseIngestTokenStatement(tokenId: string): InStatement {
+  return {
     sql: "UPDATE monthly_expense_ingest_tokens SET last_used_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
     args: [tokenId]
-  });
+  };
 }
 
 async function listMonthlyExpensePendingItems(db: Client, userId: string, monthId: string) {
@@ -1639,7 +1682,7 @@ async function approveMonthlyExpensePendingItem(
     throw new HttpError(404, "not_found");
   }
 
-  const detail = await createMonthlyExpenseItem(db, userId, monthId, {
+  const { statements } = await prepareMonthlyExpenseItemInsertStatements(db, userId, monthId, {
     description: typeof payload.description === "string" && payload.description.trim()
       ? payload.description
       : pending.merchant_name || pending.description,
@@ -1650,16 +1693,19 @@ async function approveMonthlyExpensePendingItem(
     expenseType: payload.expenseType
   });
 
-  await db.execute({
-    sql: `
-      UPDATE monthly_expense_pending_items
-      SET status = 'APPROVED', updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND user_id = ? AND month_id = ? AND status = 'PENDING'
-    `,
-    args: [pendingId, userId, monthId]
-  });
+  await executeStatementsAtomically(db, [
+    ...statements,
+    {
+      sql: `
+        UPDATE monthly_expense_pending_items
+        SET status = 'APPROVED', updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND user_id = ? AND month_id = ? AND status = 'PENDING'
+      `,
+      args: [pendingId, userId, monthId]
+    }
+  ]);
 
-  return detail;
+  return getMonthlyExpenseMonthDetail(db, userId, monthId);
 }
 
 async function dismissMonthlyExpensePendingItem(db: Client, userId: string, monthId: string, pendingId: string): Promise<void> {
@@ -1907,13 +1953,15 @@ async function copyMonthlySimpleFixedExpenses(db: Client, userId: string, source
   );
   let copied = 0;
 
+  const insertStatements: InStatement[] = [];
+
   for (const item of sourceItems.filter(isSimpleMonthlyFixedExpense)) {
     const key = monthlyExpenseSimpleFixedKey(item);
     if (targetKeys.has(key)) {
       continue;
     }
 
-    await insertMonthlyExpenseItem(db, userId, targetMonthId, {
+    insertStatements.push(monthlyExpenseItemInsertStatement(userId, targetMonthId, {
       description: item.description,
       categoryId: item.category_id,
       paymentMethodId: item.payment_method_id,
@@ -1923,10 +1971,12 @@ async function copyMonthlySimpleFixedExpenses(db: Client, userId: string, source
       installmentTotal: 1,
       expenseType: "FIXO",
       installmentGroupId: crypto.randomUUID()
-    });
+    }));
     targetKeys.add(key);
     copied += 1;
   }
+
+  await executeStatementsAtomically(db, insertStatements);
 
   return copied;
 }
@@ -1988,7 +2038,25 @@ async function insertMonthlyExpenseItem(
     installmentGroupId: string;
   }
 ): Promise<void> {
-  await db.execute({
+  await db.execute(monthlyExpenseItemInsertStatement(userId, monthId, item));
+}
+
+function monthlyExpenseItemInsertStatement(
+  userId: string,
+  monthId: string,
+  item: {
+    description: string;
+    categoryId: string;
+    paymentMethodId: string;
+    totalPurchaseCents: number;
+    amountCents: number;
+    installmentNumber: number;
+    installmentTotal: number;
+    expenseType: MonthlyExpenseType;
+    installmentGroupId: string;
+  }
+): InStatement {
+  return {
     sql: `
       INSERT INTO monthly_expense_items (
         id, user_id, month_id, category_id, payment_method_id, description, amount_cents, total_purchase_cents,
@@ -2010,7 +2078,7 @@ async function insertMonthlyExpenseItem(
       item.expenseType,
       item.installmentGroupId
     ]
-  });
+  };
 }
 
 function buildMonthlyExpenseDetail(
@@ -2628,31 +2696,42 @@ async function sanitizeExpenseItemInput(db: Client, roomId: string, payload: Exp
 }
 
 async function replaceExpenseItemSplits(db: Client, itemId: string, splits: Array<{ participantId: string; shareUnits: number }>): Promise<void> {
-  await db.execute({
-    sql: "DELETE FROM expense_item_splits WHERE item_id = ?",
-    args: [itemId]
-  });
+  await executeStatementsAtomically(db, replaceExpenseItemSplitsStatements(itemId, splits));
+}
 
-  for (const split of splits) {
-    await db.execute({
+function replaceExpenseItemSplitsStatements(itemId: string, splits: Array<{ participantId: string; shareUnits: number }>): InStatement[] {
+  return [
+    {
+      sql: "DELETE FROM expense_item_splits WHERE item_id = ?",
+      args: [itemId]
+    },
+    ...splits.map((split) => ({
       sql: "INSERT INTO expense_item_splits (item_id, participant_id, share_units) VALUES (?, ?, ?)",
       args: [itemId, split.participantId, split.shareUnits]
-    });
-  }
+    }))
+  ];
 }
 
 async function touchExpenseRoom(db: Client, roomId: string): Promise<void> {
-  await db.execute({
+  await db.execute(touchExpenseRoomStatement(roomId));
+}
+
+function touchExpenseRoomStatement(roomId: string): InStatement {
+  return {
     sql: "UPDATE expense_rooms SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
     args: [roomId]
-  });
+  };
 }
 
 async function clearPaidSettlements(db: Client, roomId: string): Promise<void> {
-  await db.execute({
+  await db.execute(clearPaidSettlementsStatement(roomId));
+}
+
+function clearPaidSettlementsStatement(roomId: string): InStatement {
+  return {
     sql: "DELETE FROM expense_paid_settlements WHERE room_id = ?",
     args: [roomId]
-  });
+  };
 }
 
 function groupSplitsByItem(splits: ExpenseSplitRow[]): Map<string, ExpenseSplitRow[]> {
