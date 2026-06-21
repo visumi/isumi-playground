@@ -1,3 +1,4 @@
+import { UpperCasePipe } from "@angular/common";
 import { HttpErrorResponse } from "@angular/common/http";
 import { ChangeDetectionStrategy, Component, ElementRef, HostListener, OnInit, afterNextRender, computed, inject, signal, viewChild } from "@angular/core";
 import { FormsModule } from "@angular/forms";
@@ -745,6 +746,7 @@ export class MonthlyExpenseItemModalComponent {
     IsumiSelectDirective,
     IsumiTagComponent,
     IsumiTooltipComponent,
+    UpperCasePipe,
     LucideArchive,
     LucideArrowBigRightDash,
     LucideArrowUp,

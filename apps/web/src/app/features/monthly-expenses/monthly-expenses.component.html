@@ -388,15 +388,13 @@
       <svg icon lucideSearch class="size-5" aria-hidden="true"></svg>
     </isumi-empty-state>
     } @else {
-    <div class="grid overflow-hidden rounded-lg bg-secondary max-lg:overflow-x-auto" role="table"
+    <div class="grid overflow-hidden rounded-lg bg-secondary ring-1 ring-border max-lg:overflow-x-auto" role="table"
       aria-label="Gastos do mês">
       <div
-        class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 px-4 py-3 text-[0.78rem] font-black text-muted-foreground"
+        class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border bg-secondary/95 px-4 py-3 text-[0.75rem] font-black text-muted-foreground"
         role="row">
         <span>Gasto</span>
-        <span>Categoria</span>
-        <span>Pagamento</span>
-        <span>Tipo</span>
+        <span>Classificação</span>
         <span>Parcela</span>
         <span class="text-right">Valor</span>
         <span class="text-right">Ações</span>
@@ -404,24 +402,28 @@
 
       @for (item of filteredItems(); track item.id) {
       <article
-        class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 border-t border-border bg-secondary px-4 py-3"
+        class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border/80 bg-secondary px-4 py-2.5 transition-colors last:border-b-0 hover:bg-card/80"
         role="row">
-        <strong class="truncate">{{ item.description }}</strong>
-        <isumi-tag class="min-w-0" [tone]="tagTone(item.categoryColor)">
-          <span class="truncate">{{ item.categoryName }}</span>
-        </isumi-tag>
-        <isumi-tag class="min-w-0" [tone]="tagTone(item.paymentMethodColor)">
-          <span class="truncate">{{ item.paymentMethodName }}</span>
-        </isumi-tag>
-        <isumi-tag [tone]="typeTagTone(item.expenseType)">{{ typeLabel(item.expenseType) }}</isumi-tag>
-        <span class="grid w-12 justify-items-center gap-1">
-          <isumi-tag tone="secondary">{{ item.installmentNumber }}/{{ item.installmentTotal }}</isumi-tag>
-          <span class="h-1.5 w-full overflow-hidden rounded-full bg-background" aria-hidden="true">
+        <div class="grid min-w-0 gap-1">
+          <strong class="truncate text-[0.95rem] leading-5">{{ item.description | uppercase }}</strong>
+          <isumi-tag size="small" [tone]="typeTagTone(item.expenseType)">{{ typeLabel(item.expenseType) }}</isumi-tag>
+        </div>
+        <div class="flex min-w-0 flex-wrap items-center gap-1.5">
+          <isumi-tag class="min-w-0" size="small" [tone]="tagTone(item.categoryColor)">
+            <span class="truncate">{{ item.categoryName }}</span>
+          </isumi-tag>
+          <isumi-tag class="min-w-0" size="small" [tone]="tagTone(item.paymentMethodColor)">
+            <span class="truncate">{{ item.paymentMethodName }}</span>
+          </isumi-tag>
+        </div>
+        <span class="grid w-14 justify-items-center gap-1">
+          <span class="text-xs font-black tabular-nums text-foreground">{{ item.installmentNumber }}/{{ item.installmentTotal }}</span>
+          <span class="h-1.5 w-full overflow-hidden rounded-full bg-background/80" aria-hidden="true">
             <span class="block h-full rounded-full bg-primary"
               [style.width.%]="item.installmentTotal > 0 ? (item.installmentNumber / item.installmentTotal) * 100 : 0"></span>
           </span>
         </span>
-        <strong class="text-right">{{ money(item.amountCents) }}</strong>
+        <strong class="text-right text-[0.95rem] tabular-nums">{{ money(item.amountCents) }}</strong>
         <span class="flex justify-end gap-1">
           <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Editar gasto" (click)="openExpenseModal(item)">
             <svg icon lucidePencil class="size-4" aria-hidden="true"></svg>
@@ -475,15 +477,13 @@
       <span class="h-9 animate-pulse rounded-sm bg-zinc-950/70"></span>
     </div>
 
-    <div class="grid overflow-hidden rounded-lg bg-secondary max-lg:overflow-x-auto"
+    <div class="grid overflow-hidden rounded-lg bg-secondary ring-1 ring-border max-lg:overflow-x-auto"
       aria-label="Carregando tabela de gastos mensais" role="table">
       <div
-        class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 px-4 py-3"
+        class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border bg-secondary/95 px-4 py-3"
         role="row">
         <span class="h-3 w-14 animate-pulse rounded-sm bg-zinc-900/90"></span>
-        <span class="h-3 w-20 animate-pulse rounded-sm bg-zinc-900/90"></span>
-        <span class="h-3 w-20 animate-pulse rounded-sm bg-zinc-900/90"></span>
-        <span class="h-3 w-12 animate-pulse rounded-sm bg-zinc-900/90"></span>
+        <span class="h-3 w-24 animate-pulse rounded-sm bg-zinc-900/90"></span>
         <span class="h-3 w-14 animate-pulse rounded-sm bg-zinc-900/90"></span>
         <span class="h-3 w-12 justify-self-end animate-pulse rounded-sm bg-zinc-900/90"></span>
         <span class="h-3 w-14 justify-self-end animate-pulse rounded-sm bg-zinc-900/90"></span>
@@ -491,14 +491,18 @@
 
       @for (row of [1, 2, 3, 4]; track row) {
       <article
-        class="grid min-w-[900px] grid-cols-[minmax(180px,1.4fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_100px_80px_120px_84px] items-center gap-3 border-t border-border bg-secondary px-4 py-3"
+        class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border/80 bg-secondary px-4 py-2.5"
         role="row">
-        <span class="h-5 animate-pulse rounded-sm bg-zinc-800/80" [class.w-40]="row === 1" [class.w-56]="row === 2"
-          [class.w-32]="row === 3" [class.w-48]="row === 4"></span>
-        <span class="h-6 w-28 animate-pulse rounded-md bg-zinc-900/90"></span>
-        <span class="h-6 w-24 animate-pulse rounded-md bg-zinc-900/90"></span>
-        <span class="h-7 w-20 animate-pulse rounded-md bg-zinc-900/90"></span>
-        <span class="h-6 w-11 animate-pulse rounded-md bg-zinc-900/90"></span>
+        <span class="grid gap-2">
+          <span class="h-5 animate-pulse rounded-sm bg-zinc-800/80" [class.w-40]="row === 1" [class.w-56]="row === 2"
+            [class.w-32]="row === 3" [class.w-48]="row === 4"></span>
+          <span class="h-6 w-16 animate-pulse rounded-md bg-zinc-900/90"></span>
+        </span>
+        <span class="flex gap-1.5">
+          <span class="h-6 w-24 animate-pulse rounded-md bg-zinc-900/90"></span>
+          <span class="h-6 w-20 animate-pulse rounded-md bg-zinc-900/90"></span>
+        </span>
+        <span class="h-6 w-12 animate-pulse rounded-md bg-zinc-900/90"></span>
         <span class="h-5 w-24 justify-self-end animate-pulse rounded-sm bg-zinc-800/80"></span>
         <span class="h-8 w-16 justify-self-end animate-pulse rounded-sm bg-zinc-900/90"></span>
       </article>
