@@ -388,10 +388,10 @@
       <svg icon lucideSearch class="size-5" aria-hidden="true"></svg>
     </isumi-empty-state>
     } @else {
-    <div class="grid overflow-hidden rounded-lg bg-secondary ring-1 ring-border max-lg:overflow-x-auto" role="table"
+    <div class="grid overflow-hidden rounded-lg bg-background/35 ring-1 ring-border/70 max-lg:overflow-x-auto" role="table"
       aria-label="Gastos do mês">
       <div
-        class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border bg-secondary/95 px-4 py-3 text-[0.75rem] font-black text-muted-foreground"
+        class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border/70 bg-card/70 px-4 py-3 text-[0.75rem] font-black text-muted-foreground"
         role="row">
         <span>Gasto</span>
         <span>Classificação</span>
@@ -402,7 +402,7 @@
 
       @for (item of filteredItems(); track item.id) {
       <article
-        class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border/80 bg-secondary px-4 py-2.5 transition-colors last:border-b-0 hover:bg-card/80"
+        class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border/60 bg-transparent px-4 py-2.5 transition-colors last:border-b-0 hover:bg-secondary/45"
         role="row">
         <div class="grid min-w-0 gap-1">
           <strong class="truncate text-[0.95rem] leading-5">{{ item.description | uppercase }}</strong>
@@ -477,10 +477,10 @@
       <span class="h-9 animate-pulse rounded-sm bg-zinc-950/70"></span>
     </div>
 
-    <div class="grid overflow-hidden rounded-lg bg-secondary ring-1 ring-border max-lg:overflow-x-auto"
+    <div class="grid overflow-hidden rounded-lg bg-background/35 ring-1 ring-border/70 max-lg:overflow-x-auto"
       aria-label="Carregando tabela de gastos mensais" role="table">
       <div
-        class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border bg-secondary/95 px-4 py-3"
+        class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border/70 bg-card/70 px-4 py-3"
         role="row">
         <span class="h-3 w-14 animate-pulse rounded-sm bg-zinc-900/90"></span>
         <span class="h-3 w-24 animate-pulse rounded-sm bg-zinc-900/90"></span>
@@ -491,7 +491,7 @@
 
       @for (row of [1, 2, 3, 4]; track row) {
       <article
-        class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border/80 bg-secondary px-4 py-2.5"
+        class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border/60 bg-transparent px-4 py-2.5"
         role="row">
         <span class="grid gap-2">
           <span class="h-5 animate-pulse rounded-sm bg-zinc-800/80" [class.w-40]="row === 1" [class.w-56]="row === 2"
