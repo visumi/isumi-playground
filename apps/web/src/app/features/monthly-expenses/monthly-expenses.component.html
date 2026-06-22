@@ -326,9 +326,11 @@
             </isumi-button>
             <span tooltip class="inline-flex items-center gap-1.5">
               <span class="text-zinc-100">Atalho</span>
-              <kbd class="rounded bg-zinc-800 px-1.5 py-0.5 text-[0.68rem] leading-none text-zinc-100 ring-1 ring-white/10">Alt</kbd>
+              <kbd
+                class="rounded bg-zinc-800 px-1.5 py-0.5 text-[0.68rem] leading-none text-zinc-100 ring-1 ring-white/10">Alt</kbd>
               <span class="text-zinc-500">+</span>
-              <kbd class="rounded bg-zinc-800 px-1.5 py-0.5 text-[0.68rem] leading-none text-zinc-100 ring-1 ring-white/10">N</kbd>
+              <kbd
+                class="rounded bg-zinc-800 px-1.5 py-0.5 text-[0.68rem] leading-none text-zinc-100 ring-1 ring-white/10">N</kbd>
             </span>
           </isumi-tooltip>
         </span>
@@ -388,8 +390,8 @@
       <svg icon lucideSearch class="size-5" aria-hidden="true"></svg>
     </isumi-empty-state>
     } @else {
-    <div class="grid overflow-hidden rounded-lg bg-background/35 ring-1 ring-border/70 max-lg:overflow-x-auto" role="table"
-      aria-label="Gastos do mês">
+    <div class="grid overflow-hidden rounded-lg bg-background/35 ring-1 ring-border/70 max-lg:overflow-x-auto"
+      role="table" aria-label="Gastos do mês">
       <div
         class="grid min-w-[760px] grid-cols-[minmax(220px,1.7fr)_minmax(240px,1.25fr)_90px_120px_84px] items-center gap-3 border-b border-border/70 bg-card/70 px-4 py-3 text-[0.75rem] font-black text-muted-foreground"
         role="row">
@@ -417,7 +419,8 @@
           </isumi-tag>
         </div>
         <span class="grid w-14 justify-items-center gap-1">
-          <span class="text-xs font-black tabular-nums text-foreground">{{ item.installmentNumber }}/{{ item.installmentTotal }}</span>
+          <span class="text-xs font-black tabular-nums text-foreground">{{ item.installmentNumber }}/{{
+            item.installmentTotal }}</span>
           <span class="h-1.5 w-full overflow-hidden rounded-full bg-background/80" aria-hidden="true">
             <span class="block h-full rounded-full bg-primary"
               [style.width.%]="item.installmentTotal > 0 ? (item.installmentNumber / item.installmentTotal) * 100 : 0"></span>
@@ -513,12 +516,10 @@
 
   @if (showBackToTop()) {
   <div class="fixed bottom-6 right-6 z-40 hidden md:block">
-    <isumi-tooltip label="Voltar ao topo">
-      <isumi-button variant="secondary" iconOnly ariaLabel="Voltar ao topo" (click)="scrollToTop()">
-        <svg icon lucideArrowUp class="size-5" aria-hidden="true"></svg>
-        Voltar ao topo
-      </isumi-button>
-    </isumi-tooltip>
+    <isumi-button variant="secondary" iconOnly ariaLabel="Voltar ao topo" (click)="scrollToTop()">
+      <svg icon lucideArrowUp class="size-5" aria-hidden="true"></svg>
+      Voltar ao topo
+    </isumi-button>
   </div>
   }
 </section>
