@@ -40,6 +40,7 @@ export interface TripFlightInput {
   arrivalAt?: string;
   airline?: string | null;
   flightNumber?: string | null;
+  version?: number;
 }
 
 export interface TripLodgingInput {
@@ -604,6 +605,40 @@ export async function createTripFlight(db: Client, userId: string, roomId: strin
     },
     touchRoom(roomId)
   ]);
+  return getTripSnapshot(db, userId, roomId);
+}
+
+export async function updateTripFlight(
+  db: Client,
+  userId: string,
+  roomId: string,
+  flightId: string,
+  payload: TripFlightInput
+) {
+  await assertTripMember(db, roomId, userId);
+  const version = integer(payload.version, "missing_entity_version", 1, Number.MAX_SAFE_INTEGER);
+  const result = await db.execute({
+    sql: `
+      UPDATE trip_flight_segments SET direction = ?, departure_airport = ?,
+        arrival_airport = ?, departure_at = ?, arrival_at = ?, airline = ?,
+        flight_number = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND room_id = ? AND version = ?
+    `,
+    args: [
+      flightDirection(payload.direction),
+      requiredText(payload.departureAirport, "missing_departure_airport", 12),
+      requiredText(payload.arrivalAirport, "missing_arrival_airport", 12),
+      requiredText(payload.departureAt, "missing_departure_time", 40),
+      requiredText(payload.arrivalAt, "missing_arrival_time", 40),
+      nullableText(payload.airline, 120),
+      nullableText(payload.flightNumber, 30),
+      flightId,
+      roomId,
+      version
+    ]
+  });
+  if (result.rowsAffected === 0) throw new HttpError(409, "entity_version_conflict");
+  await db.execute(touchRoom(roomId));
   return getTripSnapshot(db, userId, roomId);
 }
 

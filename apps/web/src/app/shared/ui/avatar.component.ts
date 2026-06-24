@@ -5,6 +5,9 @@ export type IsumiAvatarSize = "sm" | "md" | "lg";
 @Component({
   selector: "isumi-avatar",
   standalone: true,
+  host: {
+    class: "inline-flex shrink-0 align-middle leading-none"
+  },
   template: `
     <span [class]="avatarClasses()" [attr.title]="name()">
       @if (src()) {

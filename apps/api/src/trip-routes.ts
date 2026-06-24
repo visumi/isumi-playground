@@ -20,6 +20,7 @@ import {
   getTripSnapshot,
   listTripRooms,
   updateTripDayItem,
+  updateTripFlight,
   updateTripPlace,
   updateTripRoom,
   upsertTripPlaceImage,
@@ -203,6 +204,9 @@ export async function handleTripRequest(
     const [, roomId, flightId] = flightMatch;
     if (request.method === "POST" && !flightId) {
       return snapshotResponse(env, roomId, user.uid, await createTripFlight(db, user.uid, roomId, await readJson<TripFlightInput>(request)), 201, corsHeaders);
+    }
+    if (request.method === "PATCH" && flightId) {
+      return snapshotResponse(env, roomId, user.uid, await updateTripFlight(db, user.uid, roomId, flightId, await readJson<TripFlightInput>(request)), 200, corsHeaders);
     }
     if (request.method === "DELETE" && flightId) {
       await deleteTripFlight(db, user.uid, roomId, flightId);

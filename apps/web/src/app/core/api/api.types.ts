@@ -376,6 +376,10 @@ export interface CreateTripFlightRequest {
   flightNumber?: string | null;
 }
 
+export interface UpdateTripFlightRequest extends CreateTripFlightRequest {
+  version: number;
+}
+
 export interface CreateTripLodgingRequest {
   name: string;
   address?: string | null;

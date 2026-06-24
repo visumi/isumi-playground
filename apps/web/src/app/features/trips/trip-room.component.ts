@@ -12,6 +12,8 @@ import {
   LucideBus,
   LucideCalendarDays,
   LucideCar,
+  LucideChevronLeft,
+  LucideChevronRight,
   LucideClock3,
   LucideFiles,
   LucideFootprints,
@@ -19,10 +21,18 @@ import {
   LucideImagePlus,
   LucideLink,
   LucideMapPin,
+  LucideMoveRight,
+  LucidePencil,
   LucidePlane,
+  LucidePlaneLanding,
+  LucidePlaneTakeoff,
   LucidePlus,
   LucideRoute,
+  LucideSave,
+  LucideTicket,
+  LucideTicketsPlane,
   LucideTrash2,
+  LucideUsers,
   LucideWifiOff,
   LucideX
 } from "@lucide/angular";
@@ -31,9 +41,9 @@ import {
   CreateTripFlightRequest,
   TripDay,
   TripDayItem,
+  TripFlightSegment,
   TripPlace,
   TripPlaceCategory,
-  TripSnapshot,
   TripTransportMode
 } from "../../core/api/api.types";
 import { TripsService } from "../../core/api/trips.service";
@@ -44,7 +54,6 @@ import {
   IsumiInputDirective,
   IsumiModalService,
   IsumiSelectDirective,
-  IsumiTagComponent,
   IsumiToastService,
   IsumiTooltipComponent,
   injectIsumiModalData,
@@ -57,6 +66,10 @@ type ItemDragData = { kind: "item"; item: TripDayItem };
 
 interface DeleteTripRoomModalData {
   roomTitle: string;
+}
+
+interface DeleteTripFlightModalData {
+  route: string;
 }
 
 @Component({
@@ -98,6 +111,44 @@ export class DeleteTripRoomModalComponent {
 }
 
 @Component({
+  selector: "isumi-delete-trip-flight-modal",
+  standalone: true,
+  imports: [IsumiButtonComponent, LucideTrash2, LucideX],
+  template: `
+    <div class="grid gap-5">
+      <header class="flex items-start justify-between gap-4">
+        <div>
+          <div class="mb-3 grid size-10 place-items-center rounded-sm bg-destructive/15 text-destructive">
+            <svg lucideTrash2 class="size-5" aria-hidden="true"></svg>
+          </div>
+          <h2 class="m-0 text-[1.2rem] font-black">Excluir voo</h2>
+          <p class="m-0 mt-2 max-w-[52ch] text-sm leading-6 text-muted-foreground">
+            O trecho {{ data?.route || "selecionado" }} será removido do planejamento. Esta ação não pode ser desfeita.
+          </p>
+        </div>
+        <isumi-button class="max-sm:hidden" variant="ghost" size="sm" iconOnly ariaLabel="Fechar confirmação" (click)="modalRef.close(false)">
+          <svg icon lucideX class="size-4" aria-hidden="true"></svg>
+          Fechar
+        </isumi-button>
+      </header>
+
+      <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
+        <isumi-button mobileFull variant="secondary" type="button" (click)="modalRef.close(false)">Cancelar</isumi-button>
+        <isumi-button mobileFull variant="destructive" type="button" (click)="modalRef.close(true)">
+          <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
+          Excluir voo
+        </isumi-button>
+      </footer>
+    </div>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class DeleteTripFlightModalComponent {
+  readonly data = injectIsumiModalData<DeleteTripFlightModalData>();
+  readonly modalRef = injectIsumiModalRef<DeleteTripFlightModalData, boolean>();
+}
+
+@Component({
   selector: "isumi-trip-room",
   standalone: true,
   imports: [
@@ -113,7 +164,6 @@ export class DeleteTripRoomModalComponent {
     IsumiButtonComponent,
     IsumiInputDirective,
     IsumiSelectDirective,
-    IsumiTagComponent,
     IsumiTooltipComponent,
     LucideArrowDown,
     LucideArrowUp,
@@ -121,6 +171,8 @@ export class DeleteTripRoomModalComponent {
     LucideBus,
     LucideCalendarDays,
     LucideCar,
+    LucideChevronLeft,
+    LucideChevronRight,
     LucideClock3,
     LucideFiles,
     LucideFootprints,
@@ -128,16 +180,23 @@ export class DeleteTripRoomModalComponent {
     LucideImagePlus,
     LucideLink,
     LucideMapPin,
+    LucideMoveRight,
+    LucidePencil,
     LucidePlane,
+    LucidePlaneLanding,
+    LucidePlaneTakeoff,
     LucidePlus,
     LucideRoute,
+    LucideSave,
+    LucideTicket,
     LucideTrash2,
+    LucideUsers,
     LucideWifiOff,
+    LucideTicketsPlane,
     LucideX
   ],
   providers: [TripRoomStore],
   templateUrl: "./trip-room.component.html",
-  styleUrl: "./trip-room.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TripRoomComponent implements OnInit, OnDestroy {
@@ -149,7 +208,10 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly roomId = input.required<string>();
   readonly loading = signal(true);
   readonly deletingRoom = signal(false);
+  readonly deletingFlightId = signal<string | null>(null);
+  readonly dayWindowStart = signal(0);
   readonly panel = signal<"place" | "flight" | "lodging" | null>(null);
+  readonly selectedFlight = signal<TripFlightSegment | null>(null);
   readonly selectedItemId = signal<string | null>(null);
   readonly imageUrls = signal<Record<string, string>>({});
   readonly breadcrumbItems = computed(() => [
@@ -180,6 +242,16 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly selectedItem = computed(() =>
     this.store.snapshot()?.items.find((item) => item.id === this.selectedItemId()) || null
   );
+  readonly visibleDays = computed(() => this.store.days().slice(this.dayWindowStart(), this.dayWindowStart() + 3));
+  readonly canShowPreviousDays = computed(() => this.dayWindowStart() > 0);
+  readonly canShowNextDays = computed(() => this.dayWindowStart() + 3 < this.store.days().length);
+  readonly visibleDayRangeLabel = computed(() => {
+    const total = this.store.days().length;
+    if (total === 0) return "Nenhum dia";
+    const start = this.dayWindowStart() + 1;
+    const end = Math.min(start + 2, total);
+    return `${start}–${end} de ${total}`;
+  });
   readonly unscheduledPlaces = computed(() => {
     const scheduled = new Set(this.store.snapshot()?.items.map((item) => item.placeId) || []);
     return this.store.places().filter((place) => !scheduled.has(place.id));
@@ -269,6 +341,15 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.store.moveItem(item, dayId, this.store.itemsForDay(dayId).length);
   }
 
+  showPreviousDays(): void {
+    this.dayWindowStart.update((start) => Math.max(0, start - 1));
+  }
+
+  showNextDays(): void {
+    const maximumStart = Math.max(0, this.store.days().length - 3);
+    this.dayWindowStart.update((start) => Math.min(maximumStart, start + 1));
+  }
+
   openItem(item: TripDayItem): void {
     this.selectedItemId.set(item.id);
     this.editDuration.set(item.durationMinutes);
@@ -339,21 +420,92 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     }
   }
 
-  async createFlight(): Promise<void> {
+  openCreateFlight(): void {
+    this.selectedFlight.set(null);
+    this.flightDirection.set("outbound");
+    this.departureAirport.set("");
+    this.arrivalAirport.set("");
+    this.departureAt.set("");
+    this.arrivalAt.set("");
+    this.airline.set("");
+    this.flightNumber.set("");
+    this.panel.set("flight");
+  }
+
+  openEditFlight(flight: TripFlightSegment): void {
+    this.selectedFlight.set(flight);
+    this.flightDirection.set(flight.direction);
+    this.departureAirport.set(flight.departureAirport);
+    this.arrivalAirport.set(flight.arrivalAirport);
+    this.departureAt.set(flight.departureAt.slice(0, 16));
+    this.arrivalAt.set(flight.arrivalAt.slice(0, 16));
+    this.airline.set(flight.airline || "");
+    this.flightNumber.set(flight.flightNumber || "");
+    this.panel.set("flight");
+  }
+
+  async saveFlight(): Promise<void> {
+    const selectedFlight = this.selectedFlight();
+    const payload: CreateTripFlightRequest = {
+      direction: this.flightDirection(),
+      departureAirport: this.departureAirport().toUpperCase(),
+      arrivalAirport: this.arrivalAirport().toUpperCase(),
+      departureAt: this.departureAt(),
+      arrivalAt: this.arrivalAt(),
+      airline: this.airline(),
+      flightNumber: this.flightNumber()
+    };
+
     try {
-      this.store.setSnapshot(await firstValueFrom(this.trips.createFlight(this.roomId(), {
-        direction: this.flightDirection(),
-        departureAirport: this.departureAirport().toUpperCase(),
-        arrivalAirport: this.arrivalAirport().toUpperCase(),
-        departureAt: this.departureAt(),
-        arrivalAt: this.arrivalAt(),
-        airline: this.airline(),
-        flightNumber: this.flightNumber()
-      })));
+      const snapshot = selectedFlight
+        ? await firstValueFrom(this.trips.updateFlight(this.roomId(), selectedFlight.id, {
+            ...payload,
+            version: selectedFlight.version
+          }))
+        : await firstValueFrom(this.trips.createFlight(this.roomId(), payload));
+      this.store.setSnapshot(snapshot);
       this.panel.set(null);
+      this.selectedFlight.set(null);
+      this.toast.success(selectedFlight ? "Voo atualizado." : "Voo adicionado ao planejamento.");
     } catch {
-      this.toast.error("Confira os dados do voo.");
+      this.toast.error(selectedFlight
+        ? "Não foi possível atualizar o voo. Confira os dados e tente novamente."
+        : "Confira os dados do voo.");
     }
+  }
+
+  async openDeleteFlightModal(flight: TripFlightSegment): Promise<void> {
+    const ref = this.modal.open<DeleteTripFlightModalComponent, DeleteTripFlightModalData, boolean>(
+      DeleteTripFlightModalComponent,
+      {
+        data: { route: `${flight.departureAirport} → ${flight.arrivalAirport}` },
+        ariaLabel: "Confirmar exclusão do voo",
+        closeOnBackdrop: false
+      }
+    );
+
+    if (!await ref.closed) return;
+
+    this.deletingFlightId.set(flight.id);
+    try {
+      await firstValueFrom(this.trips.deleteFlight(this.roomId(), flight.id));
+      await this.reload();
+      this.toast.success("Voo removido do planejamento.");
+    } catch {
+      this.toast.error("Não foi possível excluir o voo.");
+    } finally {
+      this.deletingFlightId.set(null);
+    }
+  }
+
+  flightDuration(flight: TripFlightSegment): string {
+    const durationMinutes = Math.max(
+      0,
+      Math.round((new Date(flight.arrivalAt).getTime() - new Date(flight.departureAt).getTime()) / 60_000)
+    );
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = durationMinutes % 60;
+    return hours ? `${hours}h${minutes ? ` ${minutes}min` : ""}` : `${minutes}min`;
   }
 
   async createLodging(): Promise<void> {

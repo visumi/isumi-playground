@@ -50,6 +50,24 @@ describe("TripsService", () => {
     request.flush({ token: "ticket", expiresInSeconds: 60 });
   });
 
+  it("updates a flight with optimistic concurrency", () => {
+    service.updateFlight("trip-1", "flight-1", {
+      direction: "return",
+      departureAirport: "EZE",
+      arrivalAirport: "GRU",
+      departureAt: "2026-10-16T18:00",
+      arrivalAt: "2026-10-16T20:40",
+      airline: "LATAM",
+      flightNumber: "LA8001",
+      version: 2
+    }).subscribe();
+
+    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/flights/flight-1");
+    expect(request.request.method).toBe("PATCH");
+    expect(request.request.body.version).toBe(2);
+    request.flush({});
+  });
+
   it("accepts a room invite explicitly", () => {
     service.acceptRoom("trip-1").subscribe();
     const request = http.expectOne("http://localhost:8787/tools/trips/trip-1?accept=1");
