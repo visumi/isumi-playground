@@ -2,7 +2,8 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "isumi-playground-api",
   "main": "src/index.ts",
-  "compatibility_date": "2026-06-05",
+  "compatibility_date": "2026-06-23",
+  "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
   },
@@ -14,9 +15,24 @@
       "TURSO_URL",
       "TURSO_AUTH_TOKEN",
       "FIREBASE_PROJECT_ID",
-      "OWNER_EMAIL"
+      "OWNER_EMAIL",
+      "REALTIME_TICKET_SECRET"
     ]
   },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TRIP_ROOM",
+        "class_name": "TripRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-trip-room",
+      "new_sqlite_classes": ["TripRoom"]
+    }
+  ],
   "routes": [
     {
       "pattern": "playground-api.isumi.com.br",

@@ -6,6 +6,8 @@ const env: Env = {
   TURSO_AUTH_TOKEN: "secret",
   FIREBASE_PROJECT_ID: "demo",
   OWNER_EMAIL: "owner@example.com",
+  REALTIME_TICKET_SECRET: "test-secret-at-least-32-characters",
+  TRIP_ROOM: {} as Env["TRIP_ROOM"],
   ALLOWED_ORIGIN: "http://localhost:4200"
 };
 

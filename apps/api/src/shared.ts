@@ -5,7 +5,9 @@ export interface Env {
   TURSO_AUTH_TOKEN: string;
   FIREBASE_PROJECT_ID: string;
   OWNER_EMAIL: string;
+  REALTIME_TICKET_SECRET: string;
   ALLOWED_ORIGIN?: string;
+  TRIP_ROOM: DurableObjectNamespace<import("./trip-room").TripRoom>;
 }
 
 export type AccessRole = "owner" | "member";

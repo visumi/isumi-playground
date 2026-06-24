@@ -248,3 +248,138 @@ export interface MonthlyExpenseFixedMigrationResponse {
   copied: number;
   detail: MonthlyExpenseDetail;
 }
+
+export type TripPlaceCategory = "food" | "culture" | "nightlife" | "nature" | "shopping" | "other";
+export type TripTransportMode = "walk" | "car" | "transit" | "other";
+
+export interface TripRoom {
+  id: string;
+  ownerUserId: string;
+  title: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  timezone: string;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TripMember {
+  userId: string;
+  role: "owner" | "member";
+  email: string;
+  name: string | null;
+  picture: string | null;
+  joinedAt: string;
+}
+
+export interface TripDay {
+  id: string;
+  date: string;
+  position: number;
+}
+
+export interface TripPlace {
+  id: string;
+  name: string;
+  category: TripPlaceCategory;
+  address: string | null;
+  notes: string | null;
+  createdByUserId: string;
+  version: number;
+  hasImage: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TripDayItem {
+  id: string;
+  dayId: string;
+  placeId: string;
+  position: number;
+  durationMinutes: number;
+  transportMode: TripTransportMode | null;
+  transportMinutes: number | null;
+  transportNotes: string | null;
+  transportNeedsReview: boolean;
+  version: number;
+}
+
+export interface TripFlightSegment {
+  id: string;
+  direction: "outbound" | "return" | "other";
+  departureAirport: string;
+  arrivalAirport: string;
+  departureAt: string;
+  arrivalAt: string;
+  airline: string | null;
+  flightNumber: string | null;
+  position: number;
+  version: number;
+}
+
+export interface TripLodging {
+  id: string;
+  name: string;
+  address: string | null;
+  checkInDate: string;
+  checkOutDate: string;
+  notes: string | null;
+  version: number;
+}
+
+export interface TripSnapshot {
+  room: TripRoom;
+  currentMemberRole: "owner" | "member";
+  members: TripMember[];
+  days: TripDay[];
+  places: TripPlace[];
+  items: TripDayItem[];
+  flights: TripFlightSegment[];
+  lodgings: TripLodging[];
+}
+
+export interface CreateTripRequest {
+  title: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  timezone: string;
+}
+
+export interface UpsertTripPlaceRequest {
+  name: string;
+  category: TripPlaceCategory;
+  address?: string | null;
+  notes?: string | null;
+  version?: number;
+}
+
+export interface UpsertTripDayItemRequest {
+  dayId?: string;
+  placeId?: string;
+  durationMinutes: number;
+  transportMode?: TripTransportMode | null;
+  transportMinutes?: number | null;
+  transportNotes?: string | null;
+  version?: number;
+}
+
+export interface CreateTripFlightRequest {
+  direction: "outbound" | "return" | "other";
+  departureAirport: string;
+  arrivalAirport: string;
+  departureAt: string;
+  arrivalAt: string;
+  airline?: string | null;
+  flightNumber?: string | null;
+}
+
+export interface CreateTripLodgingRequest {
+  name: string;
+  address?: string | null;
+  checkInDate: string;
+  checkOutDate: string;
+  notes?: string | null;
+}

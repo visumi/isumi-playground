@@ -21,6 +21,11 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: "tools/trips/:roomId",
+    loadComponent: () => import("./features/trips/trip-invite.component").then((module) => module.TripInviteComponent),
+    canActivate: [authGuard]
+  },
+  {
     path: "",
     component: ShellComponent,
     canActivate: [authGuard],
@@ -30,7 +35,15 @@ export const routes: Routes = [
       { path: "admin/access", component: AccessAdminComponent, canActivate: [ownerGuard] },
       { path: "tools/monthly-expenses", component: MonthlyExpensesComponent },
       { path: "tools/expenses", component: ExpenseRoomsComponent },
-      { path: "tools/expenses/:roomId/room", component: ExpenseRoomComponent }
+      { path: "tools/expenses/:roomId/room", component: ExpenseRoomComponent },
+      {
+        path: "tools/trips",
+        loadComponent: () => import("./features/trips/trips.component").then((module) => module.TripsComponent)
+      },
+      {
+        path: "tools/trips/:roomId/room",
+        loadComponent: () => import("./features/trips/trip-room.component").then((module) => module.TripRoomComponent)
+      }
     ]
   },
   { path: "**", redirectTo: "dashboard" }

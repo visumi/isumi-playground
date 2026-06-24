@@ -1,0 +1,109 @@
+<section class="grid gap-6" aria-labelledby="trips-title">
+  <isumi-page-header eyebrow="Ferramenta" title="Planejar viagens" titleId="trips-title" />
+
+  <section class="grid gap-4 rounded-lg bg-card p-4 text-card-foreground shadow-2xl shadow-black/10" aria-labelledby="create-trip-title">
+    <div class="flex items-start justify-between gap-4 max-md:grid">
+      <div class="grid gap-1">
+        <h2 id="create-trip-title" class="m-0 inline-flex items-center gap-2 text-[1.15rem] font-black">
+          <span class="grid size-8 place-items-center rounded-md bg-primary/15 text-primary" aria-hidden="true">
+            <svg lucideRoute class="size-4"></svg>
+          </span>
+          Criar plano
+        </h2>
+        <p class="m-0 text-sm leading-6 text-muted-foreground">
+          Defina destino e período para abrir uma sala de planejamento compartilhada.
+        </p>
+      </div>
+
+      @if (!loading()) {
+        <isumi-tag tone="primary">{{ rooms().length }} plano(s)</isumi-tag>
+      } @else {
+        <div class="h-6 w-24 animate-pulse rounded-md bg-muted" aria-label="Carregando quantidade de planos"></div>
+      }
+    </div>
+
+    <div class="flex justify-end max-sm:block">
+      <isumi-button fullWidth type="button" [loading]="creating()" (click)="openCreateModal()">
+        <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
+        Novo plano
+      </isumi-button>
+    </div>
+  </section>
+
+  <section class="grid gap-3" aria-labelledby="rooms-title">
+    <div class="flex items-end justify-between gap-4 max-sm:flex-col max-sm:items-start">
+      <div>
+        <h2 id="rooms-title" class="m-0 text-[1.15rem] font-black">Seus planos</h2>
+        <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">
+          Continue um roteiro aberto ou crie um novo acima.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 max-sm:grid-cols-1" aria-live="polite">
+      @if (loading()) {
+        @for (placeholder of [1, 2, 3]; track placeholder) {
+          <div class="grid min-h-[16rem] gap-8 rounded-lg bg-card p-5 shadow-2xl shadow-black/10" aria-label="Carregando planos">
+            <div class="grid h-full content-between gap-8">
+              <div class="grid gap-5">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="h-7 w-28 animate-pulse rounded-md bg-muted"></div>
+                  <div class="size-10 animate-pulse rounded-md bg-muted"></div>
+                </div>
+                <div class="grid gap-2">
+                  <div class="h-8 w-3/5 animate-pulse rounded-sm bg-muted"></div>
+                  <div class="h-5 w-4/5 animate-pulse rounded-sm bg-muted"></div>
+                </div>
+              </div>
+              <div class="h-4 w-28 animate-pulse rounded-sm bg-muted"></div>
+            </div>
+          </div>
+        }
+      } @else if (rooms().length === 0) {
+        <isumi-empty-state class="col-span-full" title="Nenhuma plano ainda" description="Crie um plano para começar a montar o roteiro com seu grupo.">
+          <svg icon lucideRoute class="size-5" aria-hidden="true"></svg>
+          <isumi-button action type="button" (click)="openCreateModal()">
+            <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
+            Criar viagem
+          </isumi-button>
+        </isumi-empty-state>
+      } @else {
+        @for (room of rooms(); track room.id) {
+          <a
+            class="group relative grid min-h-[16rem] overflow-hidden rounded-lg bg-card p-5 text-card-foreground no-underline shadow-2xl shadow-black/10 transition-[border-color,background] duration-200 hover:border-purple-400/45 hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            [routerLink]="['/tools/trips', room.id, 'room']"
+          >
+            <div class="relative z-10 grid h-full content-between gap-8">
+              <div class="grid gap-5">
+                <div class="flex items-start justify-between gap-3">
+                  <isumi-tag tone="primary">
+                    <svg icon lucideCalendarDays aria-hidden="true"></svg>
+                    {{ room.startDate | date:"dd/MM/yyyy" }} – {{ room.endDate | date:"dd/MM/yyyy" }}
+                  </isumi-tag>
+                  <span class="grid size-10 place-items-center rounded-md bg-primary/15 text-primary transition-colors group-hover:bg-primary/25" aria-hidden="true">
+                    <svg lucideRoute class="size-5"></svg>
+                  </span>
+                </div>
+
+                <div class="grid min-w-0 gap-2">
+                  <h3 class="m-0 min-w-0 break-words text-[1.65rem] font-black leading-tight tracking-[-0.03em] text-balance">
+                    {{ room.title }}
+                  </h3>
+                  <p class="m-0 flex min-w-0 items-start gap-2 leading-6 text-muted-foreground">
+                    <svg lucideMapPin class="mt-1 size-4 shrink-0" aria-hidden="true"></svg>
+                    <span class="min-w-0 break-words">{{ room.destination }}</span>
+                  </p>
+                </div>
+              </div>
+
+              <strong class="inline-flex items-center gap-2 text-sm font-black text-foreground">
+                Abrir roteiro
+                <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
+              </strong>
+            </div>
+          </a>
+        }
+      }
+    </div>
+  </section>
+</section>

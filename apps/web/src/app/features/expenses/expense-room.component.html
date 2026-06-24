@@ -17,16 +17,20 @@
         </div>
         <div class="flex gap-2 max-md:w-full">
           @if (isOwner()) {
-          <isumi-button iconOnly variant="secondary-destructive" ariaLabel="Excluir sala" [loading]="deletingRoom()"
-            (click)="openDeleteRoomModal()">
-            <svg icon lucideTrash2 class="size-5" aria-hidden="true"></svg>
-            Excluir sala
-          </isumi-button>
+          <isumi-tooltip label="Excluir sala">
+            <isumi-button iconOnly variant="secondary-destructive" ariaLabel="Excluir sala" [loading]="deletingRoom()"
+              (click)="openDeleteRoomModal()">
+              <svg icon lucideTrash2 class="size-5" aria-hidden="true"></svg>
+              Excluir sala
+            </isumi-button>
+          </isumi-tooltip>
           }
-          <isumi-button iconOnly variant="secondary" ariaLabel="Copiar link de convite" (click)="copyInviteUrl()">
-            <svg icon lucideFiles class="size-5" aria-hidden="true"></svg>
-            Copiar link de convite
-          </isumi-button>
+          <isumi-tooltip label="Copiar link de convite">
+            <isumi-button iconOnly variant="secondary" ariaLabel="Copiar link de convite" (click)="copyInviteUrl()">
+              <svg icon lucideFiles class="size-5" aria-hidden="true"></svg>
+              Copiar link de convite
+            </isumi-button>
+          </isumi-tooltip>
           <isumi-button mobileFull [loading]="saving()" [disabled]="state.participants.length === 0"
             (click)="openNewItemModal()">
             <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>

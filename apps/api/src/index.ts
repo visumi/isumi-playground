@@ -63,6 +63,8 @@ import {
   type MonthlyExpenseShortcutPendingInput
 } from "./monthly-expenses";
 import { createDatabaseClient, Env, HttpError } from "./shared";
+import { handleTripRealtimeUpgrade, handleTripRequest } from "./trip-routes";
+export { TripRoom } from "./trip-room";
 
 export { isEmailAllowed, normalizeEmail, resolveAccessDecision } from "./access";
 export {
@@ -83,6 +85,7 @@ export {
   splitInstallmentAmounts
 } from "./monthly-expenses";
 export type { MonthlyExpenseMonthRow } from "./monthly-expenses";
+export { enumerateTripDates, isWebp } from "./trips";
 
 
 const jsonHeaders = { "Content-Type": "application/json; charset=utf-8" };
@@ -101,6 +104,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
   try {
     const url = new URL(request.url);
+
+    const realtimeResponse = await handleTripRealtimeUpgrade(request, env);
+    if (realtimeResponse) {
+      return realtimeResponse;
+    }
 
     if (request.method === "GET" && url.pathname === "/health") {
       return json({ ok: true, service: "isumi-playground-api" }, 200, corsHeaders);
@@ -125,6 +133,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
 
     await upsertUser(db, user);
+
+    const tripResponse = await handleTripRequest(request, env, db, user, corsHeaders);
+    if (tripResponse) {
+      return tripResponse;
+    }
 
     if (url.pathname === "/admin/access-users") {
       requireOwner(user);

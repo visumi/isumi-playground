@@ -81,7 +81,10 @@ function monthlyExpenseMigrationDb(initialMonths: MonthlyExpenseMonthRow[], init
         }
 
         if (sql.includes("FROM monthly_expense_months") && sql.includes("ORDER BY year DESC, month DESC")) {
-          const [userId, year, repeatedYear, month] = args;
+          const [userId, yearValue, repeatedYearValue, monthValue] = args;
+          const year = Number(yearValue);
+          const repeatedYear = Number(repeatedYearValue);
+          const month = Number(monthValue);
           return {
             rows: months
               .filter((item) => item.user_id === userId && (item.year < year || (item.year === repeatedYear && item.month < month)))
