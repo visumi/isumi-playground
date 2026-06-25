@@ -20,34 +20,12 @@ const files = readdirSync(migrationsDir)
 
 for (const file of files) {
   const sql = readFileSync(join(migrationsDir, file), "utf8");
-  const statements = sql
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter(Boolean);
-
-  for (const statement of statements) {
-    try {
-      await client.execute(statement);
-    } catch (error) {
-      if (isAlreadyAppliedAlter(statement, error)) {
-        continue;
-      }
-
-      throw error;
-    }
-  }
+  await client.executeMultiple(sql);
 
   console.log(`Applied ${file}`);
 }
 
 await seedAccessGrants();
-
-function isAlreadyAppliedAlter(statement, error) {
-  const message = error instanceof Error ? error.message : String(error);
-
-  return /^ALTER\s+TABLE\b[\s\S]+\bADD\s+COLUMN\b/i.test(statement)
-    && /duplicate column name/i.test(message);
-}
 
 async function seedAccessGrants() {
   const ownerEmail = normalizeEmail(process.env.OWNER_EMAIL);
