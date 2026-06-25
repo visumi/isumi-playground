@@ -24,11 +24,14 @@ export interface TripPlaceInput {
 export interface TripDayItemInput {
   dayId?: string;
   placeId?: string;
-  position?: number;
+}
+
+export interface TripRouteInput {
+  fromItemId?: string;
+  toItemId?: string;
+  transportMode?: TripTransportMode;
   durationMinutes?: number;
-  transportMode?: TripTransportMode | null;
-  transportMinutes?: number | null;
-  transportNotes?: string | null;
+  notes?: string | null;
   version?: number;
 }
 
@@ -140,7 +143,7 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
   const room = roomResult.rows[0] as TripRoomRow | undefined;
   if (!room) throw new HttpError(404, "not_found");
 
-  const [members, days, places, items, flights, lodgings] = await Promise.all([
+  const [members, days, places, items, routes, flights, lodgings] = await Promise.all([
     db.execute({
       sql: `
         SELECT m.user_id, m.role, m.joined_at, u.email, u.name, u.picture
@@ -152,19 +155,23 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
     db.execute({ sql: "SELECT id, date, position FROM trip_days WHERE room_id = ? ORDER BY position", args: [roomId] }),
     db.execute({
       sql: `
-        SELECT p.id, p.name, p.category, p.address, p.notes, p.created_by_user_id,
-               p.version, p.created_at, p.updated_at,
-               CASE WHEN i.place_id IS NULL THEN 0 ELSE 1 END AS has_image
-        FROM trip_places p LEFT JOIN trip_place_images i ON i.place_id = p.id
-        WHERE p.room_id = ? ORDER BY p.created_at, p.id
+        SELECT id, name, category, address, notes, created_by_user_id,
+               version, created_at, updated_at
+        FROM trip_places WHERE room_id = ? ORDER BY created_at, id
       `,
       args: [roomId]
     }),
     db.execute({
       sql: `
-        SELECT id, day_id, place_id, position, duration_minutes, transport_mode,
-               transport_minutes, transport_notes, version
+        SELECT id, day_id, place_id, position, version
         FROM trip_day_items WHERE room_id = ? ORDER BY day_id, position
+      `,
+      args: [roomId]
+    }),
+    db.execute({
+      sql: `
+        SELECT id, from_item_id, to_item_id, transport_mode, duration_minutes, notes, version
+        FROM trip_routes WHERE room_id = ? ORDER BY created_at, id
       `,
       args: [roomId]
     }),
@@ -209,7 +216,6 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       notes: row.notes ? String(row.notes) : null,
       createdByUserId: String(row.created_by_user_id),
       version: Number(row.version),
-      hasImage: Number(row.has_image) === 1,
       createdAt: toUtcIsoTimestamp(String(row.created_at)),
       updatedAt: toUtcIsoTimestamp(String(row.updated_at))
     })),
@@ -218,10 +224,15 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       dayId: String(row.day_id),
       placeId: String(row.place_id),
       position: Number(row.position),
+      version: Number(row.version)
+    })),
+    routes: routes.rows.map((row) => ({
+      id: String(row.id),
+      fromItemId: String(row.from_item_id),
+      toItemId: String(row.to_item_id),
+      transportMode: String(row.transport_mode),
       durationMinutes: Number(row.duration_minutes),
-      transportMode: row.transport_mode ? String(row.transport_mode) : null,
-      transportMinutes: row.transport_minutes === null ? null : Number(row.transport_minutes),
-      transportNotes: row.transport_notes ? String(row.transport_notes) : null,
+      notes: row.notes ? String(row.notes) : null,
       version: Number(row.version)
     })),
     flights: flights.rows.map((row) => ({
@@ -349,72 +360,17 @@ export async function updateTripPlace(db: Client, userId: string, roomId: string
 export async function deleteTripPlace(db: Client, userId: string, roomId: string, placeId: string): Promise<void> {
   await assertTripMember(db, roomId, userId);
   await executeStatementsAtomically(db, [
+    {
+      sql: `
+        DELETE FROM trip_routes
+        WHERE room_id = ? AND (
+          from_item_id IN (SELECT id FROM trip_day_items WHERE place_id = ? AND room_id = ?)
+          OR to_item_id IN (SELECT id FROM trip_day_items WHERE place_id = ? AND room_id = ?)
+        )
+      `,
+      args: [roomId, placeId, roomId, placeId, roomId]
+    },
     { sql: "DELETE FROM trip_places WHERE id = ? AND room_id = ?", args: [placeId, roomId] },
-    touchRoom(roomId)
-  ]);
-}
-
-export async function upsertTripPlaceImage(
-  db: Client,
-  userId: string,
-  roomId: string,
-  placeId: string,
-  data: Uint8Array,
-  contentType: string
-): Promise<void> {
-  await assertTripMember(db, roomId, userId);
-  if (contentType !== "image/webp") throw new HttpError(415, "image_must_be_webp");
-  if (data.byteLength === 0 || data.byteLength > 1_048_576) throw new HttpError(413, "image_too_large");
-  if (!isWebp(data)) throw new HttpError(400, "invalid_webp");
-  const place = await db.execute({ sql: "SELECT id FROM trip_places WHERE id = ? AND room_id = ?", args: [placeId, roomId] });
-  if (place.rows.length === 0) throw new HttpError(404, "not_found");
-
-  await executeStatementsAtomically(db, [
-    {
-      sql: `
-        INSERT INTO trip_place_images (place_id, content_type, byte_size, data, updated_at)
-        VALUES (?, 'image/webp', ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(place_id) DO UPDATE SET byte_size = excluded.byte_size,
-          data = excluded.data, updated_at = CURRENT_TIMESTAMP
-      `,
-      args: [placeId, data.byteLength, data]
-    },
-    { sql: "UPDATE trip_places SET version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?", args: [placeId] },
-    touchRoom(roomId)
-  ]);
-}
-
-export async function getTripPlaceImage(db: Client, userId: string, roomId: string, placeId: string) {
-  await assertTripMember(db, roomId, userId);
-  const result = await db.execute({
-    sql: `
-      SELECT i.content_type, i.data
-      FROM trip_place_images i INNER JOIN trip_places p ON p.id = i.place_id
-      WHERE i.place_id = ? AND p.room_id = ? LIMIT 1
-    `,
-    args: [placeId, roomId]
-  });
-  const row = result.rows[0];
-  if (!row) throw new HttpError(404, "not_found");
-  const rawData = row.data;
-  const data = rawData instanceof Uint8Array
-    ? rawData
-    : rawData instanceof ArrayBuffer
-      ? new Uint8Array(rawData)
-      : new Uint8Array();
-  return { contentType: String(row.content_type), data };
-}
-
-export async function deleteTripPlaceImage(db: Client, userId: string, roomId: string, placeId: string): Promise<void> {
-  await assertTripMember(db, roomId, userId);
-  await executeStatementsAtomically(db, [
-    {
-      sql: `
-        DELETE FROM trip_place_images WHERE place_id IN
-          (SELECT id FROM trip_places WHERE id = ? AND room_id = ?)
-      `,
-      args: [placeId, roomId]
-    },
     touchRoom(roomId)
   ]);
 }
@@ -429,16 +385,15 @@ export async function createTripDayItem(db: Client, userId: string, roomId: stri
     {
       sql: `
         INSERT INTO trip_day_items
-          (id, room_id, day_id, place_id, position, duration_minutes)
-        VALUES (?, ?, ?, ?, ?, ?)
+          (id, room_id, day_id, place_id, position)
+        VALUES (?, ?, ?, ?, ?)
       `,
       args: [
         crypto.randomUUID(),
         roomId,
         dayId,
         placeId,
-        position,
-        integer(payload.durationMinutes ?? 60, "invalid_duration", 15, 1440)
+        position
       ]
     },
     touchRoom(roomId)
@@ -446,22 +401,60 @@ export async function createTripDayItem(db: Client, userId: string, roomId: stri
   return getTripSnapshot(db, userId, roomId);
 }
 
-export async function updateTripDayItem(db: Client, userId: string, roomId: string, itemId: string, payload: TripDayItemInput) {
+export async function createTripRoute(db: Client, userId: string, roomId: string, payload: TripRouteInput) {
   await assertTripMember(db, roomId, userId);
+  const fromItemId = requiredText(payload.fromItemId, "missing_route_origin", 64);
+  const toItemId = requiredText(payload.toItemId, "missing_route_destination", 64);
+  await assertAdjacentItems(db, roomId, fromItemId, toItemId);
+  await executeStatementsAtomically(db, [
+    {
+      sql: `
+        INSERT INTO trip_routes
+          (id, room_id, from_item_id, to_item_id, transport_mode, duration_minutes, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      args: [
+        crypto.randomUUID(),
+        roomId,
+        fromItemId,
+        toItemId,
+        requiredTransportMode(payload.transportMode),
+        integer(payload.durationMinutes, "invalid_route_duration", 1, 1440),
+        nullableText(payload.notes, 500)
+      ]
+    },
+    touchRoom(roomId)
+  ]);
+  return getTripSnapshot(db, userId, roomId);
+}
+
+export async function updateTripRoute(
+  db: Client,
+  userId: string,
+  roomId: string,
+  routeId: string,
+  payload: TripRouteInput
+) {
+  await assertTripMember(db, roomId, userId);
+  const existing = await db.execute({
+    sql: "SELECT from_item_id, to_item_id FROM trip_routes WHERE id = ? AND room_id = ?",
+    args: [routeId, roomId]
+  });
+  const route = existing.rows[0];
+  if (!route) throw new HttpError(404, "not_found");
+  await assertAdjacentItems(db, roomId, String(route.from_item_id), String(route.to_item_id));
   const version = integer(payload.version, "missing_entity_version", 1, Number.MAX_SAFE_INTEGER);
   const result = await db.execute({
     sql: `
-      UPDATE trip_day_items SET duration_minutes = ?, transport_mode = ?,
-        transport_minutes = ?, transport_notes = ?,
+      UPDATE trip_routes SET transport_mode = ?, duration_minutes = ?, notes = ?,
         version = version + 1, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND room_id = ? AND version = ?
     `,
     args: [
-      integer(payload.durationMinutes ?? 60, "invalid_duration", 15, 1440),
-      transportMode(payload.transportMode),
-      nullableInteger(payload.transportMinutes, "invalid_transport_duration", 1, 1440),
-      nullableText(payload.transportNotes, 500),
-      itemId,
+      requiredTransportMode(payload.transportMode),
+      integer(payload.durationMinutes, "invalid_route_duration", 1, 1440),
+      nullableText(payload.notes, 500),
+      routeId,
       roomId,
       version
     ]
@@ -480,6 +473,10 @@ export async function deleteTripDayItem(db: Client, userId: string, roomId: stri
   if (!existing.rows[0]) throw new HttpError(404, "not_found");
   const dayId = String(existing.rows[0].day_id);
   await executeStatementsAtomically(db, [
+    {
+      sql: "DELETE FROM trip_routes WHERE room_id = ? AND (from_item_id = ? OR to_item_id = ?)",
+      args: [roomId, itemId, itemId]
+    },
     { sql: "DELETE FROM trip_day_items WHERE id = ? AND room_id = ?", args: [itemId, roomId] },
     ...normalizeDayPositionsStatements(dayId),
     touchRoom(roomId)
@@ -536,35 +533,28 @@ export async function applyTripMoveOperation(db: Client, userId: string, roomId:
   await executeStatementsAtomically(db, [
     {
       sql: `
-        UPDATE trip_day_items SET day_id = ?, position = ?, transport_mode = NULL,
-          transport_minutes = NULL, transport_notes = NULL, transport_needs_review = 0,
+        UPDATE trip_day_items SET day_id = ?, position = ?,
           version = version + 1, updated_at = CURRENT_TIMESTAMP
         WHERE id = ? AND room_id = ? AND version = ?
       `,
       args: [operation.targetDayId, targetPosition, operation.itemId, roomId, operation.entityVersion]
     },
+    ...positionStatements,
     {
       sql: `
-        UPDATE trip_day_items SET transport_mode = NULL, transport_minutes = NULL,
-          transport_notes = NULL, transport_needs_review = 0,
-          version = version + 1, updated_at = CURRENT_TIMESTAMP
-        WHERE room_id = ? AND id <> ? AND (
-          (day_id = ? AND position BETWEEN ? AND ?) OR
-          (day_id = ? AND position BETWEEN ? AND ?)
+        DELETE FROM trip_routes
+        WHERE room_id = ? AND NOT EXISTS (
+          SELECT 1
+          FROM trip_day_items origin
+          INNER JOIN trip_day_items destination
+            ON destination.day_id = origin.day_id
+           AND destination.position = origin.position + 1
+          WHERE origin.id = trip_routes.from_item_id
+            AND destination.id = trip_routes.to_item_id
         )
       `,
-      args: [
-        roomId,
-        operation.itemId,
-        oldDayId,
-        Math.max(0, targetPosition - 1),
-        targetPosition + 1,
-        operation.targetDayId,
-        Math.max(0, targetPosition - 1),
-        targetPosition + 1
-      ]
+      args: [roomId]
     },
-    ...positionStatements,
     {
       sql: "UPDATE trip_rooms SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       args: [roomId]
@@ -714,6 +704,14 @@ export async function updateTripLodging(
   return getTripSnapshot(db, userId, roomId);
 }
 
+export async function deleteTripRoute(db: Client, userId: string, roomId: string, routeId: string): Promise<void> {
+  await assertTripMember(db, roomId, userId);
+  await executeStatementsAtomically(db, [
+    { sql: "DELETE FROM trip_routes WHERE id = ? AND room_id = ?", args: [routeId, roomId] },
+    touchRoom(roomId)
+  ]);
+}
+
 export async function deleteTripLodging(db: Client, userId: string, roomId: string, lodgingId: string): Promise<void> {
   await assertTripMember(db, roomId, userId);
   await executeStatementsAtomically(db, [
@@ -822,6 +820,28 @@ async function assertDayAndPlace(db: Client, roomId: string, dayId: string, plac
   if (place.rows.length === 0) throw new HttpError(400, "invalid_place");
 }
 
+async function assertAdjacentItems(
+  db: Client,
+  roomId: string,
+  fromItemId: string,
+  toItemId: string
+): Promise<void> {
+  const result = await db.execute({
+    sql: `
+      SELECT 1
+      FROM trip_day_items origin
+      INNER JOIN trip_day_items destination
+        ON destination.day_id = origin.day_id
+       AND destination.position = origin.position + 1
+      WHERE origin.id = ? AND destination.id = ?
+        AND origin.room_id = ? AND destination.room_id = ?
+      LIMIT 1
+    `,
+    args: [fromItemId, toItemId, roomId, roomId]
+  });
+  if (result.rows.length === 0) throw new HttpError(400, "route_items_not_adjacent");
+}
+
 export function enumerateTripDates(startDate: string, endDate: string): string[] {
   const dates: string[] = [];
   const current = new Date(`${startDate}T12:00:00Z`);
@@ -865,18 +885,13 @@ function integer(value: unknown, error: string, min: number, max: number): numbe
   return value;
 }
 
-function nullableInteger(value: unknown, error: string, min: number, max: number): number | null {
-  return value === null || value === undefined ? null : integer(value, error, min, max);
-}
-
 function category(value: unknown): TripPlaceCategory {
   return ["food", "culture", "nightlife", "nature", "shopping", "other"].includes(String(value))
     ? value as TripPlaceCategory
     : "other";
 }
 
-function transportMode(value: unknown): TripTransportMode | null {
-  if (value === null || value === undefined || value === "") return null;
+function requiredTransportMode(value: unknown): TripTransportMode {
   if (!["walk", "car", "transit", "other"].includes(String(value))) throw new HttpError(400, "invalid_transport_mode");
   return value as TripTransportMode;
 }
@@ -885,10 +900,4 @@ function flightDirection(value: unknown): "outbound" | "return" | "other" {
   return ["outbound", "return", "other"].includes(String(value))
     ? value as "outbound" | "return" | "other"
     : "other";
-}
-
-export function isWebp(data: Uint8Array): boolean {
-  return data.length >= 12
-    && new TextDecoder().decode(data.slice(0, 4)) === "RIFF"
-    && new TextDecoder().decode(data.slice(8, 12)) === "WEBP";
 }

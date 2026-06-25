@@ -288,7 +288,6 @@ export interface TripPlace {
   notes: string | null;
   createdByUserId: string;
   version: number;
-  hasImage: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -298,10 +297,16 @@ export interface TripDayItem {
   dayId: string;
   placeId: string;
   position: number;
+  version: number;
+}
+
+export interface TripRoute {
+  id: string;
+  fromItemId: string;
+  toItemId: string;
+  transportMode: TripTransportMode;
   durationMinutes: number;
-  transportMode: TripTransportMode | null;
-  transportMinutes: number | null;
-  transportNotes: string | null;
+  notes: string | null;
   version: number;
 }
 
@@ -335,6 +340,7 @@ export interface TripSnapshot {
   days: TripDay[];
   places: TripPlace[];
   items: TripDayItem[];
+  routes: TripRoute[];
   flights: TripFlightSegment[];
   lodgings: TripLodging[];
 }
@@ -358,10 +364,14 @@ export interface UpsertTripPlaceRequest {
 export interface UpsertTripDayItemRequest {
   dayId?: string;
   placeId?: string;
+}
+
+export interface UpsertTripRouteRequest {
+  fromItemId?: string;
+  toItemId?: string;
+  transportMode: TripTransportMode;
   durationMinutes: number;
-  transportMode?: TripTransportMode | null;
-  transportMinutes?: number | null;
-  transportNotes?: string | null;
+  notes?: string | null;
   version?: number;
 }
 

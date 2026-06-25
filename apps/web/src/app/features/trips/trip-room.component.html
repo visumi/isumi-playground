@@ -244,7 +244,7 @@
                 roteiro.</p>
             </div>
             <isumi-button variant="secondary" size="sm" iconOnly ariaLabel="Criar novo lugar" type="button"
-              (click)="panel.set('place')">
+              (click)="openCreatePlace()">
               <svg icon lucidePlus class="size-4"></svg>
               Novo lugar
             </isumi-button>
@@ -297,10 +297,6 @@
               (pointerup)="cancelPreparedPlaceDrag()"
               (pointercancel)="cancelPreparedPlaceDrag()"
               (cdkDragStarted)="startPlaceDrag(place)" (cdkDragEnded)="finishDrag()">
-              @if (imageUrls()[place.id]; as imageUrl) {
-              <img class="h-28 w-full object-cover" [src]="imageUrl" [alt]="'Foto de ' + place.name"
-                (error)="imageFailed(place.id)">
-              }
               <div class="grid gap-3 p-3">
                 <div class="flex items-start gap-2">
                   @if (placeTab() === "unscheduled") {
@@ -309,18 +305,17 @@
                   } @else {
                   <svg lucideMapPin class="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true"></svg>
                   }
-                  <div class="min-w-0 flex-1">
+                  <span
+                    class="grid size-9 shrink-0 place-items-center rounded-md [&_svg]:size-4"
+                    [class]="categoryVisual(place.category).classes">
+                    <ng-container *ngComponentOutlet="categoryVisual(place.category).icon" />
+                  </span>
+                  <button type="button" class="min-w-0 flex-1 text-left" (click)="openEditPlace(place)">
                     <strong class="block truncate text-sm">{{ place.name }}</strong>
                     <span class="mt-1 block truncate text-xs text-muted-foreground">
                       {{ place.address || categoryLabel(place.category) }}
                     </span>
-                  </div>
-                  <label
-                    class="grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                    title="Adicionar foto">
-                    <svg lucideImagePlus class="size-4" aria-hidden="true"></svg>
-                    <input class="sr-only" type="file" accept="image/*" (change)="uploadImage(place, $event)">
-                  </label>
+                  </button>
                 </div>
                 @if (placeTab() === "unscheduled") {
                 <select isumiSelect size="sm" aria-label="Adicionar {{ place.name }} a um dia" #libraryDaySelect
@@ -345,14 +340,12 @@
                 <div
                   class="trip-drag-preview grid cursor-grabbing overflow-hidden rounded-md bg-primary/20 text-popover-foreground shadow-lg ring-2 ring-primary/60"
                   [style.width.px]="dragPreviewWidth()">
-                  @if (imageUrls()[place.id]; as previewImageUrl) {
-                  <img class="h-24 w-full object-cover opacity-90" [src]="previewImageUrl" alt="">
-                  }
                   <div class="flex items-center gap-3 p-3">
                     <div class="flex min-w-0 flex-1 items-center gap-2">
                       <span
-                        class="grid size-8 shrink-0 place-items-center rounded-sm bg-primary text-primary-foreground">
-                        <svg lucideMapPin class="size-4"></svg>
+                        class="grid size-8 shrink-0 place-items-center rounded-sm [&_svg]:size-4"
+                        [class]="categoryVisual(place.category).classes">
+                        <ng-container *ngComponentOutlet="categoryVisual(place.category).icon" />
                       </span>
                       <div class="min-w-0 flex-1">
                         <strong class="block truncate text-sm">{{ place.name }}</strong>
@@ -368,13 +361,20 @@
               <ng-template cdkDragPlaceholder>
                 @if (dropPlaceholderLabel(); as placeholderLabel) {
                 <div
-                  class="trip-drop-placeholder grid w-full shrink-0 place-items-center rounded-md border-2 border-dashed border-primary/65 bg-primary/10 px-3 text-center text-primary"
-                  [class.min-h-20]="activeDropTarget() !== 'library'"
-                  [style.height.px]="activeDropTarget() === 'library' ? libraryDropPlaceholderHeight() : null">
-                  <span class="inline-flex items-center gap-2 text-xs font-extrabold">
-                    <svg lucideMapPin class="size-4"></svg>
-                    {{ placeholderLabel }}
-                  </span>
+                  class="trip-drop-placeholder w-full shrink-0"
+                  [class.p-1]="activeDropTarget() !== 'library'"
+                  [style.height.px]="activeDropTarget() === 'library'
+                    ? libraryDropPlaceholderHeight()
+                    : dragKind() === 'item'
+                      ? itemDragPlaceholderHeight()
+                      : placeDragPlaceholderHeight()">
+                  <div
+                    class="grid h-full place-items-center rounded-md border-2 border-dashed border-primary/65 bg-primary/10 px-3 text-center text-primary">
+                    <span class="inline-flex items-center gap-2 text-xs font-extrabold">
+                      <svg lucideMapPin class="size-4"></svg>
+                      {{ placeholderLabel }}
+                    </span>
+                  </div>
                 </div>
                 } @else {
                 <div class="trip-drop-placeholder w-full opacity-0"
@@ -389,7 +389,7 @@
               [description]="placeTab() === 'unscheduled' ? 'Crie outra parada ou consulte o que já foi planejado.' : 'Escolha um dia para um lugar salvo.'">
               <svg icon lucideMapPin class="size-5"></svg>
             </isumi-empty-state>
-            <isumi-button variant="ghost" size="sm" fullWidth type="button" (click)="panel.set('place')">
+            <isumi-button variant="ghost" size="sm" fullWidth type="button" (click)="openCreatePlace()">
               <svg icon lucidePlus class="size-4"></svg>
               Criar lugar
             </isumi-button>
@@ -494,11 +494,6 @@
                 {{ day.date | date:"EEEE, dd 'de' MMMM" }}
               </h2>
             </div>
-            <span class="inline-flex shrink-0 items-center gap-1.5 pt-1 text-xs text-muted-foreground">
-              <svg lucideClock3 class="size-3.5"></svg>
-              <strong class="text-sm text-foreground">{{ dayTotal(day.id) / 60 | number:"1.0-1" }} h</strong>
-              planejadas
-            </span>
           </header>
 
           @if (lodgingForDay(day); as lodging) {
@@ -515,23 +510,24 @@
             </span>
           </div>
           } @else {
-          <div class="flex w-full items-center gap-3 rounded-md bg-secondary/45 p-3">
-            <span class="grid size-8 shrink-0 place-items-center rounded-sm bg-background text-muted-foreground">
-              <svg lucideBedDouble class="size-4"></svg>
-            </span>
-            <span class="min-w-0 flex-1">
-              <strong class="block text-xs text-foreground">Sem hospedagem neste dia</strong>
-              <span class="mt-0.5 block text-[0.6875rem] text-muted-foreground">Adicione onde o grupo vai dormir</span>
-            </span>
-            <isumi-button variant="primary" size="sm" type="button" (click)="openCreateLodgingForDay(day)">
-              <svg icon lucidePlus class="size-4"></svg>
-              Adicionar
-            </isumi-button>
+          <div class="flex w-full flex-wrap items-center justify-between gap-4 rounded-md bg-secondary/45 px-4 py-3">
+            <div class="flex min-w-0 items-center gap-3">
+              <span class="grid size-10 shrink-0 place-items-center rounded-sm bg-primary/15 text-primary">
+                <svg lucideBedDouble class="size-5" aria-hidden="true"></svg>
+              </span>
+              <div>
+                <strong class="block text-sm">Sem hospedagem neste dia</strong>
+                <p class="m-0 mt-1 text-xs leading-5 text-muted-foreground">
+                  Adicione onde o grupo vai dormir.
+                </p>
+              </div>
+            </div>
           </div>
           }
 
           <div
             class="trip-drop-list relative grid gap-2 overflow-hidden rounded-lg bg-background/65 p-2 ring-primary/45 transition-[min-height,background-color,box-shadow] duration-200"
+            [class.trip-day-drop-list--fixed-entry]="usesFixedDayEntry(day.id)"
             [class.bg-primary/5]="dragKind() !== null"
             [class.ring-1]="dragKind() !== null && activeDropTarget() !== day.id"
             [class.bg-primary/10]="activeDropTarget() === day.id || dropFeedbackDayId() === day.id"
@@ -539,63 +535,69 @@
             [class.min-h-28]="dragKind() !== null"
             [class.ring-primary]="dropFeedbackDayId() === day.id"
             cdkDropList [id]="'trip-new-day-' + day.id" [cdkDropListData]="store.itemsForDay(day.id)"
+            [cdkDropListSortingDisabled]="usesFixedDayEntry(day.id)"
             cdkDropListOrientation="vertical"
             (cdkDropListEntered)="activateDropTarget(day.id)"
             (cdkDropListExited)="deactivateDropTarget(day.id)"
             (cdkDropListSorted)="activateDropTarget(day.id)"
             (cdkDropListDropped)="drop($event, day)">
             @for (item of store.itemsForDay(day.id); track item.id; let index = $index) {
-            <div
-              class="trip-itinerary-drag-item grid min-w-0 gap-2"
+            @if (index > 0 && !dayDragLayoutActive()) {
+            @let previousItem = store.itemsForDay(day.id)[index - 1];
+            @let route = routeBetween(previousItem.id, item.id);
+            <button type="button"
+              class="trip-itinerary-route group/route relative mx-2 flex min-h-10 cursor-pointer items-center gap-2.5 rounded-md px-3 pl-10 text-left text-xs font-bold text-muted-foreground transition-colors duration-200 hover:bg-accent/70 hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+              [class.!pointer-events-none]="dragKind() !== null"
+              [class.!bg-transparent]="dragKind() !== null"
+              [class.!text-muted-foreground]="dragKind() !== null"
+              (click)="openRoute(previousItem, item)">
+              <span
+                class="pointer-events-none absolute -bottom-2 -top-2 left-[1.375rem] w-px -translate-x-1/2 bg-border transition-colors group-hover/route:bg-primary/50"
+                [class.!bg-border]="dragKind() !== null"
+                [class.!bottom-1]="dragKind() !== null"
+                [class.!top-1]="dragKind() !== null"
+                aria-hidden="true"></span>
+              @switch (route?.transportMode) {
+              @case ("walk") { <svg lucideFootprints
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                [class.!text-muted-foreground]="dragKind() !== null"></svg>
+              }
+              @case ("car") { <svg lucideCar
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                [class.!text-muted-foreground]="dragKind() !== null"></svg>
+              }
+              @case ("transit") { <svg lucideBus
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                [class.!text-muted-foreground]="dragKind() !== null"></svg>
+              }
+              @case ("other") { <svg lucideShuffle
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                [class.!text-muted-foreground]="dragKind() !== null"></svg>
+              }
+              @default { <svg lucideLink
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                [class.!text-muted-foreground]="dragKind() !== null"></svg>
+              }
+              }
+              <span>
+                {{ route
+                  ? transportLabel(route.transportMode) + " · " + route.durationMinutes + " min"
+                  : "Definir trajeto" }}
+              </span>
+            </button>
+            }
+            <article
+              class="trip-itinerary-drag-item flex min-w-0 overflow-hidden rounded-md bg-secondary text-secondary-foreground outline-none transition-[box-shadow] duration-200 ease-out focus-within:ring-2 focus-within:ring-primary/65"
               [class.opacity-25]="draggingEntityId() === item.id"
+              [class.ring-2]="editorForItem(item.id)" [class.ring-primary]="editorForItem(item.id)"
               cdkDrag [cdkDragData]="{ kind: 'item', item: item }"
               (cdkDragStarted)="startItemDrag(item)" (cdkDragEnded)="finishDrag()">
-              @if (index > 0) {
-              <button type="button"
-                class="group/route relative mx-2 flex min-h-10 cursor-pointer items-center gap-2.5 rounded-md px-3 pl-10 text-left text-xs font-bold text-muted-foreground transition-colors duration-200 hover:bg-accent/70 hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
-                [class.!pointer-events-none]="dragKind() !== null"
-                [class.!bg-transparent]="dragKind() !== null"
-                [class.!text-muted-foreground]="dragKind() !== null"
-                (click)="openItem(item)">
-                <span
-                  class="absolute -bottom-1 -top-1 left-[1.2rem] w-px bg-border transition-colors group-hover/route:bg-primary/50"
-                  [class.!bg-border]="dragKind() !== null"
-                  aria-hidden="true"></span>
-                @switch (item.transportMode) {
-                @case ("walk") { <svg lucideFootprints
-                  class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
-                  [class.!text-muted-foreground]="dragKind() !== null"></svg>
-                }
-                @case ("car") { <svg lucideCar
-                  class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
-                  [class.!text-muted-foreground]="dragKind() !== null"></svg>
-                }
-                @case ("transit") { <svg lucideBus
-                  class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
-                  [class.!text-muted-foreground]="dragKind() !== null"></svg>
-                }
-                @case ("other") { <svg lucideShuffle
-                  class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
-                  [class.!text-muted-foreground]="dragKind() !== null"></svg>
-                }
-                @default { <svg lucideLink
-                  class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
-                  [class.!text-muted-foreground]="dragKind() !== null"></svg>
-                }
-                }
-                <span>
-                  {{ item.transportMode
-                    ? transportLabel(item.transportMode) + (item.transportMinutes ? " · " + item.transportMinutes + " min" : "")
-                    : "Definir trajeto" }}
-                </span>
-              </button>
-              }
-              <article
-                class="flex min-w-0 overflow-hidden rounded-md bg-secondary text-secondary-foreground outline-none transition-[box-shadow] duration-200 ease-out focus-within:ring-2 focus-within:ring-primary/65"
-                [class.ring-2]="editorForItem(item.id)" [class.ring-primary]="editorForItem(item.id)">
-              @if (imageUrls()[item.placeId]; as imageUrl) {
-              <img class="min-h-24 w-24 shrink-0 object-cover" [src]="imageUrl"
-                [alt]="'Foto de ' + placeById(item.placeId)?.name" (error)="imageFailed(item.placeId)">
+              @if (placeById(item.placeId); as itemPlace) {
+              <span
+                class="grid w-20 shrink-0 place-items-center [&_svg]:size-7"
+                [class]="categoryVisual(itemPlace.category).classes">
+                <ng-container *ngComponentOutlet="categoryVisual(itemPlace.category).icon" />
+              </span>
               }
               <div class="grid min-w-0 flex-1 gap-3 p-3">
                 @if (editorForItem(item.id); as editorName) {
@@ -608,21 +610,23 @@
                     <isumi-button class="mt-0.5 shrink-0 [&_button]:!cursor-grab [&_button]:active:!cursor-grabbing"
                       cdkDragHandle variant="ghost-primary" size="sm" iconOnly ariaLabel="Arrastar parada"
                       (pointerdown)="prepareItemDrag($event)"
+                      (pointerup)="cancelPreparedItemDrag()"
+                      (pointercancel)="cancelPreparedItemDrag()"
                       (click)="$event.stopPropagation()">
                       <svg icon lucideGripVertical class="size-4"></svg>
                       Arrastar parada
                     </isumi-button>
                   <div class="min-w-0 flex-1">
                     <strong class="block truncate text-sm">{{ placeById(item.placeId)?.name }}</strong>
-                    <span class="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <svg lucideClock3 class="size-3.5"></svg>{{ item.durationMinutes }} min no local
+                    <span class="mt-1 block truncate text-xs text-muted-foreground">
+                      {{ placeById(item.placeId)?.address || categoryLabel(placeById(item.placeId)!.category) }}
                     </span>
                   </div>
-                    <isumi-button variant="ghost-primary" size="sm" iconOnly ariaLabel="Editar item"
+                    <isumi-button variant="ghost-primary" size="sm" iconOnly ariaLabel="Editar lugar"
                       (pointerdown)="$event.stopPropagation()"
-                      (click)="$event.stopPropagation(); openItem(item)">
-                    <svg icon lucideRoute class="size-4"></svg>
-                    Editar
+                      (click)="$event.stopPropagation(); openEditPlace(placeById(item.placeId)!, item)">
+                    <svg icon lucidePencil class="size-4"></svg>
+                    Editar lugar
                   </isumi-button>
                 </div>
                 <div class="hidden grid-cols-4 gap-1 max-md:grid">
@@ -644,18 +648,16 @@
                   </select>
                 </div>
               </div>
-              </article>
 
               <ng-template cdkDragPreview>
                 <div
                   class="trip-drag-preview flex cursor-grabbing overflow-hidden rounded-md bg-primary/20 text-popover-foreground shadow-lg ring-2 ring-primary/60"
                   [style.width.px]="dragPreviewWidth()">
-                  @if (imageUrls()[item.placeId]; as previewImageUrl) {
-                  <img class="min-h-20 w-20 shrink-0 object-cover" [src]="previewImageUrl" alt="">
-                  }
                   <div class="flex min-w-0 flex-1 items-center gap-3 p-3">
-                    <span class="grid size-8 shrink-0 place-items-center rounded-sm bg-primary text-primary-foreground">
-                      <svg lucideGripVertical class="size-4"></svg>
+                    <span
+                      class="grid size-8 shrink-0 place-items-center rounded-sm [&_svg]:size-4"
+                      [class]="categoryVisual(placeById(item.placeId)!.category).classes">
+                      <ng-container *ngComponentOutlet="categoryVisual(placeById(item.placeId)!.category).icon" />
                     </span>
                     <div class="min-w-0 flex-1">
                       <strong class="block truncate text-sm">{{ placeById(item.placeId)?.name }}</strong>
@@ -668,20 +670,27 @@
               <ng-template cdkDragPlaceholder>
                 @if (dropPlaceholderLabel(); as placeholderLabel) {
                 <div
-                  class="trip-drop-placeholder grid w-full shrink-0 place-items-center rounded-md border-2 border-dashed border-primary/65 bg-primary/10 px-3 text-center text-primary"
-                  [class.min-h-20]="activeDropTarget() !== 'library'"
-                  [style.height.px]="activeDropTarget() === 'library' ? libraryDropPlaceholderHeight() : null">
-                  <span class="inline-flex items-center gap-2 text-xs font-extrabold">
-                    <svg lucideMapPin class="size-4"></svg>
-                    {{ placeholderLabel }}
-                  </span>
+                  class="trip-drop-placeholder w-full shrink-0"
+                  [class.p-1]="activeDropTarget() !== 'library'"
+                  [style.height.px]="activeDropTarget() === 'library'
+                    ? libraryDropPlaceholderHeight()
+                    : dragKind() === 'item'
+                      ? itemDragPlaceholderHeight()
+                      : placeDragPlaceholderHeight()">
+                  <div
+                    class="grid h-full place-items-center rounded-md border-2 border-dashed border-primary/65 bg-primary/10 px-3 text-center text-primary">
+                    <span class="inline-flex items-center gap-2 text-xs font-extrabold">
+                      <svg lucideMapPin class="size-4"></svg>
+                      {{ placeholderLabel }}
+                    </span>
+                  </div>
                 </div>
                 } @else {
                 <div class="trip-drop-placeholder w-full opacity-0"
                   [style.height.px]="itemDragPlaceholderHeight()" aria-hidden="true"></div>
                 }
               </ng-template>
-            </div>
+            </article>
             } @empty {
             @if (dragKind() === null) {
             <isumi-empty-state class="min-h-44 justify-center" title="Este dia está livre"
@@ -698,7 +707,7 @@
 
 
     @if (panel(); as activePanel) {
-    <div class="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" (click)="panel.set(null)">
+    <div class="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" (click)="closePanel()">
       <section class="grid max-h-[calc(100dvh-2rem)] w-full max-w-xl gap-5 overflow-y-auto rounded-lg bg-popover p-5"
         role="dialog" aria-modal="true" cdkTrapFocus [cdkTrapFocusAutoCapture]="true"
         (click)="$event.stopPropagation()">
@@ -711,7 +720,8 @@
               </span>
               }
               @switch (activePanel) {
-              @case ("place") { Adicionar lugar }
+              @case ("place") { {{ selectedPlace() ? "Editar lugar" : "Adicionar lugar" }} }
+              @case ("route") { {{ selectedRoute() ? "Editar trajeto" : "Definir trajeto" }} }
               @case ("flight") { {{ selectedFlight() ? "Editar voo" : "Adicionar voo" }} }
               @case ("lodging") { {{ selectedLodging() ? "Editar hospedagem" : "Adicionar hospedagem" }} }
               }
@@ -722,13 +732,13 @@
             </p>
             }
           </div>
-          <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Fechar" (click)="panel.set(null)"><svg icon
+          <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Fechar" (click)="closePanel()"><svg icon
               lucideX class="size-4" aria-hidden="true"></svg>Fechar</isumi-button>
         </header>
 
         @switch (activePanel) {
         @case ("place") {
-        <form class="grid gap-4" (ngSubmit)="createPlace()">
+        <form class="grid gap-4" (ngSubmit)="savePlace()">
           <label class="grid gap-2"><span class="text-sm font-bold">Nome</span><input isumiInput name="placeName"
               [ngModel]="placeName()" (ngModelChange)="placeName.set($event)" required
               placeholder="Café Tortoni"></label>
@@ -746,7 +756,57 @@
           <label class="grid gap-2"><span class="text-sm font-bold">Observações</span><textarea isumiInput
               name="placeNotes" rows="3" [ngModel]="placeNotes()"
               (ngModelChange)="placeNotes.set($event)"></textarea></label>
-          <isumi-button type="submit"><svg icon lucidePlus class="size-4"></svg>Salvar lugar</isumi-button>
+          <footer class="flex justify-end gap-2">
+            <isumi-button variant="secondary" type="button" (click)="closePanel()">Cancelar</isumi-button>
+            <isumi-button type="submit">
+              <svg icon lucideSave class="size-4"></svg>
+              {{ selectedPlace() ? "Salvar alterações" : "Salvar lugar" }}
+            </isumi-button>
+          </footer>
+        </form>
+        }
+        @case ("route") {
+        <form class="grid gap-4" (ngSubmit)="saveRoute()">
+          <label class="grid gap-2">
+            <span class="text-sm font-bold">Como chegar</span>
+            <select isumiSelect name="routeTransportMode" [ngModel]="routeTransportMode()"
+              (ngModelChange)="routeTransportMode.set($event)" required>
+              <option value="" disabled>Selecione...</option>
+              <option value="walk">Caminhada</option>
+              <option value="car">Carro</option>
+              <option value="transit">Transporte público</option>
+              <option value="other">Outro</option>
+            </select>
+          </label>
+          <label class="grid gap-2">
+            <span class="text-sm font-bold">Duração do trajeto</span>
+            <input isumiInput type="number" min="1" max="1440" name="routeDurationMinutes"
+              [ngModel]="routeDurationMinutes()" (ngModelChange)="routeDurationMinutes.set($event)"
+              placeholder="Minutos" required>
+          </label>
+          <label class="grid gap-2">
+            <span class="text-sm font-bold">Observação do trajeto</span>
+            <textarea isumiInput name="routeNotes" rows="3" [ngModel]="routeNotes()"
+              (ngModelChange)="routeNotes.set($event)"
+              placeholder="Linha do metrô, ponto de encontro..."></textarea>
+          </label>
+          <footer class="flex justify-between gap-2">
+            @if (selectedRoute()) {
+            <isumi-button variant="ghost-destructive" type="button" (click)="clearRoute()">
+              <svg icon lucideTrash2 class="size-4"></svg>
+              Limpar trajeto
+            </isumi-button>
+            } @else {
+            <span></span>
+            }
+            <div class="flex gap-2">
+              <isumi-button variant="secondary" type="button" (click)="closePanel()">Cancelar</isumi-button>
+              <isumi-button type="submit">
+                <svg icon lucideSave class="size-4"></svg>
+                Salvar trajeto
+              </isumi-button>
+            </div>
+          </footer>
         </form>
         }
         @case ("flight") {
@@ -861,45 +921,6 @@
     </div>
     }
 
-    @if (selectedItem(); as item) {
-    <div class="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" (click)="closeItem()">
-      <form class="grid w-full max-w-lg gap-5 rounded-lg bg-popover p-5" role="dialog" aria-modal="true" cdkTrapFocus
-        [cdkTrapFocusAutoCapture]="true" (ngSubmit)="saveItem()" (click)="$event.stopPropagation()">
-        <header class="flex items-start justify-between gap-3">
-          <div>
-            <h2 class="m-0 text-lg font-black">{{ placeById(item.placeId)?.name }}</h2>
-            <p class="m-0 mt-1 text-sm text-muted-foreground">Ajuste a duração e o deslocamento de chegada.</p>
-          </div>
-          <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Fechar" type="button" (click)="closeItem()"><svg
-              icon lucideX class="size-4"></svg>Fechar</isumi-button>
-        </header>
-        <label class="grid gap-2"><span class="text-sm font-bold">Tempo no local (minutos)</span><input isumiInput
-            type="number" min="15" max="1440" step="15" name="duration" [ngModel]="editDuration()"
-            (ngModelChange)="editDuration.set($event)"></label>
-        <div class="grid grid-cols-2 gap-3">
-          <label class="grid gap-2"><span class="text-sm font-bold">Como chegar</span><select isumiSelect
-              name="transportMode" [ngModel]="editTransportMode()" (ngModelChange)="editTransportMode.set($event)">
-              <option value="">Não definido</option>
-              <option value="walk">Caminhada</option>
-              <option value="car">Carro</option>
-              <option value="transit">Transporte público</option>
-              <option value="other">Outro</option>
-            </select></label>
-          <label class="grid gap-2"><span class="text-sm font-bold">Duração do trajeto</span><input isumiInput
-              type="number" min="1" max="1440" name="transportMinutes" [ngModel]="editTransportMinutes()"
-              (ngModelChange)="editTransportMinutes.set($event)" placeholder="Minutos"></label>
-        </div>
-        <label class="grid gap-2"><span class="text-sm font-bold">Observação do trajeto</span><input isumiInput
-            name="transportNotes" [ngModel]="editTransportNotes()" (ngModelChange)="editTransportNotes.set($event)"
-            placeholder="Linha do metrô, ponto de encontro..."></label>
-        <footer class="flex justify-between gap-2">
-          <isumi-button variant="ghost-destructive" type="button" (click)="removeItem(item)"><svg icon lucideTrash2
-              class="size-4"></svg>Remover do dia</isumi-button>
-          <isumi-button type="submit">Salvar detalhes</isumi-button>
-        </footer>
-      </form>
-    </div>
-    }
   </div>
   }
 </section>

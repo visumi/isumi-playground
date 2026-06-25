@@ -11,7 +11,8 @@ import {
   UpdateTripFlightRequest,
   UpdateTripLodgingRequest,
   UpsertTripDayItemRequest,
-  UpsertTripPlaceRequest
+  UpsertTripPlaceRequest,
+  UpsertTripRouteRequest
 } from "./api.types";
 
 @Injectable({ providedIn: "root" })
@@ -51,32 +52,24 @@ export class TripsService {
     return this.http.delete<void>(`${this.baseUrl}/${roomId}/places/${placeId}`);
   }
 
-  uploadPlaceImage(roomId: string, placeId: string, image: Blob): Observable<void> {
-    return this.http.put<void>(`${this.baseUrl}/${roomId}/places/${placeId}/image`, image, {
-      headers: { "Content-Type": "image/webp" }
-    });
-  }
-
-  imageUrl(roomId: string, placeId: string): string {
-    return `${this.baseUrl}/${roomId}/places/${placeId}/image`;
-  }
-
-  getPlaceImage(roomId: string, placeId: string): Observable<Blob> {
-    return this.http.get(`${this.baseUrl}/${roomId}/places/${placeId}/image`, {
-      responseType: "blob"
-    });
-  }
-
   createItem(roomId: string, payload: UpsertTripDayItemRequest): Observable<TripSnapshot> {
     return this.http.post<TripSnapshot>(`${this.baseUrl}/${roomId}/items`, payload);
   }
 
-  updateItem(roomId: string, itemId: string, payload: UpsertTripDayItemRequest): Observable<TripSnapshot> {
-    return this.http.patch<TripSnapshot>(`${this.baseUrl}/${roomId}/items/${itemId}`, payload);
-  }
-
   deleteItem(roomId: string, itemId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${roomId}/items/${itemId}`);
+  }
+
+  createRoute(roomId: string, payload: UpsertTripRouteRequest): Observable<TripSnapshot> {
+    return this.http.post<TripSnapshot>(`${this.baseUrl}/${roomId}/routes`, payload);
+  }
+
+  updateRoute(roomId: string, routeId: string, payload: UpsertTripRouteRequest): Observable<TripSnapshot> {
+    return this.http.patch<TripSnapshot>(`${this.baseUrl}/${roomId}/routes/${routeId}`, payload);
+  }
+
+  deleteRoute(roomId: string, routeId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${roomId}/routes/${routeId}`);
   }
 
   createFlight(roomId: string, payload: CreateTripFlightRequest): Observable<TripSnapshot> {

@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from "@angular/common";
+import { DatePipe, NgComponentOutlet } from "@angular/common";
 import { CdkTrapFocus } from "@angular/cdk/a11y";
 import {
   CdkDrag,
@@ -17,6 +17,7 @@ import {
   HostListener,
   OnDestroy,
   OnInit,
+  Type,
   ViewChild,
   computed,
   inject,
@@ -38,9 +39,10 @@ import {
   LucideFiles,
   LucideFootprints,
   LucideGripVertical,
-  LucideImagePlus,
+  LucideLandmark,
   LucideLink,
   LucideMapPin,
+  LucideMoonStar,
   LucideMoveRight,
   LucidePencil,
   LucidePlane,
@@ -49,10 +51,13 @@ import {
   LucidePlus,
   LucideRoute,
   LucideSave,
+  LucideShoppingBag,
   LucideShuffle,
   LucideTicket,
   LucideTicketsPlane,
   LucideTrash2,
+  LucideTrees,
+  LucideUtensils,
   LucideUsers,
   LucideWifiOff,
   LucideX
@@ -66,6 +71,7 @@ import {
   TripLodging,
   TripPlace,
   TripPlaceCategory,
+  TripRoute,
   TripTransportMode
 } from "../../core/api/api.types";
 import { TripsService } from "../../core/api/trips.service";
@@ -88,6 +94,19 @@ import { TripRoomStore } from "./trip-room.store";
 type TrayDragData = { kind: "place"; place: TripPlace };
 type ItemDragData = { kind: "item"; item: TripDayItem };
 
+export const PLACE_CATEGORY_VISUALS: Record<TripPlaceCategory, {
+  label: string;
+  icon: Type<unknown>;
+  classes: string;
+}> = {
+  food: { label: "Comer e beber", icon: LucideUtensils, classes: "bg-amber-500/15 text-amber-400" },
+  culture: { label: "Cultura", icon: LucideLandmark, classes: "bg-violet-500/15 text-violet-400" },
+  nightlife: { label: "Vida noturna", icon: LucideMoonStar, classes: "bg-pink-500/15 text-pink-400" },
+  nature: { label: "Natureza", icon: LucideTrees, classes: "bg-emerald-500/15 text-emerald-400" },
+  shopping: { label: "Compras", icon: LucideShoppingBag, classes: "bg-blue-500/15 text-blue-400" },
+  other: { label: "Outro", icon: LucideMapPin, classes: "bg-muted text-muted-foreground" }
+};
+
 interface DeleteTripRoomModalData {
   roomTitle: string;
 }
@@ -109,7 +128,7 @@ interface DeleteTripFlightModalData {
           </div>
           <h2 class="m-0 text-[1.2rem] font-black">Excluir viagem</h2>
           <p class="m-0 mt-2 max-w-[52ch] text-sm leading-6 text-muted-foreground">
-            Isto remove "{{ data?.roomTitle || "esta viagem" }}", incluindo roteiro, lugares, imagens, voos e hospedagens. Esta ação não pode ser desfeita.
+            Isto remove "{{ data?.roomTitle || "esta viagem" }}", incluindo roteiro, lugares, voos e hospedagens. Esta ação não pode ser desfeita.
           </p>
         </div>
         <isumi-button class="max-sm:hidden" variant="ghost" size="sm" iconOnly ariaLabel="Fechar confirmação" (click)="modalRef.close(false)">
@@ -177,7 +196,7 @@ export class DeleteTripFlightModalComponent {
   standalone: true,
   imports: [
     DatePipe,
-    DecimalPipe,
+    NgComponentOutlet,
     CdkTrapFocus,
     FormsModule,
     CdkDrag,
@@ -206,7 +225,6 @@ export class DeleteTripFlightModalComponent {
     LucideFiles,
     LucideFootprints,
     LucideGripVertical,
-    LucideImagePlus,
     LucideLink,
     LucideMapPin,
     LucideMoveRight,
@@ -243,19 +261,24 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly focusedDayId = signal<string | null>(null);
   readonly dayAnimating = signal(false);
   readonly placeTab = signal<"unscheduled" | "scheduled">("unscheduled");
-  readonly panel = signal<"place" | "flight" | "lodging" | null>(null);
+  readonly panel = signal<"place" | "route" | "flight" | "lodging" | null>(null);
+  readonly selectedPlace = signal<TripPlace | null>(null);
   readonly selectedFlight = signal<TripFlightSegment | null>(null);
   readonly selectedLodging = signal<TripLodging | null>(null);
   readonly selectedItemId = signal<string | null>(null);
+  readonly selectedRouteFromItemId = signal<string | null>(null);
+  readonly selectedRouteToItemId = signal<string | null>(null);
   readonly dragKind = signal<"place" | "item" | null>(null);
   readonly draggingEntityId = signal<string | null>(null);
+  readonly draggingSourceDayId = signal<string | null>(null);
+  readonly draggingItemLeftSourceDay = signal(false);
+  readonly dayDragLayoutActive = signal(false);
   readonly activeDropTarget = signal<string | null>(null);
   readonly placeDragPlaceholderHeight = signal(96);
   readonly itemDragPlaceholderHeight = signal(96);
   readonly libraryDropPlaceholderHeight = signal(128);
   readonly dragPreviewWidth = signal(304);
   readonly dropFeedbackDayId = signal<string | null>(null);
-  readonly imageUrls = signal<Record<string, string>>({});
   @ViewChild("placeLibrary") private placeLibrary?: ElementRef<HTMLElement>;
   @ViewChild("dayPanel") private dayPanel?: ElementRef<HTMLElement>;
   readonly breadcrumbItems = computed(() => [
@@ -280,12 +303,11 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly checkInDate = signal("");
   readonly checkOutDate = signal("");
 
-  readonly editDuration = signal(60);
-  readonly editTransportMode = signal<TripTransportMode | "">("");
-  readonly editTransportMinutes = signal<number | null>(null);
-  readonly editTransportNotes = signal("");
-  readonly selectedItem = computed(() =>
-    this.store.snapshot()?.items.find((item) => item.id === this.selectedItemId()) || null
+  readonly routeTransportMode = signal<TripTransportMode | "">("");
+  readonly routeDurationMinutes = signal<number | null>(null);
+  readonly routeNotes = signal("");
+  readonly selectedRoute = computed(() =>
+    this.routeBetween(this.selectedRouteFromItemId(), this.selectedRouteToItemId())
   );
   readonly focusedDay = computed(() =>
     this.store.days().find((day) => day.id === this.focusedDayId()) || this.store.days()[0] || null
@@ -321,7 +343,10 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     if (target === "library") {
       return this.dragKind() === "item" ? "Devolver à biblioteca" : "Manter na biblioteca";
     }
-    return this.dragKind() === "place" ? "Adicionar nesta posição" : "Mover para esta posição";
+    if (this.usesFixedDayEntry(target)) {
+      return this.dragKind() === "place" ? "Adicionar no início do dia" : "Mover para o início do dia";
+    }
+    return "Mover para esta posição";
   });
 
   async ngOnInit(): Promise<void> {
@@ -329,7 +354,6 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       await this.store.load(this.roomId());
       this.initializeDateForms();
       this.focusedDayId.set(this.store.days()[0]?.id || null);
-      await this.loadImages();
       await this.store.connect();
     } catch (error) {
       if (error instanceof HttpErrorResponse && error.status === 403) {
@@ -346,13 +370,20 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.setDocumentDragCursor(false);
     this.store.disconnect();
-    for (const url of Object.values(this.imageUrls())) URL.revokeObjectURL(url);
   }
 
   @HostListener("document:keydown.escape")
   closeOverlays(): void {
-    if (this.selectedItemId()) {
-      this.closeItem();
+    this.closePanel();
+  }
+
+  closePanel(): void {
+    if (this.panel() === "place") {
+      this.closePlaceEditor();
+      return;
+    }
+    if (this.panel() === "route") {
+      this.closeRouteEditor();
       return;
     }
     this.panel.set(null);
@@ -360,13 +391,6 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   placeById(placeId: string): TripPlace | undefined {
     return this.store.places().find((place) => place.id === placeId);
-  }
-
-  dayTotal(dayId: string): number {
-    return this.store.itemsForDay(dayId).reduce(
-      (total, item) => total + item.durationMinutes + (item.transportMinutes || 0),
-      0
-    );
   }
 
   dayNumber(day: TripDay): number {
@@ -402,10 +426,11 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.focusDay(day.id);
     const data = event.item.data as TrayDragData | ItemDragData;
     if (data.kind === "place") {
-      void this.addPlaceToDay(data.place, day.id);
+      void this.addPlaceToDay(data.place, day.id, 0);
       return;
     }
-    this.store.moveItem(data.item, day.id, event.currentIndex);
+    const targetPosition = this.usesFixedDayEntry(day.id) ? 0 : event.currentIndex;
+    this.store.moveItem(data.item, day.id, targetPosition);
     this.showDropFeedback(day.id);
   }
 
@@ -429,8 +454,11 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   startPlaceDrag(place: TripPlace): void {
     this.store.beginLocalDrag();
+    this.dayDragLayoutActive.set(true);
     this.dragKind.set("place");
     this.draggingEntityId.set(place.id);
+    this.draggingSourceDayId.set(null);
+    this.draggingItemLeftSourceDay.set(false);
     this.libraryDropPlaceholderHeight.set(this.placeDragPlaceholderHeight());
     this.activeDropTarget.set("library");
     this.setDocumentDragCursor(true);
@@ -454,6 +482,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   prepareItemDrag(event: PointerEvent): void {
+    this.dayDragLayoutActive.set(true);
     const dragElement = (event.currentTarget as HTMLElement).closest<HTMLElement>(".cdk-drag");
     if (dragElement) {
       const dragBounds = dragElement.getBoundingClientRect();
@@ -462,10 +491,16 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     }
   }
 
+  cancelPreparedItemDrag(): void {
+    if (this.dragKind() === null) this.dayDragLayoutActive.set(false);
+  }
+
   startItemDrag(item: TripDayItem): void {
     this.store.beginLocalDrag();
     this.dragKind.set("item");
     this.draggingEntityId.set(item.id);
+    this.draggingSourceDayId.set(item.dayId);
+    this.draggingItemLeftSourceDay.set(false);
     this.activeDropTarget.set(null);
     this.setDocumentDragCursor(true);
   }
@@ -488,6 +523,12 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   deactivateDropTarget(target: string): void {
+    if (
+      this.dragKind() === "item"
+      && target === this.draggingSourceDayId()
+    ) {
+      this.draggingItemLeftSourceDay.set(true);
+    }
     if (this.activeDropTarget() === target) this.activeDropTarget.set(null);
   }
 
@@ -495,8 +536,11 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.store.endLocalDrag();
     this.dragKind.set(null);
     this.draggingEntityId.set(null);
+    this.draggingSourceDayId.set(null);
+    this.draggingItemLeftSourceDay.set(false);
     this.activeDropTarget.set(null);
     this.setDocumentDragCursor(false);
+    window.setTimeout(() => this.dayDragLayoutActive.set(false), 180);
   }
 
   private setDocumentDragCursor(active: boolean): void {
@@ -518,13 +562,29 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     return Math.max(240, Math.min(width, window.innerWidth - 32));
   }
 
-  async addPlaceToDay(place: TripPlace, dayId: string): Promise<void> {
+  usesFixedDayEntry(dayId: string): boolean {
+    return this.dragKind() === "place"
+      || (
+        this.dragKind() === "item"
+        && (
+          this.draggingSourceDayId() !== dayId
+          || this.draggingItemLeftSourceDay()
+        )
+      );
+  }
+
+  async addPlaceToDay(place: TripPlace, dayId: string, targetPosition?: number): Promise<void> {
     try {
-      this.store.setSnapshot(await firstValueFrom(this.trips.createItem(this.roomId(), {
+      const previousItemIds = new Set(this.store.snapshot()?.items.map((item) => item.id) || []);
+      const snapshot = await firstValueFrom(this.trips.createItem(this.roomId(), {
         dayId,
-        placeId: place.id,
-        durationMinutes: 60
-      })));
+        placeId: place.id
+      }));
+      this.store.setSnapshot(snapshot);
+      if (targetPosition !== undefined) {
+        const createdItem = snapshot.items.find((item) => !previousItemIds.has(item.id));
+        if (createdItem) this.store.moveItem(createdItem, dayId, targetPosition);
+      }
       this.focusDay(dayId);
       this.showDropFeedback(dayId);
     } catch {
@@ -597,75 +657,122 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     }
   }
 
-  openItem(item: TripDayItem): void {
+  openCreatePlace(): void {
+    this.selectedPlace.set(null);
+    this.placeName.set("");
+    this.placeCategory.set("other");
+    this.placeAddress.set("");
+    this.placeNotes.set("");
+    this.panel.set("place");
+  }
+
+  openEditPlace(place: TripPlace, item?: TripDayItem): void {
+    this.selectedPlace.set(place);
+    this.placeName.set(place.name);
+    this.placeCategory.set(place.category);
+    this.placeAddress.set(place.address || "");
+    this.placeNotes.set(place.notes || "");
+    this.panel.set("place");
+    if (!item) return;
     this.focusDay(item.dayId);
     this.selectedItemId.set(item.id);
-    this.editDuration.set(item.durationMinutes);
-    this.editTransportMode.set(item.transportMode || "");
-    this.editTransportMinutes.set(item.transportMinutes);
-    this.editTransportNotes.set(item.transportNotes || "");
     this.store.selectItem(item.id);
   }
 
-  closeItem(): void {
+  closePlaceEditor(): void {
     this.selectedItemId.set(null);
+    this.selectedPlace.set(null);
+    this.panel.set(null);
     this.store.selectItem(null);
   }
 
-  async saveItem(): Promise<void> {
-    const item = this.selectedItem();
-    if (!item) return;
-    try {
-      this.store.setSnapshot(await firstValueFrom(this.trips.updateItem(this.roomId(), item.id, {
-        durationMinutes: Number(this.editDuration()),
-        transportMode: this.editTransportMode() || null,
-        transportMinutes: this.editTransportMinutes() ? Number(this.editTransportMinutes()) : null,
-        transportNotes: this.editTransportNotes(),
-        version: item.version
-      })));
-      this.closeItem();
-    } catch {
-      this.toast.error("Não foi possível salvar os detalhes do roteiro.");
-    }
-  }
-
-  async removeItem(item: TripDayItem): Promise<void> {
-    await firstValueFrom(this.trips.deleteItem(this.roomId(), item.id));
-    await this.reload();
-  }
-
-  async createPlace(): Promise<void> {
+  async savePlace(): Promise<void> {
     if (!this.placeName().trim()) return;
+    const selected = this.selectedPlace();
+    const payload = {
+      name: this.placeName().trim(),
+      category: this.placeCategory(),
+      address: this.placeAddress(),
+      notes: this.placeNotes()
+    };
     try {
-      this.store.setSnapshot(await firstValueFrom(this.trips.createPlace(this.roomId(), {
-        name: this.placeName().trim(),
-        category: this.placeCategory(),
-        address: this.placeAddress(),
-        notes: this.placeNotes()
-      })));
-      this.placeName.set("");
-      this.placeAddress.set("");
-      this.placeNotes.set("");
-      this.panel.set(null);
+      const snapshot = selected
+        ? await firstValueFrom(this.trips.updatePlace(this.roomId(), selected.id, {
+            ...payload,
+            version: selected.version
+          }))
+        : await firstValueFrom(this.trips.createPlace(this.roomId(), payload));
+      this.store.setSnapshot(snapshot);
+      this.closePlaceEditor();
+      this.toast.success(selected ? "Lugar atualizado." : "Lugar salvo na biblioteca.");
     } catch {
-      this.toast.error("Não foi possível salvar o lugar.");
+      this.toast.error(selected ? "Não foi possível atualizar o lugar." : "Não foi possível salvar o lugar.");
     }
   }
 
-  async uploadImage(place: TripPlace, event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
+  routeBetween(fromItemId: string | null, toItemId: string | null): TripRoute | null {
+    if (!fromItemId || !toItemId) return null;
+    return this.store.routes().find((route) =>
+      route.fromItemId === fromItemId && route.toItemId === toItemId
+    ) || null;
+  }
+
+  openRoute(fromItem: TripDayItem, toItem: TripDayItem): void {
+    const route = this.routeBetween(fromItem.id, toItem.id);
+    this.selectedRouteFromItemId.set(fromItem.id);
+    this.selectedRouteToItemId.set(toItem.id);
+    this.routeTransportMode.set(route?.transportMode || "");
+    this.routeDurationMinutes.set(route?.durationMinutes || null);
+    this.routeNotes.set(route?.notes || "");
+    this.panel.set("route");
+  }
+
+  async saveRoute(): Promise<void> {
+    const fromItemId = this.selectedRouteFromItemId();
+    const toItemId = this.selectedRouteToItemId();
+    const transportMode = this.routeTransportMode();
+    const durationMinutes = Number(this.routeDurationMinutes());
+    if (!fromItemId || !toItemId || !transportMode || !durationMinutes) return;
+    const selected = this.selectedRoute();
+    const payload = {
+      fromItemId,
+      toItemId,
+      transportMode,
+      durationMinutes,
+      notes: this.routeNotes()
+    };
     try {
-      const image = await compressToWebp(file);
-      await firstValueFrom(this.trips.uploadPlaceImage(this.roomId(), place.id, image));
-      await this.reload();
-      await this.loadImage(place.id, true);
+      const snapshot = selected
+        ? await firstValueFrom(this.trips.updateRoute(this.roomId(), selected.id, {
+            ...payload,
+            version: selected.version
+          }))
+        : await firstValueFrom(this.trips.createRoute(this.roomId(), payload));
+      this.store.setSnapshot(snapshot);
+      this.closeRouteEditor();
+      this.toast.success(selected ? "Trajeto atualizado." : "Trajeto definido.");
     } catch {
-      this.toast.error("Não foi possível preparar a imagem. Use uma foto menor.");
-    } finally {
-      input.value = "";
+      this.toast.error("Não foi possível salvar o trajeto.");
     }
+  }
+
+  async clearRoute(): Promise<void> {
+    const route = this.selectedRoute();
+    if (!route) return;
+    try {
+      await firstValueFrom(this.trips.deleteRoute(this.roomId(), route.id));
+      await this.reload();
+      this.closeRouteEditor();
+      this.toast.success("Trajeto limpo.");
+    } catch {
+      this.toast.error("Não foi possível limpar o trajeto.");
+    }
+  }
+
+  closeRouteEditor(): void {
+    this.selectedRouteFromItemId.set(null);
+    this.selectedRouteToItemId.set(null);
+    this.panel.set(null);
   }
 
   openCreateFlight(): void {
@@ -895,23 +1002,11 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   categoryLabel(category: TripPlaceCategory): string {
-    return {
-      food: "Comer e beber",
-      culture: "Cultura",
-      nightlife: "Vida noturna",
-      nature: "Natureza",
-      shopping: "Compras",
-      other: "Outro"
-    }[category];
+    return PLACE_CATEGORY_VISUALS[category].label;
   }
 
-  imageFailed(placeId: string): void {
-    this.imageUrls.update((urls) => {
-      if (urls[placeId]) URL.revokeObjectURL(urls[placeId]);
-      const next = { ...urls };
-      delete next[placeId];
-      return next;
-    });
+  categoryVisual(category: TripPlaceCategory) {
+    return PLACE_CATEGORY_VISUALS[category];
   }
 
   transportLabel(mode: TripTransportMode | null): string {
@@ -920,7 +1015,6 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   private async reload(): Promise<void> {
     await this.store.load(this.roomId());
-    await this.loadImages();
   }
 
   private initializeDateForms(): void {
@@ -930,39 +1024,4 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.checkOutDate.set(room.endDate);
   }
 
-  private async loadImages(): Promise<void> {
-    await Promise.all(this.store.places().filter((place) => place.hasImage).map((place) => this.loadImage(place.id)));
-  }
-
-  private async loadImage(placeId: string, replace = false): Promise<void> {
-    if (this.imageUrls()[placeId] && !replace) return;
-    try {
-      const blob = await firstValueFrom(this.trips.getPlaceImage(this.roomId(), placeId));
-      const nextUrl = URL.createObjectURL(blob);
-      this.imageUrls.update((urls) => {
-        if (urls[placeId]) URL.revokeObjectURL(urls[placeId]);
-        return { ...urls, [placeId]: nextUrl };
-      });
-    } catch {
-      // O card continua funcional sem imagem.
-    }
-  }
-}
-
-async function compressToWebp(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("canvas_unavailable");
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-
-  for (const quality of [0.82, 0.72, 0.62, 0.5]) {
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality));
-    if (blob && blob.size <= 1_048_576) return blob;
-  }
-  throw new Error("image_too_large");
 }

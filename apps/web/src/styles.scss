@@ -152,6 +152,10 @@ body {
   display: none;
 }
 
+.trip-day-drop-list--fixed-entry > .cdk-drag-placeholder {
+  order: -1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .trip-drop-list.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder),
   .trip-itinerary-drag-item.cdk-drag-animating,

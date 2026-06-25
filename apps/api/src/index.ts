@@ -85,7 +85,7 @@ export {
   splitInstallmentAmounts
 } from "./monthly-expenses";
 export type { MonthlyExpenseMonthRow } from "./monthly-expenses";
-export { enumerateTripDates, isWebp, lodgingPeriodsOverlap } from "./trips";
+export { enumerateTripDates, lodgingPeriodsOverlap } from "./trips";
 
 
 const jsonHeaders = { "Content-Type": "application/json; charset=utf-8" };

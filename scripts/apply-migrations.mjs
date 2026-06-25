@@ -18,9 +18,26 @@ const files = readdirSync(migrationsDir)
   .filter((file) => file.endsWith(".sql"))
   .sort();
 
+await client.execute(`
+  CREATE TABLE IF NOT EXISTS schema_migrations (
+    filename TEXT PRIMARY KEY,
+    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 for (const file of files) {
+  const applied = await client.execute({
+    sql: "SELECT 1 FROM schema_migrations WHERE filename = ? LIMIT 1",
+    args: [file]
+  });
+  if (applied.rows.length > 0) continue;
+
   const sql = readFileSync(join(migrationsDir, file), "utf8");
   await client.executeMultiple(sql);
+  await client.execute({
+    sql: "INSERT INTO schema_migrations (filename) VALUES (?)",
+    args: [file]
+  });
 
   console.log(`Applied ${file}`);
 }

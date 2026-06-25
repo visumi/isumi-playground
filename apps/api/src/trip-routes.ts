@@ -9,26 +9,26 @@ import {
   createTripFlight,
   createTripLodging,
   createTripPlace,
+  createTripRoute,
   createTripRoom,
   deleteTripDayItem,
   deleteTripFlight,
   deleteTripLodging,
   deleteTripPlace,
-  deleteTripPlaceImage,
+  deleteTripRoute,
   deleteTripRoom,
-  getTripPlaceImage,
   getTripSnapshot,
   listTripRooms,
-  updateTripDayItem,
   updateTripFlight,
   updateTripLodging,
   updateTripPlace,
+  updateTripRoute,
   updateTripRoom,
-  upsertTripPlaceImage,
   type TripDayItemInput,
   type TripFlightInput,
   type TripLodgingInput,
   type TripPlaceInput,
+  type TripRouteInput,
   type TripRoomInput
 } from "./trips";
 
@@ -145,55 +145,31 @@ export async function handleTripRequest(
     }
   }
 
-  const imageMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)\/places\/([^/]+)\/image$/);
-  if (imageMatch) {
-    const [, roomId, placeId] = imageMatch;
-    if (request.method === "GET") {
-      const image = await getTripPlaceImage(db, user.uid, roomId, placeId);
-      const headers = new Headers(corsHeaders);
-      headers.set("Content-Type", image.contentType);
-      headers.set("Cache-Control", "private, max-age=3600");
-      return new Response(image.data, { status: 200, headers });
-    }
-    if (request.method === "PUT") {
-      const contentLength = request.headers.get("Content-Length");
-      const length = Number(contentLength || 0);
-      if (!contentLength || !Number.isFinite(length) || length <= 0) {
-        throw new HttpError(411, "content_length_required");
-      }
-      if (length > 1_048_576) throw new HttpError(413, "image_too_large");
-      const buffer = await request.arrayBuffer();
-      await upsertTripPlaceImage(
-        db,
-        user.uid,
-        roomId,
-        placeId,
-        new Uint8Array(buffer),
-        request.headers.get("Content-Type") || ""
-      );
-      const snapshot = await getTripSnapshot(db, user.uid, roomId);
-      await notifyRoom(env, roomId, snapshot, user.uid);
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
-    if (request.method === "DELETE") {
-      await deleteTripPlaceImage(db, user.uid, roomId, placeId);
-      const snapshot = await getTripSnapshot(db, user.uid, roomId);
-      await notifyRoom(env, roomId, snapshot, user.uid);
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
-  }
-
   const itemMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)\/items(?:\/([^/]+))?$/);
   if (itemMatch) {
     const [, roomId, itemId] = itemMatch;
     if (request.method === "POST" && !itemId) {
       return snapshotResponse(env, roomId, user.uid, await createTripDayItem(db, user.uid, roomId, await readJson<TripDayItemInput>(request)), 201, corsHeaders);
     }
-    if (request.method === "PATCH" && itemId) {
-      return snapshotResponse(env, roomId, user.uid, await updateTripDayItem(db, user.uid, roomId, itemId, await readJson<TripDayItemInput>(request)), 200, corsHeaders);
-    }
     if (request.method === "DELETE" && itemId) {
       await deleteTripDayItem(db, user.uid, roomId, itemId);
+      const snapshot = await getTripSnapshot(db, user.uid, roomId);
+      await notifyRoom(env, roomId, snapshot, user.uid);
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+  }
+
+  const routeMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)\/routes(?:\/([^/]+))?$/);
+  if (routeMatch) {
+    const [, roomId, routeId] = routeMatch;
+    if (request.method === "POST" && !routeId) {
+      return snapshotResponse(env, roomId, user.uid, await createTripRoute(db, user.uid, roomId, await readJson<TripRouteInput>(request)), 201, corsHeaders);
+    }
+    if (request.method === "PATCH" && routeId) {
+      return snapshotResponse(env, roomId, user.uid, await updateTripRoute(db, user.uid, roomId, routeId, await readJson<TripRouteInput>(request)), 200, corsHeaders);
+    }
+    if (request.method === "DELETE" && routeId) {
+      await deleteTripRoute(db, user.uid, roomId, routeId);
       const snapshot = await getTripSnapshot(db, user.uid, roomId);
       await notifyRoom(env, roomId, snapshot, user.uid);
       return new Response(null, { status: 204, headers: corsHeaders });

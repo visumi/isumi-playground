@@ -33,10 +33,6 @@ describe("TripRoomStore", () => {
           dayId: "day-1",
           placeId: "place-2",
           position: 1,
-          durationMinutes: 60,
-          transportMode: null,
-          transportMinutes: null,
-          transportNotes: null,
           version: 1
         },
         {
@@ -44,13 +40,10 @@ describe("TripRoomStore", () => {
           dayId: "day-1",
           placeId: "place-1",
           position: 0,
-          durationMinutes: 30,
-          transportMode: null,
-          transportMinutes: null,
-          transportNotes: null,
           version: 1
         }
       ],
+      routes: [],
       flights: [],
       lodgings: []
     } satisfies TripSnapshot);

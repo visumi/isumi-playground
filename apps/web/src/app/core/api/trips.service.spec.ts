@@ -32,15 +32,34 @@ describe("TripsService", () => {
     request.flush({});
   });
 
-  it("uploads WebP as a binary body", () => {
-    const image = new Blob(["image"], { type: "image/webp" });
-    service.uploadPlaceImage("trip-1", "place-1", image).subscribe();
+  it("creates a route between adjacent itinerary items", () => {
+    service.createRoute("trip-1", {
+      fromItemId: "item-1",
+      toItemId: "item-2",
+      transportMode: "walk",
+      durationMinutes: 15,
+      notes: "Seguir pela praça"
+    }).subscribe();
 
-    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/places/place-1/image");
-    expect(request.request.method).toBe("PUT");
-    expect(request.request.headers.get("Content-Type")).toBe("image/webp");
-    expect(request.request.body).toBe(image);
-    request.flush(null);
+    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/routes");
+    expect(request.request.method).toBe("POST");
+    expect(request.request.body.fromItemId).toBe("item-1");
+    expect(request.request.body.toItemId).toBe("item-2");
+    request.flush({});
+  });
+
+  it("updates a route with optimistic concurrency", () => {
+    service.updateRoute("trip-1", "route-1", {
+      transportMode: "transit",
+      durationMinutes: 25,
+      notes: null,
+      version: 4
+    }).subscribe();
+
+    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/routes/route-1");
+    expect(request.request.method).toBe("PATCH");
+    expect(request.request.body.version).toBe(4);
+    request.flush({});
   });
 
   it("requests a short-lived realtime ticket", () => {

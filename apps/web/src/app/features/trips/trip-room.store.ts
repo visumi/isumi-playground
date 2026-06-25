@@ -33,6 +33,7 @@ export class TripRoomStore {
   readonly room = computed(() => this.snapshotState()?.room || null);
   readonly days = computed(() => this.snapshotState()?.days || []);
   readonly places = computed(() => this.snapshotState()?.places || []);
+  readonly routes = computed(() => this.snapshotState()?.routes || []);
   readonly flights = computed(() => this.snapshotState()?.flights || []);
   readonly lodgings = computed(() => this.snapshotState()?.lodgings || []);
 
