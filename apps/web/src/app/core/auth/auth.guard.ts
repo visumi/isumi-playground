@@ -2,6 +2,10 @@ import { inject } from "@angular/core";
 import { CanActivateFn, Router } from "@angular/router";
 import { AuthService } from "./auth.service";
 
+function safeReturnUrl(returnUrl: string | null): string {
+  return returnUrl?.startsWith("/") && !returnUrl.startsWith("//") ? returnUrl : "/dashboard";
+}
+
 export const authGuard: CanActivateFn = async (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
@@ -19,7 +23,7 @@ export const authGuard: CanActivateFn = async (_route, state) => {
   return auth.isAllowed() ? true : router.createUrlTree(["/login"]);
 };
 
-export const publicOnlyGuard: CanActivateFn = async () => {
+export const publicOnlyGuard: CanActivateFn = async (route) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
@@ -33,7 +37,9 @@ export const publicOnlyGuard: CanActivateFn = async () => {
     await auth.refreshProfile();
   }
 
-  return auth.isAllowed() ? router.createUrlTree(["/dashboard"]) : true;
+  return auth.isAllowed()
+    ? router.parseUrl(safeReturnUrl(route.queryParamMap.get("returnUrl")))
+    : true;
 };
 
 export const ownerGuard: CanActivateFn = async () => {

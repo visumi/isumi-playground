@@ -54,11 +54,16 @@ export class AuthService {
 
   async login(returnUrl = "/dashboard"): Promise<void> {
     this.authErrorState.set(null);
-    await signInWithPopup(this.auth, this.provider);
+    const credential = await signInWithPopup(this.auth, this.provider);
+    this.firebaseUserState.set(credential.user);
+    this.readyState.set(true);
     await this.refreshProfile();
 
     if (this.isAllowed()) {
-      await this.router.navigateByUrl(returnUrl.startsWith("/") ? returnUrl : "/dashboard");
+      const destination = returnUrl.startsWith("/") && !returnUrl.startsWith("//")
+        ? returnUrl
+        : "/dashboard";
+      await this.router.navigateByUrl(destination);
       return;
     }
 

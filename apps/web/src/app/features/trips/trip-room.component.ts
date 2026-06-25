@@ -1,5 +1,4 @@
-import { DatePipe, NgComponentOutlet } from "@angular/common";
-import { CdkTrapFocus } from "@angular/cdk/a11y";
+import { DatePipe, NgClass, NgComponentOutlet, NgTemplateOutlet } from "@angular/common";
 import {
   CdkDrag,
   CdkDragDrop,
@@ -14,9 +13,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  HostListener,
   OnDestroy,
   OnInit,
+  TemplateRef,
   Type,
   ViewChild,
   computed,
@@ -81,6 +80,7 @@ import {
   IsumiButtonComponent,
   IsumiEmptyStateComponent,
   IsumiInputDirective,
+  IsumiModalRef,
   IsumiModalService,
   IsumiSelectDirective,
   IsumiTagComponent,
@@ -113,6 +113,21 @@ interface DeleteTripRoomModalData {
 
 interface DeleteTripFlightModalData {
   route: string;
+}
+
+interface TripEditorModalData {
+  template: TemplateRef<unknown>;
+}
+
+@Component({
+  selector: "isumi-trip-editor-modal",
+  standalone: true,
+  imports: [NgTemplateOutlet],
+  template: `<ng-container *ngTemplateOutlet="data?.template || null" />`,
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class TripEditorModalComponent {
+  readonly data = injectIsumiModalData<TripEditorModalData>();
 }
 
 @Component({
@@ -196,8 +211,8 @@ export class DeleteTripFlightModalComponent {
   standalone: true,
   imports: [
     DatePipe,
+    NgClass,
     NgComponentOutlet,
-    CdkTrapFocus,
     FormsModule,
     CdkDrag,
     CdkDragHandle,
@@ -281,6 +296,8 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly dropFeedbackDayId = signal<string | null>(null);
   @ViewChild("placeLibrary") private placeLibrary?: ElementRef<HTMLElement>;
   @ViewChild("dayPanel") private dayPanel?: ElementRef<HTMLElement>;
+  @ViewChild("editorModal") private editorModal?: TemplateRef<unknown>;
+  private editorModalRef: IsumiModalRef<TripEditorModalData, void> | null = null;
   readonly breadcrumbItems = computed(() => [
     { label: "Salas", link: "/tools/trips" },
     { label: "Sala" }
@@ -344,7 +361,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       return this.dragKind() === "item" ? "Devolver à biblioteca" : "Manter na biblioteca";
     }
     if (this.usesFixedDayEntry(target)) {
-      return this.dragKind() === "place" ? "Adicionar no início do dia" : "Mover para o início do dia";
+      return this.dragKind() === "place" ? "Adicionar ao dia" : "Mover para o dia";
     }
     return "Mover para esta posição";
   });
@@ -372,21 +389,8 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.store.disconnect();
   }
 
-  @HostListener("document:keydown.escape")
-  closeOverlays(): void {
-    this.closePanel();
-  }
-
   closePanel(): void {
-    if (this.panel() === "place") {
-      this.closePlaceEditor();
-      return;
-    }
-    if (this.panel() === "route") {
-      this.closeRouteEditor();
-      return;
-    }
-    this.panel.set(null);
+    this.editorModalRef?.close();
   }
 
   placeById(placeId: string): TripPlace | undefined {
@@ -426,7 +430,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.focusDay(day.id);
     const data = event.item.data as TrayDragData | ItemDragData;
     if (data.kind === "place") {
-      void this.addPlaceToDay(data.place, day.id, 0);
+      void this.addPlaceToDay(data.place, day.id);
       return;
     }
     const targetPosition = this.usesFixedDayEntry(day.id) ? 0 : event.currentIndex;
@@ -573,18 +577,13 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       );
   }
 
-  async addPlaceToDay(place: TripPlace, dayId: string, targetPosition?: number): Promise<void> {
+  async addPlaceToDay(place: TripPlace, dayId: string): Promise<void> {
     try {
-      const previousItemIds = new Set(this.store.snapshot()?.items.map((item) => item.id) || []);
       const snapshot = await firstValueFrom(this.trips.createItem(this.roomId(), {
         dayId,
         placeId: place.id
       }));
       this.store.setSnapshot(snapshot);
-      if (targetPosition !== undefined) {
-        const createdItem = snapshot.items.find((item) => !previousItemIds.has(item.id));
-        if (createdItem) this.store.moveItem(createdItem, dayId, targetPosition);
-      }
       this.focusDay(dayId);
       this.showDropFeedback(dayId);
     } catch {
@@ -663,7 +662,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.placeCategory.set("other");
     this.placeAddress.set("");
     this.placeNotes.set("");
-    this.panel.set("place");
+    this.openEditorModal("place");
   }
 
   openEditPlace(place: TripPlace, item?: TripDayItem): void {
@@ -672,7 +671,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.placeCategory.set(place.category);
     this.placeAddress.set(place.address || "");
     this.placeNotes.set(place.notes || "");
-    this.panel.set("place");
+    this.openEditorModal("place");
     if (!item) return;
     this.focusDay(item.dayId);
     this.selectedItemId.set(item.id);
@@ -682,8 +681,8 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   closePlaceEditor(): void {
     this.selectedItemId.set(null);
     this.selectedPlace.set(null);
-    this.panel.set(null);
     this.store.selectItem(null);
+    this.closePanel();
   }
 
   async savePlace(): Promise<void> {
@@ -724,7 +723,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.routeTransportMode.set(route?.transportMode || "");
     this.routeDurationMinutes.set(route?.durationMinutes || null);
     this.routeNotes.set(route?.notes || "");
-    this.panel.set("route");
+    this.openEditorModal("route");
   }
 
   async saveRoute(): Promise<void> {
@@ -772,7 +771,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   closeRouteEditor(): void {
     this.selectedRouteFromItemId.set(null);
     this.selectedRouteToItemId.set(null);
-    this.panel.set(null);
+    this.closePanel();
   }
 
   openCreateFlight(): void {
@@ -784,7 +783,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.arrivalAt.set("");
     this.airline.set("");
     this.flightNumber.set("");
-    this.panel.set("flight");
+    this.openEditorModal("flight");
   }
 
   openEditFlight(flight: TripFlightSegment): void {
@@ -796,7 +795,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.arrivalAt.set(flight.arrivalAt.slice(0, 16));
     this.airline.set(flight.airline || "");
     this.flightNumber.set(flight.flightNumber || "");
-    this.panel.set("flight");
+    this.openEditorModal("flight");
   }
 
   async saveFlight(): Promise<void> {
@@ -819,7 +818,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
           }))
         : await firstValueFrom(this.trips.createFlight(this.roomId(), payload));
       this.store.setSnapshot(snapshot);
-      this.panel.set(null);
+      this.closePanel();
       this.selectedFlight.set(null);
       this.toast.success(selectedFlight ? "Voo atualizado." : "Voo adicionado ao planejamento.");
     } catch {
@@ -869,7 +868,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.lodgingAddress.set("");
     this.lodgingNotes.set("");
     this.initializeDateForms();
-    this.panel.set("lodging");
+    this.openEditorModal("lodging");
   }
 
   openCreateLodgingForDay(day: TripDay): void {
@@ -881,7 +880,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.lodgingNotes.set("");
     this.checkInDate.set(day.date);
     this.checkOutDate.set(nextDate.toISOString().slice(0, 10));
-    this.panel.set("lodging");
+    this.openEditorModal("lodging");
   }
 
   openEditLodging(lodging: TripLodging): void {
@@ -891,7 +890,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.lodgingNotes.set(lodging.notes || "");
     this.checkInDate.set(lodging.checkInDate);
     this.checkOutDate.set(lodging.checkOutDate);
-    this.panel.set("lodging");
+    this.openEditorModal("lodging");
   }
 
   async saveLodging(): Promise<void> {
@@ -911,7 +910,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
           }))
         : await firstValueFrom(this.trips.createLodging(this.roomId(), payload));
       this.store.setSnapshot(snapshot);
-      this.panel.set(null);
+      this.closePanel();
       this.selectedLodging.set(null);
       this.toast.success(selected ? "Hospedagem atualizada." : "Hospedagem adicionada à viagem.");
     } catch (error) {
@@ -1015,6 +1014,52 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   private async reload(): Promise<void> {
     await this.store.load(this.roomId());
+  }
+
+  private openEditorModal(panel: "place" | "route" | "flight" | "lodging"): void {
+    const template = this.editorModal;
+    if (!template) return;
+
+    this.editorModalRef?.close();
+    this.panel.set(panel);
+
+    const ref = this.modal.open<TripEditorModalComponent, TripEditorModalData, void>(
+      TripEditorModalComponent,
+      {
+        data: { template },
+        ariaLabel: this.editorAriaLabel(panel)
+      }
+    );
+
+    this.editorModalRef = ref;
+    ref.afterClosed().subscribe(() => {
+      if (this.editorModalRef !== ref) return;
+
+      this.editorModalRef = null;
+      this.panel.set(null);
+
+      if (panel === "place") {
+        this.selectedItemId.set(null);
+        this.selectedPlace.set(null);
+        this.store.selectItem(null);
+      } else if (panel === "route") {
+        this.selectedRouteFromItemId.set(null);
+        this.selectedRouteToItemId.set(null);
+      } else if (panel === "flight") {
+        this.selectedFlight.set(null);
+      } else {
+        this.selectedLodging.set(null);
+      }
+    });
+  }
+
+  private editorAriaLabel(panel: "place" | "route" | "flight" | "lodging"): string {
+    return {
+      place: this.selectedPlace() ? "Editar lugar" : "Adicionar lugar",
+      route: this.selectedRoute() ? "Editar trajeto" : "Definir trajeto",
+      flight: this.selectedFlight() ? "Editar voo" : "Adicionar voo",
+      lodging: this.selectedLodging() ? "Editar hospedagem" : "Adicionar hospedagem"
+    }[panel];
   }
 
   private initializeDateForms(): void {
