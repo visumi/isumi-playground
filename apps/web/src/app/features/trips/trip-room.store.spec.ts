@@ -37,7 +37,6 @@ describe("TripRoomStore", () => {
           transportMode: null,
           transportMinutes: null,
           transportNotes: null,
-          transportNeedsReview: false,
           version: 1
         },
         {
@@ -49,7 +48,6 @@ describe("TripRoomStore", () => {
           transportMode: null,
           transportMinutes: null,
           transportNotes: null,
-          transportNeedsReview: false,
           version: 1
         }
       ],

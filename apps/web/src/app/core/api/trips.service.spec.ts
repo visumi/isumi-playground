@@ -68,6 +68,22 @@ describe("TripsService", () => {
     request.flush({});
   });
 
+  it("updates a lodging with optimistic concurrency", () => {
+    service.updateLodging("trip-1", "lodging-1", {
+      name: "Hotel Centro",
+      address: "Rua Principal, 10",
+      checkInDate: "2026-10-12",
+      checkOutDate: "2026-10-14",
+      notes: "Recepção 24 horas",
+      version: 3
+    }).subscribe();
+
+    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/lodgings/lodging-1");
+    expect(request.request.method).toBe("PATCH");
+    expect(request.request.body.version).toBe(3);
+    request.flush({});
+  });
+
   it("accepts a room invite explicitly", () => {
     service.acceptRoom("trip-1").subscribe();
     const request = http.expectOne("http://localhost:8787/tools/trips/trip-1?accept=1");

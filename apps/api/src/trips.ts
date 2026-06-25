@@ -49,6 +49,7 @@ export interface TripLodgingInput {
   checkInDate?: string;
   checkOutDate?: string;
   notes?: string | null;
+  version?: number;
 }
 
 export interface TripMoveOperation {
@@ -162,7 +163,7 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
     db.execute({
       sql: `
         SELECT id, day_id, place_id, position, duration_minutes, transport_mode,
-               transport_minutes, transport_notes, transport_needs_review, version
+               transport_minutes, transport_notes, version
         FROM trip_day_items WHERE room_id = ? ORDER BY day_id, position
       `,
       args: [roomId]
@@ -221,7 +222,6 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       transportMode: row.transport_mode ? String(row.transport_mode) : null,
       transportMinutes: row.transport_minutes === null ? null : Number(row.transport_minutes),
       transportNotes: row.transport_notes ? String(row.transport_notes) : null,
-      transportNeedsReview: Number(row.transport_needs_review) === 1,
       version: Number(row.version)
     })),
     flights: flights.rows.map((row) => ({
@@ -452,7 +452,7 @@ export async function updateTripDayItem(db: Client, userId: string, roomId: stri
   const result = await db.execute({
     sql: `
       UPDATE trip_day_items SET duration_minutes = ?, transport_mode = ?,
-        transport_minutes = ?, transport_notes = ?, transport_needs_review = 0,
+        transport_minutes = ?, transport_notes = ?,
         version = version + 1, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND room_id = ? AND version = ?
     `,
@@ -537,7 +537,7 @@ export async function applyTripMoveOperation(db: Client, userId: string, roomId:
     {
       sql: `
         UPDATE trip_day_items SET day_id = ?, position = ?, transport_mode = NULL,
-          transport_minutes = NULL, transport_notes = NULL, transport_needs_review = 1,
+          transport_minutes = NULL, transport_notes = NULL, transport_needs_review = 0,
           version = version + 1, updated_at = CURRENT_TIMESTAMP
         WHERE id = ? AND room_id = ? AND version = ?
       `,
@@ -545,8 +545,9 @@ export async function applyTripMoveOperation(db: Client, userId: string, roomId:
     },
     {
       sql: `
-        UPDATE trip_day_items SET transport_needs_review = 1, version = version + 1,
-          updated_at = CURRENT_TIMESTAMP
+        UPDATE trip_day_items SET transport_mode = NULL, transport_minutes = NULL,
+          transport_notes = NULL, transport_needs_review = 0,
+          version = version + 1, updated_at = CURRENT_TIMESTAMP
         WHERE room_id = ? AND id <> ? AND (
           (day_id = ? AND position BETWEEN ? AND ?) OR
           (day_id = ? AND position BETWEEN ? AND ?)
@@ -654,7 +655,8 @@ export async function createTripLodging(db: Client, userId: string, roomId: stri
   await assertTripMember(db, roomId, userId);
   const checkIn = date(payload.checkInDate, "missing_check_in");
   const checkOut = date(payload.checkOutDate, "missing_check_out");
-  if (checkOut < checkIn) throw new HttpError(400, "invalid_date_range");
+  if (checkOut <= checkIn) throw new HttpError(400, "invalid_date_range");
+  await assertLodgingPeriodAvailable(db, roomId, checkIn, checkOut);
   await executeStatementsAtomically(db, [
     {
       sql: `
@@ -676,12 +678,78 @@ export async function createTripLodging(db: Client, userId: string, roomId: stri
   return getTripSnapshot(db, userId, roomId);
 }
 
+export async function updateTripLodging(
+  db: Client,
+  userId: string,
+  roomId: string,
+  lodgingId: string,
+  payload: TripLodgingInput
+) {
+  await assertTripMember(db, roomId, userId);
+  const checkIn = date(payload.checkInDate, "missing_check_in");
+  const checkOut = date(payload.checkOutDate, "missing_check_out");
+  const version = integer(payload.version, "missing_entity_version", 1, Number.MAX_SAFE_INTEGER);
+  if (checkOut <= checkIn) throw new HttpError(400, "invalid_date_range");
+  await assertLodgingPeriodAvailable(db, roomId, checkIn, checkOut, lodgingId);
+
+  const result = await db.execute({
+    sql: `
+      UPDATE trip_lodgings SET name = ?, address = ?, check_in_date = ?, check_out_date = ?,
+        notes = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND room_id = ? AND version = ?
+    `,
+    args: [
+      requiredText(payload.name, "missing_lodging_name", 160),
+      nullableText(payload.address, 240),
+      checkIn,
+      checkOut,
+      nullableText(payload.notes, 1000),
+      lodgingId,
+      roomId,
+      version
+    ]
+  });
+  if (result.rowsAffected === 0) throw new HttpError(409, "entity_version_conflict");
+  await db.execute(touchRoom(roomId));
+  return getTripSnapshot(db, userId, roomId);
+}
+
 export async function deleteTripLodging(db: Client, userId: string, roomId: string, lodgingId: string): Promise<void> {
   await assertTripMember(db, roomId, userId);
   await executeStatementsAtomically(db, [
     { sql: "DELETE FROM trip_lodgings WHERE id = ? AND room_id = ?", args: [lodgingId, roomId] },
     touchRoom(roomId)
   ]);
+}
+
+async function assertLodgingPeriodAvailable(
+  db: Client,
+  roomId: string,
+  checkIn: string,
+  checkOut: string,
+  ignoredLodgingId?: string
+): Promise<void> {
+  const conflict = await db.execute({
+    sql: `
+      SELECT id FROM trip_lodgings
+      WHERE room_id = ?
+        AND check_in_date < ?
+        AND check_out_date > ?
+        AND (? IS NULL OR id <> ?)
+      LIMIT 1
+    `,
+    args: [roomId, checkOut, checkIn, ignoredLodgingId || null, ignoredLodgingId || null]
+  });
+  if (conflict.rows.length > 0) throw new HttpError(409, "lodging_date_conflict");
+}
+
+export function lodgingPeriodsOverlap(
+  firstCheckIn: string,
+  firstCheckOut: string,
+  secondCheckIn: string,
+  secondCheckOut: string
+): boolean {
+  return firstCheckIn < secondCheckOut && firstCheckOut > secondCheckIn;
 }
 
 export async function assertTripMember(db: Client, roomId: string, userId: string): Promise<{ role: "owner" | "member" }> {

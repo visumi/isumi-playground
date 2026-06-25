@@ -1,8 +1,28 @@
 import { DatePipe, DecimalPipe } from "@angular/common";
 import { CdkTrapFocus } from "@angular/cdk/a11y";
-import { CdkDrag, CdkDragDrop, CdkDropList, CdkDropListGroup } from "@angular/cdk/drag-drop";
+import {
+  CdkDrag,
+  CdkDragDrop,
+  CdkDragHandle,
+  CdkDragPlaceholder,
+  CdkDragPreview,
+  CdkDropList,
+  CdkDropListGroup
+} from "@angular/cdk/drag-drop";
 import { HttpErrorResponse } from "@angular/common/http";
-import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, computed, inject, input, signal } from "@angular/core";
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  computed,
+  inject,
+  input,
+  signal
+} from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
 import {
@@ -29,6 +49,7 @@ import {
   LucidePlus,
   LucideRoute,
   LucideSave,
+  LucideShuffle,
   LucideTicket,
   LucideTicketsPlane,
   LucideTrash2,
@@ -42,6 +63,7 @@ import {
   TripDay,
   TripDayItem,
   TripFlightSegment,
+  TripLodging,
   TripPlace,
   TripPlaceCategory,
   TripTransportMode
@@ -51,9 +73,11 @@ import {
   IsumiAvatarComponent,
   IsumiBreadcrumbComponent,
   IsumiButtonComponent,
+  IsumiEmptyStateComponent,
   IsumiInputDirective,
   IsumiModalService,
   IsumiSelectDirective,
+  IsumiTagComponent,
   IsumiToastService,
   IsumiTooltipComponent,
   injectIsumiModalData,
@@ -157,13 +181,18 @@ export class DeleteTripFlightModalComponent {
     CdkTrapFocus,
     FormsModule,
     CdkDrag,
+    CdkDragHandle,
+    CdkDragPlaceholder,
+    CdkDragPreview,
     CdkDropList,
     CdkDropListGroup,
     IsumiAvatarComponent,
     IsumiBreadcrumbComponent,
     IsumiButtonComponent,
+    IsumiEmptyStateComponent,
     IsumiInputDirective,
     IsumiSelectDirective,
+    IsumiTagComponent,
     IsumiTooltipComponent,
     LucideArrowDown,
     LucideArrowUp,
@@ -188,6 +217,7 @@ export class DeleteTripFlightModalComponent {
     LucidePlus,
     LucideRoute,
     LucideSave,
+    LucideShuffle,
     LucideTicket,
     LucideTrash2,
     LucideUsers,
@@ -209,11 +239,25 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly deletingRoom = signal(false);
   readonly deletingFlightId = signal<string | null>(null);
-  readonly dayWindowStart = signal(0);
+  readonly deletingLodgingId = signal<string | null>(null);
+  readonly focusedDayId = signal<string | null>(null);
+  readonly dayAnimating = signal(false);
+  readonly placeTab = signal<"unscheduled" | "scheduled">("unscheduled");
   readonly panel = signal<"place" | "flight" | "lodging" | null>(null);
   readonly selectedFlight = signal<TripFlightSegment | null>(null);
+  readonly selectedLodging = signal<TripLodging | null>(null);
   readonly selectedItemId = signal<string | null>(null);
+  readonly dragKind = signal<"place" | "item" | null>(null);
+  readonly draggingEntityId = signal<string | null>(null);
+  readonly activeDropTarget = signal<string | null>(null);
+  readonly placeDragPlaceholderHeight = signal(96);
+  readonly itemDragPlaceholderHeight = signal(96);
+  readonly libraryDropPlaceholderHeight = signal(128);
+  readonly dragPreviewWidth = signal(304);
+  readonly dropFeedbackDayId = signal<string | null>(null);
   readonly imageUrls = signal<Record<string, string>>({});
+  @ViewChild("placeLibrary") private placeLibrary?: ElementRef<HTMLElement>;
+  @ViewChild("dayPanel") private dayPanel?: ElementRef<HTMLElement>;
   readonly breadcrumbItems = computed(() => [
     { label: "Salas", link: "/tools/trips" },
     { label: "Sala" }
@@ -232,6 +276,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly flightNumber = signal("");
   readonly lodgingName = signal("");
   readonly lodgingAddress = signal("");
+  readonly lodgingNotes = signal("");
   readonly checkInDate = signal("");
   readonly checkOutDate = signal("");
 
@@ -242,25 +287,48 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly selectedItem = computed(() =>
     this.store.snapshot()?.items.find((item) => item.id === this.selectedItemId()) || null
   );
-  readonly visibleDays = computed(() => this.store.days().slice(this.dayWindowStart(), this.dayWindowStart() + 3));
-  readonly canShowPreviousDays = computed(() => this.dayWindowStart() > 0);
-  readonly canShowNextDays = computed(() => this.dayWindowStart() + 3 < this.store.days().length);
-  readonly visibleDayRangeLabel = computed(() => {
-    const total = this.store.days().length;
-    if (total === 0) return "Nenhum dia";
-    const start = this.dayWindowStart() + 1;
-    const end = Math.min(start + 2, total);
-    return `${start}–${end} de ${total}`;
-  });
+  readonly focusedDay = computed(() =>
+    this.store.days().find((day) => day.id === this.focusedDayId()) || this.store.days()[0] || null
+  );
+  readonly focusedDayIndex = computed(() =>
+    this.store.days().findIndex((day) => day.id === this.focusedDay()?.id)
+  );
+  readonly canShowPreviousDays = computed(() => this.focusedDayIndex() > 0);
+  readonly canShowNextDays = computed(() =>
+    this.focusedDayIndex() >= 0 && this.focusedDayIndex() < this.store.days().length - 1
+  );
   readonly unscheduledPlaces = computed(() => {
     const scheduled = new Set(this.store.snapshot()?.items.map((item) => item.placeId) || []);
     return this.store.places().filter((place) => !scheduled.has(place.id));
+  });
+  readonly scheduledPlaces = computed(() => {
+    const scheduled = new Set(this.store.snapshot()?.items.map((item) => item.placeId) || []);
+    return this.store.places().filter((place) => scheduled.has(place.id));
+  });
+  readonly visiblePlaces = computed(() =>
+    this.placeTab() === "unscheduled" ? this.unscheduledPlaces() : this.scheduledPlaces()
+  );
+  readonly libraryVisuallyEmpty = computed(() => {
+    const places = this.visiblePlaces();
+    if (places.length === 0) return true;
+    return this.dragKind() === "place"
+      && places.length === 1
+      && places[0].id === this.draggingEntityId();
+  });
+  readonly dropPlaceholderLabel = computed(() => {
+    const target = this.activeDropTarget();
+    if (!target) return null;
+    if (target === "library") {
+      return this.dragKind() === "item" ? "Devolver à biblioteca" : "Manter na biblioteca";
+    }
+    return this.dragKind() === "place" ? "Adicionar nesta posição" : "Mover para esta posição";
   });
 
   async ngOnInit(): Promise<void> {
     try {
       await this.store.load(this.roomId());
       this.initializeDateForms();
+      this.focusedDayId.set(this.store.days()[0]?.id || null);
       await this.loadImages();
       await this.store.connect();
     } catch (error) {
@@ -276,6 +344,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.setDocumentDragCursor(false);
     this.store.disconnect();
     for (const url of Object.values(this.imageUrls())) URL.revokeObjectURL(url);
   }
@@ -300,10 +369,27 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     );
   }
 
-  lodgingForDay(day: TripDay) {
+  dayNumber(day: TripDay): number {
+    return day.position + 1;
+  }
+
+  placeDays(placeId: string): TripDay[] {
+    const dayIds = new Set(
+      (this.store.snapshot()?.items || []).filter((item) => item.placeId === placeId).map((item) => item.dayId)
+    );
+    return this.store.days().filter((day) => dayIds.has(day.id));
+  }
+
+  focusDay(dayId: string): void {
+    const dayIndex = this.store.days().findIndex((day) => day.id === dayId);
+    if (dayIndex < 0 || dayIndex === this.focusedDayIndex()) return;
+    void this.changeFocusedDay(dayIndex);
+  }
+
+  lodgingForDay(day: TripDay): TripLodging | null {
     return this.store.lodgings().find((lodging) =>
       lodging.checkInDate <= day.date && lodging.checkOutDate > day.date
-    );
+    ) || null;
   }
 
   editorForItem(itemId: string): string | null {
@@ -313,12 +399,123 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   drop(event: CdkDragDrop<TripDayItem[], TripDayItem[] | TripPlace[]>, day: TripDay): void {
+    this.focusDay(day.id);
     const data = event.item.data as TrayDragData | ItemDragData;
     if (data.kind === "place") {
       void this.addPlaceToDay(data.place, day.id);
       return;
     }
     this.store.moveItem(data.item, day.id, event.currentIndex);
+    this.showDropFeedback(day.id);
+  }
+
+  async dropInPlaceLibrary(event: CdkDragDrop<TripPlace[], TripDayItem[] | TripPlace[]>): Promise<void> {
+    const data = event.item.data as TrayDragData | ItemDragData;
+    if (data.kind !== "item") return;
+
+    const hasAnotherAssociation = (this.store.snapshot()?.items || []).some(
+      (item) => item.id !== data.item.id && item.placeId === data.item.placeId
+    );
+
+    try {
+      await firstValueFrom(this.trips.deleteItem(this.roomId(), data.item.id));
+      await this.reload();
+      if (!hasAnotherAssociation) this.placeTab.set("unscheduled");
+      this.toast.success("Lugar devolvido à biblioteca.");
+    } catch {
+      this.toast.error("Não foi possível devolver o lugar à biblioteca.");
+    }
+  }
+
+  startPlaceDrag(place: TripPlace): void {
+    this.store.beginLocalDrag();
+    this.dragKind.set("place");
+    this.draggingEntityId.set(place.id);
+    this.libraryDropPlaceholderHeight.set(this.placeDragPlaceholderHeight());
+    this.activeDropTarget.set("library");
+    this.setDocumentDragCursor(true);
+  }
+
+  preparePlaceDrag(event: PointerEvent): void {
+    const dragElement = (event.currentTarget as HTMLElement).closest<HTMLElement>(".cdk-drag");
+    if (dragElement) {
+      const dragBounds = dragElement.getBoundingClientRect();
+      this.placeDragPlaceholderHeight.set(dragBounds.height);
+      this.dragPreviewWidth.set(this.clampPreviewWidth(dragBounds.width));
+      this.libraryDropPlaceholderHeight.set(this.placeDragPlaceholderHeight());
+      this.activeDropTarget.set("library");
+    }
+  }
+
+  cancelPreparedPlaceDrag(): void {
+    if (this.dragKind() === null && this.activeDropTarget() === "library") {
+      this.activeDropTarget.set(null);
+    }
+  }
+
+  prepareItemDrag(event: PointerEvent): void {
+    const dragElement = (event.currentTarget as HTMLElement).closest<HTMLElement>(".cdk-drag");
+    if (dragElement) {
+      const dragBounds = dragElement.getBoundingClientRect();
+      this.itemDragPlaceholderHeight.set(dragBounds.height);
+      this.dragPreviewWidth.set(this.clampPreviewWidth(dragBounds.width));
+    }
+  }
+
+  startItemDrag(item: TripDayItem): void {
+    this.store.beginLocalDrag();
+    this.dragKind.set("item");
+    this.draggingEntityId.set(item.id);
+    this.activeDropTarget.set(null);
+    this.setDocumentDragCursor(true);
+  }
+
+  activateDropTarget(target: string): void {
+    if (target === "library") {
+      const libraryCard = this.placeLibrary?.nativeElement.querySelector<HTMLElement>("[data-place-card]");
+      this.libraryDropPlaceholderHeight.set(
+        this.dragKind() === "place"
+          ? this.placeDragPlaceholderHeight()
+          : libraryCard?.getBoundingClientRect().height || 128
+      );
+      this.updatePreviewWidth(this.placeLibrary?.nativeElement);
+    } else {
+      this.updatePreviewWidth(
+        this.dayPanel?.nativeElement.querySelector<HTMLElement>(".trip-drop-list")
+      );
+    }
+    this.activeDropTarget.set(target);
+  }
+
+  deactivateDropTarget(target: string): void {
+    if (this.activeDropTarget() === target) this.activeDropTarget.set(null);
+  }
+
+  finishDrag(): void {
+    this.store.endLocalDrag();
+    this.dragKind.set(null);
+    this.draggingEntityId.set(null);
+    this.activeDropTarget.set(null);
+    this.setDocumentDragCursor(false);
+  }
+
+  private setDocumentDragCursor(active: boolean): void {
+    document.documentElement.classList.toggle("cursor-grabbing", active);
+    document.body.classList.toggle("cursor-grabbing", active);
+  }
+
+  private updatePreviewWidth(container?: HTMLElement | null): void {
+    if (!container) return;
+    const styles = getComputedStyle(container);
+    const innerWidth = container.getBoundingClientRect().width
+      - Number.parseFloat(styles.paddingLeft)
+      - Number.parseFloat(styles.paddingRight)
+      - 16;
+    this.dragPreviewWidth.set(this.clampPreviewWidth(innerWidth));
+  }
+
+  private clampPreviewWidth(width: number): number {
+    return Math.max(240, Math.min(width, window.innerWidth - 32));
   }
 
   async addPlaceToDay(place: TripPlace, dayId: string): Promise<void> {
@@ -328,9 +525,18 @@ export class TripRoomComponent implements OnInit, OnDestroy {
         placeId: place.id,
         durationMinutes: 60
       })));
+      this.focusDay(dayId);
+      this.showDropFeedback(dayId);
     } catch {
       this.toast.error("Não foi possível adicionar o lugar ao dia.");
     }
+  }
+
+  private showDropFeedback(dayId: string): void {
+    this.dropFeedbackDayId.set(dayId);
+    window.setTimeout(() => {
+      if (this.dropFeedbackDayId() === dayId) this.dropFeedbackDayId.set(null);
+    }, 500);
   }
 
   moveRelative(item: TripDayItem, delta: number): void {
@@ -339,18 +545,60 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   moveToDay(item: TripDayItem, dayId: string): void {
     this.store.moveItem(item, dayId, this.store.itemsForDay(dayId).length);
+    this.focusDay(dayId);
   }
 
   showPreviousDays(): void {
-    this.dayWindowStart.update((start) => Math.max(0, start - 1));
+    if (!this.canShowPreviousDays()) return;
+    void this.changeFocusedDay(this.focusedDayIndex() - 1);
   }
 
   showNextDays(): void {
-    const maximumStart = Math.max(0, this.store.days().length - 3);
-    this.dayWindowStart.update((start) => Math.min(maximumStart, start + 1));
+    if (!this.canShowNextDays()) return;
+    void this.changeFocusedDay(this.focusedDayIndex() + 1);
+  }
+
+  private async changeFocusedDay(targetIndex: number): Promise<void> {
+    if (this.dayAnimating()) return;
+    const targetDay = this.store.days()[targetIndex];
+    if (!targetDay) return;
+
+    const direction = targetIndex > this.focusedDayIndex() ? 1 : -1;
+    const panel = this.dayPanel?.nativeElement;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!panel || reducedMotion) {
+      this.focusedDayId.set(targetDay.id);
+      return;
+    }
+
+    this.dayAnimating.set(true);
+    try {
+      await panel.animate(
+        [
+          { opacity: 1, transform: "translateX(0) scale(1)", filter: "blur(0)" },
+          { opacity: 0, transform: `translateX(${-18 * direction}px) scale(0.99)`, filter: "blur(1.5px)" }
+        ],
+        { duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" }
+      ).finished;
+
+      this.focusedDayId.set(targetDay.id);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+
+      await panel.animate(
+        [
+          { opacity: 0, transform: `translateX(${26 * direction}px) scale(0.99)`, filter: "blur(1.5px)" },
+          { opacity: 1, transform: "translateX(0) scale(1)", filter: "blur(0)" }
+        ],
+        { duration: 240, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "both" }
+      ).finished;
+    } finally {
+      panel.getAnimations().forEach((animation) => animation.cancel());
+      this.dayAnimating.set(false);
+    }
   }
 
   openItem(item: TripDayItem): void {
+    this.focusDay(item.dayId);
     this.selectedItemId.set(item.id);
     this.editDuration.set(item.durationMinutes);
     this.editTransportMode.set(item.transportMode || "");
@@ -508,17 +756,75 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     return hours ? `${hours}h${minutes ? ` ${minutes}min` : ""}` : `${minutes}min`;
   }
 
-  async createLodging(): Promise<void> {
+  openCreateLodging(): void {
+    this.selectedLodging.set(null);
+    this.lodgingName.set("");
+    this.lodgingAddress.set("");
+    this.lodgingNotes.set("");
+    this.initializeDateForms();
+    this.panel.set("lodging");
+  }
+
+  openCreateLodgingForDay(day: TripDay): void {
+    const nextDate = new Date(`${day.date}T12:00:00Z`);
+    nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+    this.selectedLodging.set(null);
+    this.lodgingName.set("");
+    this.lodgingAddress.set("");
+    this.lodgingNotes.set("");
+    this.checkInDate.set(day.date);
+    this.checkOutDate.set(nextDate.toISOString().slice(0, 10));
+    this.panel.set("lodging");
+  }
+
+  openEditLodging(lodging: TripLodging): void {
+    this.selectedLodging.set(lodging);
+    this.lodgingName.set(lodging.name);
+    this.lodgingAddress.set(lodging.address || "");
+    this.lodgingNotes.set(lodging.notes || "");
+    this.checkInDate.set(lodging.checkInDate);
+    this.checkOutDate.set(lodging.checkOutDate);
+    this.panel.set("lodging");
+  }
+
+  async saveLodging(): Promise<void> {
+    const selected = this.selectedLodging();
+    const payload = {
+      name: this.lodgingName(),
+      address: this.lodgingAddress(),
+      notes: this.lodgingNotes(),
+      checkInDate: this.checkInDate(),
+      checkOutDate: this.checkOutDate()
+    };
     try {
-      this.store.setSnapshot(await firstValueFrom(this.trips.createLodging(this.roomId(), {
-        name: this.lodgingName(),
-        address: this.lodgingAddress(),
-        checkInDate: this.checkInDate(),
-        checkOutDate: this.checkOutDate()
-      })));
+      const snapshot = selected
+        ? await firstValueFrom(this.trips.updateLodging(this.roomId(), selected.id, {
+            ...payload,
+            version: selected.version
+          }))
+        : await firstValueFrom(this.trips.createLodging(this.roomId(), payload));
+      this.store.setSnapshot(snapshot);
       this.panel.set(null);
+      this.selectedLodging.set(null);
+      this.toast.success(selected ? "Hospedagem atualizada." : "Hospedagem adicionada à viagem.");
+    } catch (error) {
+      const code = error instanceof HttpErrorResponse ? error.error?.error : null;
+      this.toast.error(code === "lodging_date_conflict"
+        ? "Este período se sobrepõe a outra hospedagem da viagem."
+        : "Confira o nome e as datas da hospedagem.");
+    }
+  }
+
+  async deleteLodging(lodging: TripLodging): Promise<void> {
+    this.deletingLodgingId.set(lodging.id);
+    try {
+      await firstValueFrom(this.trips.deleteLodging(this.roomId(), lodging.id));
+      await this.reload();
+      this.toast.success("Hospedagem removida.");
     } catch {
-      this.toast.error("Confira os dados da hospedagem.");
+      this.toast.error("Não foi possível remover a hospedagem.");
+    } finally {
+      this.deletingLodgingId.set(null);
     }
   }
 

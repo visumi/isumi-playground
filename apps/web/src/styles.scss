@@ -123,3 +123,39 @@ body {
 *::after {
   @apply motion-reduce:animate-none motion-reduce:scroll-auto motion-reduce:transition-none;
 }
+
+.trip-drop-list.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+  transition: transform 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.trip-itinerary-drag-item.cdk-drag-animating {
+  transition: transform 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.trip-drag-preview {
+  box-sizing: border-box;
+  pointer-events: none;
+  transition: width 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.trip-drop-placeholder {
+  box-sizing: border-box;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.trip-place-library > .cdk-drag-placeholder {
+  order: 1;
+}
+
+.trip-place-library--drag-empty > .cdk-drag-placeholder {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trip-drop-list.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder),
+  .trip-itinerary-drag-item.cdk-drag-animating,
+  .trip-drag-preview {
+    transition: none;
+  }
+}

@@ -1,4 +1,4 @@
-<section class="grid gap-4">
+﻿<section class="grid gap-4">
   <isumi-breadcrumb [items]="breadcrumbItems()" />
 
   @if (loading()) {
@@ -49,7 +49,8 @@
           <div class="min-w-0">
             <strong class="block text-sm">Viajantes</strong>
             <span class="block text-xs text-muted-foreground">
-              {{ snapshot.members.length }} {{ snapshot.members.length === 1 ? "pessoa organizando" : "pessoas organizando" }}
+              {{ snapshot.members.length }} {{ snapshot.members.length === 1 ? "pessoa organizando" : "pessoas
+              organizando" }}
             </span>
           </div>
         </div>
@@ -85,19 +86,18 @@
         @if (snapshot.flights.length > 0) {
         <div class="flex snap-x gap-2.5 overflow-x-auto px-0.5 pb-2 pt-0.5">
           @for (flight of snapshot.flights; track flight.id) {
-          <article class="grid min-w-[32.5rem] flex-none snap-start grid-cols-[minmax(17rem,1fr)_12.5rem] overflow-hidden rounded-lg border border-border max-sm:w-full max-sm:min-w-full max-sm:grid-cols-1">
+          <article
+            class="grid min-w-[32.5rem] flex-none snap-start grid-cols-[minmax(17rem,1fr)_12.5rem] overflow-hidden rounded-lg border border-border max-sm:w-full max-sm:min-w-full max-sm:grid-cols-1">
             <div class="grid min-w-0 gap-4 bg-secondary/60 p-4 max-sm:gap-5 max-sm:p-3.5">
               <header class="flex items-start justify-between gap-3">
                 <div class="flex min-w-0 items-center gap-2">
-                  <span
-                    class="grid size-8 shrink-0 place-items-center rounded-sm"
+                  <span class="grid size-8 shrink-0 place-items-center rounded-sm"
                     [class.bg-emerald-500/15]="flight.direction === 'outbound'"
                     [class.text-emerald-400]="flight.direction === 'outbound'"
                     [class.bg-amber-500/15]="flight.direction === 'other'"
                     [class.text-amber-400]="flight.direction === 'other'"
                     [class.bg-red-500/15]="flight.direction === 'return'"
-                    [class.text-red-400]="flight.direction === 'return'"
-                  >
+                    [class.text-red-400]="flight.direction === 'return'">
                     @switch (flight.direction) {
                     @case ("outbound") { <svg lucidePlaneTakeoff class="size-4" aria-hidden="true"></svg> }
                     @case ("return") { <svg lucidePlaneLanding class="size-4" aria-hidden="true"></svg> }
@@ -105,16 +105,16 @@
                     }
                   </span>
                   <div class="min-w-0">
-                    <span
-                      class="block text-[0.6875rem] font-black uppercase tracking-[0.12em]"
+                    <span class="block text-[0.6875rem] font-black uppercase tracking-[0.12em]"
                       [class.text-emerald-400]="flight.direction === 'outbound'"
                       [class.text-amber-400]="flight.direction === 'other'"
-                      [class.text-red-400]="flight.direction === 'return'"
-                    >
-                      <span class="max-sm:hidden">Cartão de embarque · </span>{{ flight.direction === "outbound" ? "Ida" : flight.direction === "return" ? "Volta" : "Conexão" }}
+                      [class.text-red-400]="flight.direction === 'return'">
+                      <span class="max-sm:hidden">Cartão de embarque · </span>{{ flight.direction === "outbound" ? "Ida"
+                      : flight.direction === "return" ? "Volta" : "Conexão" }}
                     </span>
                     <span class="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground max-sm:mt-0.5">
-                      <span class="truncate font-bold text-foreground">{{ flight.airline || "Companhia não informada" }}</span>
+                      <span class="truncate font-bold text-foreground">{{ flight.airline || "Companhia não informada"
+                        }}</span>
                       <span aria-hidden="true">·</span>
                       <span class="shrink-0">{{ flightDuration(flight) }} de viagem</span>
                     </span>
@@ -122,11 +122,16 @@
                 </div>
               </header>
 
-              <div class="grid grid-cols-[max-content_2.75rem_max-content] items-center justify-between gap-3 max-sm:grid-cols-[minmax(0,1fr)_2rem_minmax(0,1fr)] max-sm:gap-2">
+              <div
+                class="grid grid-cols-[max-content_2.75rem_max-content] items-center justify-between gap-3 max-sm:grid-cols-[minmax(0,1fr)_2rem_minmax(0,1fr)] max-sm:gap-2">
                 <div class="min-w-0">
-                  <span class="block text-[0.625rem] font-bold uppercase tracking-wider text-muted-foreground">Origem</span>
-                  <strong class="mt-1 block truncate whitespace-nowrap font-mono text-2xl font-black leading-none tracking-[0.04em] text-foreground max-sm:text-xl">{{ flight.departureAirport }}</strong>
-                  <time class="mt-2 block whitespace-nowrap font-mono text-sm font-extrabold tabular-nums text-foreground max-sm:text-xs"
+                  <span
+                    class="block text-[0.625rem] font-bold uppercase tracking-wider text-muted-foreground">Origem</span>
+                  <strong
+                    class="mt-1 block truncate whitespace-nowrap font-mono text-2xl font-black leading-none tracking-[0.04em] text-foreground max-sm:text-xl">{{
+                    flight.departureAirport }}</strong>
+                  <time
+                    class="mt-2 block whitespace-nowrap font-mono text-sm font-extrabold tabular-nums text-foreground max-sm:text-xs"
                     [attr.datetime]="flight.departureAt">
                     <span class="max-sm:hidden">{{ flight.departureAt | date:"dd/MM · HH:mm" }}</span>
                     <span class="hidden max-sm:grid max-sm:gap-0.5">
@@ -135,19 +140,19 @@
                     </span>
                   </time>
                 </div>
-                <div
-                  class="grid place-items-center"
-                  [class.text-emerald-400]="flight.direction === 'outbound'"
+                <div class="grid place-items-center" [class.text-emerald-400]="flight.direction === 'outbound'"
                   [class.text-amber-400]="flight.direction === 'other'"
-                  [class.text-red-400]="flight.direction === 'return'"
-                  aria-hidden="true"
-                >
+                  [class.text-red-400]="flight.direction === 'return'" aria-hidden="true">
                   <svg lucideMoveRight class="size-8 stroke-[1.5] max-sm:size-6"></svg>
                 </div>
                 <div class="min-w-0 text-right">
-                  <span class="block text-[0.625rem] font-bold uppercase tracking-wider text-muted-foreground">Destino</span>
-                  <strong class="mt-1 block truncate whitespace-nowrap font-mono text-2xl font-black leading-none tracking-[0.04em] text-foreground max-sm:text-xl">{{ flight.arrivalAirport }}</strong>
-                  <time class="mt-2 block whitespace-nowrap font-mono text-sm font-extrabold tabular-nums text-foreground max-sm:text-xs"
+                  <span
+                    class="block text-[0.625rem] font-bold uppercase tracking-wider text-muted-foreground">Destino</span>
+                  <strong
+                    class="mt-1 block truncate whitespace-nowrap font-mono text-2xl font-black leading-none tracking-[0.04em] text-foreground max-sm:text-xl">{{
+                    flight.arrivalAirport }}</strong>
+                  <time
+                    class="mt-2 block whitespace-nowrap font-mono text-sm font-extrabold tabular-nums text-foreground max-sm:text-xs"
                     [attr.datetime]="flight.arrivalAt">
                     <span class="max-sm:hidden">{{ flight.arrivalAt | date:"dd/MM · HH:mm" }}</span>
                     <span class="hidden max-sm:grid max-sm:gap-0.5">
@@ -159,28 +164,27 @@
               </div>
             </div>
 
-            <aside class="grid min-h-40 content-between gap-3 border-l border-dashed border-border bg-background/45 p-4 max-sm:min-h-0 max-sm:grid-cols-[1fr_auto] max-sm:items-center max-sm:border-l-0 max-sm:border-t max-sm:p-3.5" aria-label="Detalhes do voo">
-              <div class="flex items-center justify-between gap-3 max-sm:col-start-2 max-sm:row-start-1 max-sm:justify-self-end">
-                <span class="inline-flex items-center gap-1.5 text-[0.625rem] font-black uppercase tracking-[0.12em] text-muted-foreground">
-                  <svg
-                    lucideTicket
-                    class="size-3.5"
-                    [class.text-emerald-400]="flight.direction === 'outbound'"
+            <aside
+              class="grid min-h-40 content-between gap-3 border-2 border-dashed border-border bg-background/45 p-4 max-sm:min-h-0 max-sm:grid-cols-[1fr_auto] max-sm:items-center max-sm:border-l-0 max-sm:border-t max-sm:p-3.5"
+              aria-label="Detalhes do voo">
+              <div
+                class="flex items-center justify-between gap-3 max-sm:col-start-2 max-sm:row-start-1 max-sm:justify-self-end">
+                <span
+                  class="inline-flex items-center gap-1.5 text-[0.625rem] font-black uppercase tracking-[0.12em] text-muted-foreground">
+                  <svg lucideTicket class="size-3.5" [class.text-emerald-400]="flight.direction === 'outbound'"
                     [class.text-amber-400]="flight.direction === 'other'"
-                    [class.text-red-400]="flight.direction === 'return'"
-                    aria-hidden="true"
-                  ></svg>
+                    [class.text-red-400]="flight.direction === 'return'" aria-hidden="true"></svg>
                   Trecho
                 </span>
-                <span
-                  class="font-mono text-xs font-black"
-                  [class.text-emerald-400]="flight.direction === 'outbound'"
+                <span class="font-mono text-xs font-black" [class.text-emerald-400]="flight.direction === 'outbound'"
                   [class.text-amber-400]="flight.direction === 'other'"
-                  [class.text-red-400]="flight.direction === 'return'"
-                >{{ flight.flightNumber || "—" }}</span>
+                  [class.text-red-400]="flight.direction === 'return'">{{ flight.flightNumber || "—" }}</span>
               </div>
-              <div class="-mt-1 flex h-8 w-full items-stretch gap-px overflow-hidden opacity-60 max-sm:col-span-2 max-sm:mt-0 max-sm:h-6" aria-hidden="true">
-                @for (bar of [2, 4, 1, 3, 2, 5, 1, 4, 2, 3, 1, 5, 2, 4, 1, 3, 2, 5, 1, 4, 3, 1, 5, 2, 4, 1, 3, 2, 5, 1]; track $index) {
+              <div
+                class="-mt-1 flex h-8 w-full items-stretch gap-px overflow-hidden opacity-60 max-sm:col-span-2 max-sm:mt-0 max-sm:h-6"
+                aria-hidden="true">
+                @for (bar of [2, 4, 1, 3, 2, 5, 1, 4, 2, 3, 1, 5, 2, 4, 1, 3, 2, 5, 1, 4, 3, 1, 5, 2, 4, 1, 3, 2, 5, 1];
+                track $index) {
                 <span class="h-full min-w-px flex-1 bg-muted-foreground" [class.flex-2]="bar === 4 || bar === 5"></span>
                 }
               </div>
@@ -230,143 +234,368 @@
     </div>
     }
 
-    <div class="grid grid-cols-[280px_minmax(0,1fr)] items-start gap-5 max-xl:grid-cols-1">
+    <div class="grid grid-cols-[19rem_minmax(0,1fr)] items-start gap-5 max-xl:grid-cols-1">
       <aside class="grid gap-4 xl:sticky xl:top-6">
-        <section class="grid gap-3 rounded-lg bg-card p-4">
-          <div class="flex items-center justify-between gap-3">
+        <section class="grid gap-4 rounded-lg bg-card p-4" aria-labelledby="places-library-title">
+          <div class="flex items-start justify-between gap-3">
             <div>
-              <h2 class="m-0 text-base font-black">Lugares salvos</h2>
-              <p class="m-0 mt-1 text-xs text-muted-foreground">Crie uma parada e escolha em qual dia ela entra.</p>
+              <h2 id="places-library-title" class="m-0 text-base font-black">Biblioteca de lugares</h2>
+              <p class="m-0 mt-1 text-xs leading-5 text-muted-foreground">Ideias de parada antes e depois de entrarem no
+                roteiro.</p>
             </div>
-            <isumi-button variant="secondary" size="sm" type="button" (click)="panel.set('place')">
+            <isumi-button variant="secondary" size="sm" iconOnly ariaLabel="Criar novo lugar" type="button"
+              (click)="panel.set('place')">
               <svg icon lucidePlus class="size-4"></svg>
               Novo lugar
             </isumi-button>
           </div>
 
-          <div id="trip-place-tray" class="grid max-h-[52dvh] gap-2 overflow-y-auto" cdkDropList
-            [cdkDropListData]="unscheduledPlaces()">
-            @for (place of unscheduledPlaces(); track place.id) {
-            <article class="group grid gap-3 rounded-md bg-secondary/65 p-3 transition-transform duration-200 motion-reduce:transition-none" cdkDrag
-              [cdkDragData]="{ kind: 'place', place: place }">
+          <div class="grid grid-cols-2 gap-1 rounded-md bg-background/65 p-1" role="tablist"
+            aria-label="Filtrar lugares salvos">
+            <isumi-button class="w-full" variant="ghost" size="sm" fullWidth type="button"
+              [ariaPressed]="placeTab() === 'unscheduled'" (click)="placeTab.set('unscheduled')">
+              Não planejados <span class="ml-1 text-[0.6875rem]">({{ unscheduledPlaces().length }})</span>
+            </isumi-button>
+            <isumi-button class="w-full" variant="ghost" size="sm" fullWidth type="button"
+              [ariaPressed]="placeTab() === 'scheduled'" (click)="placeTab.set('scheduled')">
+              No roteiro <span class="ml-1 text-[0.6875rem]">({{ scheduledPlaces().length }})</span>
+            </isumi-button>
+          </div>
+
+          <div #placeLibrary id="trip-place-library"
+            class="trip-place-library trip-drop-list grid max-h-[48dvh] gap-2 overflow-y-auto rounded-md transition-[min-height,background-color,box-shadow] duration-200"
+            [class.bg-primary/5]="dragKind() !== null"
+            [class.ring-2]="dragKind() !== null"
+            [class.ring-primary/45]="dragKind() !== null"
+            [class.p-2]="dragKind() !== null"
+            [class.min-h-52]="dragKind() !== null && libraryVisuallyEmpty()"
+            [class.trip-place-library--drag-empty]="dragKind() !== null && libraryVisuallyEmpty()"
+            cdkDropList [cdkDropListData]="unscheduledPlaces()" [cdkDropListSortingDisabled]="true"
+            (cdkDropListEntered)="activateDropTarget('library')"
+            (cdkDropListExited)="deactivateDropTarget('library')"
+            (cdkDropListDropped)="dropInPlaceLibrary($event)">
+            @if (dragKind() !== null && libraryVisuallyEmpty()) {
+            <div
+              class="pointer-events-none grid min-h-36 place-content-center justify-items-center gap-2 rounded-md border-2 border-dashed border-primary/45 px-5 text-center text-primary"
+              aria-hidden="true">
+              <span class="grid size-9 place-items-center rounded-md bg-primary/15">
+                <svg lucideMapPin class="size-4"></svg>
+              </span>
+              <strong class="text-sm">
+                {{ dragKind() === "item" ? "Devolver à biblioteca" : "Manter na biblioteca" }}
+              </strong>
+              <span class="text-xs text-muted-foreground">Solte o item nesta área</span>
+            </div>
+            }
+            @for (place of visiblePlaces(); track place.id) {
+            <article
+              data-place-card
+              class="group overflow-hidden rounded-md bg-secondary/60 transition-[opacity,background-color] duration-200"
+              [class.opacity-30]="draggingEntityId() === place.id" cdkDrag
+              [cdkDragDisabled]="placeTab() === 'scheduled'" [cdkDragData]="{ kind: 'place', place: place }"
+              (pointerdown)="preparePlaceDrag($event)"
+              (pointerup)="cancelPreparedPlaceDrag()"
+              (pointercancel)="cancelPreparedPlaceDrag()"
+              (cdkDragStarted)="startPlaceDrag(place)" (cdkDragEnded)="finishDrag()">
               @if (imageUrls()[place.id]; as imageUrl) {
-              <img class="h-24 w-full rounded-md object-cover" [src]="imageUrl" [alt]="'Foto de ' + place.name"
+              <img class="h-28 w-full object-cover" [src]="imageUrl" [alt]="'Foto de ' + place.name"
                 (error)="imageFailed(place.id)">
               }
-              <div class="flex items-start gap-2">
-                <svg lucideGripVertical class="mt-0.5 size-4 shrink-0 cursor-grab text-muted-foreground"
-                  aria-hidden="true"></svg>
-                <div class="min-w-0 flex-1">
-                  <strong class="block truncate text-sm">{{ place.name }}</strong>
-                  <span class="mt-1 block text-xs text-muted-foreground">{{ categoryLabel(place.category) }}</span>
+              <div class="grid gap-3 p-3">
+                <div class="flex items-start gap-2">
+                  @if (placeTab() === "unscheduled") {
+                  <svg lucideGripVertical class="mt-0.5 size-4 shrink-0 cursor-grab text-muted-foreground"
+                    aria-hidden="true"></svg>
+                  } @else {
+                  <svg lucideMapPin class="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true"></svg>
+                  }
+                  <div class="min-w-0 flex-1">
+                    <strong class="block truncate text-sm">{{ place.name }}</strong>
+                    <span class="mt-1 block truncate text-xs text-muted-foreground">
+                      {{ place.address || categoryLabel(place.category) }}
+                    </span>
+                  </div>
+                  <label
+                    class="grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                    title="Adicionar foto">
+                    <svg lucideImagePlus class="size-4" aria-hidden="true"></svg>
+                    <input class="sr-only" type="file" accept="image/*" (change)="uploadImage(place, $event)">
+                  </label>
                 </div>
-                <label
-                  class="grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                  title="Adicionar foto">
-                  <svg lucideImagePlus class="size-4" aria-hidden="true"></svg>
-                  <input class="sr-only" type="file" accept="image/*" (change)="uploadImage(place, $event)">
-                </label>
-              </div>
-              <select isumiSelect size="sm" aria-label="Adicionar {{ place.name }} a um dia" #daySelect
-                (change)="daySelect.value && addPlaceToDay(place, daySelect.value); daySelect.value = ''">
-                <option value="">Adicionar ao dia...</option>
-                @for (day of store.days(); track day.id) {
-                <option [value]="day.id">{{ day.date | date:"EEE, dd MMM" }}</option>
+                @if (placeTab() === "unscheduled") {
+                <select isumiSelect size="sm" aria-label="Adicionar {{ place.name }} a um dia" #libraryDaySelect
+                  (change)="libraryDaySelect.value && addPlaceToDay(place, libraryDaySelect.value); libraryDaySelect.value = ''">
+                  <option value="">Escolher um dia...</option>
+                  @for (day of store.days(); track day.id) {
+                  <option [value]="day.id">Dia {{ dayNumber(day) }} · {{ day.date | date:"dd MMM" }}</option>
+                  }
+                </select>
+                } @else {
+                <div class="flex flex-wrap gap-1.5">
+                  @for (day of placeDays(place.id); track day.id) {
+                  <isumi-button variant="ghost" size="sm" type="button" (click)="focusDay(day.id)">
+                    Dia {{ dayNumber(day) }} · {{ day.date | date:"dd MMM" }}
+                  </isumi-button>
+                  }
+                </div>
                 }
-              </select>
+              </div>
+
+              <ng-template cdkDragPreview>
+                <div
+                  class="trip-drag-preview grid cursor-grabbing overflow-hidden rounded-md bg-primary/20 text-popover-foreground shadow-lg ring-2 ring-primary/60"
+                  [style.width.px]="dragPreviewWidth()">
+                  @if (imageUrls()[place.id]; as previewImageUrl) {
+                  <img class="h-24 w-full object-cover opacity-90" [src]="previewImageUrl" alt="">
+                  }
+                  <div class="flex items-center gap-3 p-3">
+                    <div class="flex min-w-0 flex-1 items-center gap-2">
+                      <span
+                        class="grid size-8 shrink-0 place-items-center rounded-sm bg-primary text-primary-foreground">
+                        <svg lucideMapPin class="size-4"></svg>
+                      </span>
+                      <div class="min-w-0 flex-1">
+                        <strong class="block truncate text-sm">{{ place.name }}</strong>
+                        <span class="block truncate text-xs text-muted-foreground">{{ place.address ||
+                          categoryLabel(place.category) }}</span>
+                      </div>
+                    </div>
+                    <isumi-tag tone="primary" size="small">Movendo</isumi-tag>
+                  </div>
+                </div>
+              </ng-template>
+
+              <ng-template cdkDragPlaceholder>
+                @if (dropPlaceholderLabel(); as placeholderLabel) {
+                <div
+                  class="trip-drop-placeholder grid w-full shrink-0 place-items-center rounded-md border-2 border-dashed border-primary/65 bg-primary/10 px-3 text-center text-primary"
+                  [class.min-h-20]="activeDropTarget() !== 'library'"
+                  [style.height.px]="activeDropTarget() === 'library' ? libraryDropPlaceholderHeight() : null">
+                  <span class="inline-flex items-center gap-2 text-xs font-extrabold">
+                    <svg lucideMapPin class="size-4"></svg>
+                    {{ placeholderLabel }}
+                  </span>
+                </div>
+                } @else {
+                <div class="trip-drop-placeholder w-full opacity-0"
+                  [style.height.px]="placeDragPlaceholderHeight()" aria-hidden="true"></div>
+                }
+              </ng-template>
             </article>
             } @empty {
-            <div class="grid justify-items-start gap-2 rounded-md bg-secondary/45 p-3">
-              <p class="m-0 text-sm leading-6 text-muted-foreground">Todos os lugares salvos já estão no roteiro.</p>
-              <isumi-button variant="ghost" size="sm" type="button" (click)="panel.set('place')">
-                <svg icon lucidePlus class="size-4"></svg>
-                Criar outro lugar
-              </isumi-button>
-            </div>
+            @if (dragKind() === null) {
+            <isumi-empty-state
+              [title]="placeTab() === 'unscheduled' ? 'Tudo já encontrou um dia' : 'Nenhum lugar no roteiro ainda'"
+              [description]="placeTab() === 'unscheduled' ? 'Crie outra parada ou consulte o que já foi planejado.' : 'Escolha um dia para um lugar salvo.'">
+              <svg icon lucideMapPin class="size-5"></svg>
+            </isumi-empty-state>
+            <isumi-button variant="ghost" size="sm" fullWidth type="button" (click)="panel.set('place')">
+              <svg icon lucidePlus class="size-4"></svg>
+              Criar lugar
+            </isumi-button>
+            }
             }
           </div>
         </section>
 
-        <isumi-button variant="secondary" size="sm" fullWidth type="button" (click)="panel.set('lodging')">
-          <svg icon lucideBedDouble class="size-4"></svg>
-          Adicionar hospedagem
-        </isumi-button>
+        <section class="grid gap-3 rounded-lg bg-card p-4" aria-labelledby="lodgings-title">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 id="lodgings-title" class="m-0 text-base font-black">Hospedagens</h2>
+              <p class="m-0 mt-1 text-xs text-muted-foreground">{{ store.lodgings().length }} estadia(s)</p>
+            </div>
+            <isumi-button variant="secondary" size="sm" iconOnly ariaLabel="Adicionar hospedagem" type="button"
+              (click)="openCreateLodging()">
+              <svg icon lucidePlus class="size-4"></svg>
+              Adicionar hospedagem
+            </isumi-button>
+          </div>
+          <div class="grid gap-2">
+            @for (lodging of store.lodgings(); track lodging.id) {
+            <article class="grid gap-2 rounded-md bg-secondary/55 p-3">
+              <div class="flex items-start gap-2">
+                <span class="grid size-8 shrink-0 place-items-center rounded-sm bg-primary/15 text-primary">
+                  <svg lucideBedDouble class="size-4" aria-hidden="true"></svg>
+                </span>
+                <div class="min-w-0 flex-1">
+                  <strong class="block truncate text-sm">{{ lodging.name }}</strong>
+                  <span class="mt-1 block text-xs text-muted-foreground">
+                    {{ lodging.checkInDate | date:"dd MMM" }} → {{ lodging.checkOutDate | date:"dd MMM" }}
+                  </span>
+                </div>
+                <div class="flex gap-1">
+                  <isumi-button variant="ghost-primary" size="sm" iconOnly [ariaLabel]="'Editar ' + lodging.name"
+                    (click)="openEditLodging(lodging)">
+                    <svg icon lucidePencil class="size-3.5"></svg>
+                    Editar
+                  </isumi-button>
+                  <isumi-button variant="ghost-destructive" size="sm" iconOnly [ariaLabel]="'Excluir ' + lodging.name"
+                    [loading]="deletingLodgingId() === lodging.id" (click)="deleteLodging(lodging)">
+                    <svg icon lucideTrash2 class="size-3.5"></svg>
+                    Excluir
+                  </isumi-button>
+                </div>
+              </div>
+              @if (lodging.address) {
+              <span class="inline-flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+                <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0"></svg>{{ lodging.address }}
+              </span>
+              }
+            </article>
+            } @empty {
+            <isumi-empty-state title="Nenhuma hospedagem"
+              description="Registre onde o grupo dormirá em cada trecho da viagem.">
+              <svg icon lucideBedDouble class="size-5"></svg>
+            </isumi-empty-state>
+            }
+          </div>
+        </section>
       </aside>
 
-      <main class="grid min-w-0 grid-cols-1 gap-4" aria-label="Linha do tempo da viagem">
-        <nav class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-card px-4 py-3"
-          aria-label="Navegação pelos dias da viagem">
-          <div>
-            <strong class="block text-sm">Roteiro por dia</strong>
-            <span class="text-xs text-muted-foreground">Exibindo {{ visibleDayRangeLabel() }}</span>
+      <main class="grid min-w-0 gap-4" aria-label="Linha do tempo da viagem">
+        <div class="grid gap-3 rounded-lg bg-card px-4 py-3" aria-label="Navegação pelos dias da viagem">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              @if (focusedDay(); as currentDay) {
+              <span class="text-xs font-bold text-muted-foreground">Progresso da viagem</span>
+              <strong class="mt-0.5 block text-sm">Dia {{ dayNumber(currentDay) }} de {{ store.days().length }}</strong>
+              }
+            </div>
+            <div class="flex items-center gap-1">
+              <isumi-button variant="secondary" size="sm" iconOnly ariaLabel="Mostrar dia anterior"
+                [disabled]="!canShowPreviousDays() || dayAnimating()" (click)="showPreviousDays()">
+                <svg icon lucideChevronLeft class="size-4"></svg>
+                Dia anterior
+              </isumi-button>
+              <isumi-button variant="secondary" size="sm" iconOnly ariaLabel="Mostrar próximo dia"
+                [disabled]="!canShowNextDays() || dayAnimating()" (click)="showNextDays()">
+                <svg icon lucideChevronRight class="size-4"></svg>
+                Próximo dia
+              </isumi-button>
+            </div>
           </div>
-          @if (store.days().length > 3) {
-          <div class="flex items-center gap-1">
-            <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Mostrar dias anteriores"
-              [disabled]="!canShowPreviousDays()" (click)="showPreviousDays()">
-              <svg icon lucideChevronLeft class="size-4"></svg>
-              Dias anteriores
-            </isumi-button>
-            <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Mostrar próximos dias"
-              [disabled]="!canShowNextDays()" (click)="showNextDays()">
-              <svg icon lucideChevronRight class="size-4"></svg>
-              Próximos dias
+          @if (focusedDay(); as currentDay) {
+          <div class="h-2 overflow-hidden rounded-full bg-secondary" role="progressbar" aria-label="Progresso da viagem"
+            [attr.aria-valuenow]="dayNumber(currentDay)" aria-valuemin="1" [attr.aria-valuemax]="store.days().length">
+            <span class="block h-full rounded-full bg-primary transition-[width] duration-300"
+              [style.width.%]="dayNumber(currentDay) / store.days().length * 100"></span>
+          </div>
+          }
+        </div>
+        @if (focusedDay(); as day) {
+        <section #dayPanel
+          class="relative grid min-w-0 gap-5 overflow-hidden rounded-lg bg-card p-5 shadow-md will-change-[transform,opacity,filter]"
+          [attr.aria-labelledby]="'day-new-' + day.id" (pointerdown)="focusDay(day.id)">
+          <span class="absolute inset-x-0 top-0 h-1 bg-primary/80" aria-hidden="true"></span>
+          <header class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <strong class="text-xl font-black leading-none text-primary">Dia {{ dayNumber(day) }}</strong>
+              <h2 [id]="'day-new-' + day.id" class="m-0 mt-1 text-lg font-black text-balance">
+                {{ day.date | date:"EEEE, dd 'de' MMMM" }}
+              </h2>
+            </div>
+            <span class="inline-flex shrink-0 items-center gap-1.5 pt-1 text-xs text-muted-foreground">
+              <svg lucideClock3 class="size-3.5"></svg>
+              <strong class="text-sm text-foreground">{{ dayTotal(day.id) / 60 | number:"1.0-1" }} h</strong>
+              planejadas
+            </span>
+          </header>
+
+          @if (lodgingForDay(day); as lodging) {
+          <div class="grid w-full grid-cols-[auto_1fr] items-center gap-3 rounded-md bg-primary/10 p-3"
+            aria-label="Hospedagem deste dia">
+            <span class="grid size-8 place-items-center rounded-sm bg-primary/20 text-primary">
+              <svg lucideBedDouble class="size-4"></svg>
+            </span>
+            <span class="min-w-0">
+              <strong class="block truncate text-xs">{{ lodging.name }}</strong>
+              @if (lodging.address) {
+              <span class="mt-0.5 block truncate text-[0.6875rem] text-muted-foreground">{{ lodging.address }}</span>
+              }
+            </span>
+          </div>
+          } @else {
+          <div class="flex w-full items-center gap-3 rounded-md bg-secondary/45 p-3">
+            <span class="grid size-8 shrink-0 place-items-center rounded-sm bg-background text-muted-foreground">
+              <svg lucideBedDouble class="size-4"></svg>
+            </span>
+            <span class="min-w-0 flex-1">
+              <strong class="block text-xs text-foreground">Sem hospedagem neste dia</strong>
+              <span class="mt-0.5 block text-[0.6875rem] text-muted-foreground">Adicione onde o grupo vai dormir</span>
+            </span>
+            <isumi-button variant="primary" size="sm" type="button" (click)="openCreateLodgingForDay(day)">
+              <svg icon lucidePlus class="size-4"></svg>
+              Adicionar
             </isumi-button>
           </div>
           }
-        </nav>
 
-        <div class="grid grid-cols-3 items-start gap-4 max-lg:grid-cols-[repeat(3,minmax(17rem,1fr))] max-lg:overflow-x-auto max-lg:snap-x max-lg:pb-2">
-        @for (day of visibleDays(); track day.id; let dayIndex = $index) {
-        <section class="grid min-w-0 snap-start gap-4 rounded-lg bg-card p-4" [attr.aria-labelledby]="'day-' + day.id">
-          <header class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 [id]="'day-' + day.id" class="m-0 text-base font-black">{{ day.date | date:"EEEE, dd 'de' MMMM" }}
-              </h2>
-              <p class="m-0 mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <svg lucideClock3 class="size-3.5"></svg>
-                {{ dayTotal(day.id) / 60 | number:"1.0-1" }} h planejadas
-              </p>
-            </div>
-            @if (lodgingForDay(day); as lodging) {
-            <span
-              class="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-bold text-muted-foreground">
-              <svg lucideBedDouble class="size-3.5"></svg>
-              {{ lodging.name }}
-            </span>
-            }
-          </header>
-
-          <div class="grid gap-0 rounded-lg bg-background/65 py-1" cdkDropList [id]="'trip-day-' + day.id"
-            [cdkDropListData]="store.itemsForDay(day.id)" cdkDropListOrientation="vertical"
+          <div
+            class="trip-drop-list relative grid gap-2 overflow-hidden rounded-lg bg-background/65 p-2 ring-primary/45 transition-[min-height,background-color,box-shadow] duration-200"
+            [class.bg-primary/5]="dragKind() !== null"
+            [class.ring-1]="dragKind() !== null && activeDropTarget() !== day.id"
+            [class.bg-primary/10]="activeDropTarget() === day.id || dropFeedbackDayId() === day.id"
+            [class.ring-2]="activeDropTarget() === day.id"
+            [class.min-h-28]="dragKind() !== null"
+            [class.ring-primary]="dropFeedbackDayId() === day.id"
+            cdkDropList [id]="'trip-new-day-' + day.id" [cdkDropListData]="store.itemsForDay(day.id)"
+            cdkDropListOrientation="vertical"
+            (cdkDropListEntered)="activateDropTarget(day.id)"
+            (cdkDropListExited)="deactivateDropTarget(day.id)"
+            (cdkDropListSorted)="activateDropTarget(day.id)"
             (cdkDropListDropped)="drop($event, day)">
             @for (item of store.itemsForDay(day.id); track item.id; let index = $index) {
-            @if (index > 0) {
-            <button type="button"
-              class="relative flex min-h-15 items-center gap-2.5 py-2 pl-11 pr-3 text-left text-xs font-bold text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
-              [class.text-primary]="item.transportNeedsReview"
-              (click)="openItem(item)"
-              [attr.aria-label]="'Editar deslocamento até ' + (placeById(item.placeId)?.name || 'lugar')">
-              <span class="absolute bottom-0 left-[1.4rem] top-0 w-px bg-border" aria-hidden="true"></span>
-              @switch (item.transportMode) {
-              @case ("walk") { <svg lucideFootprints class="absolute left-3.5 z-10 box-content size-4 rounded-full bg-background p-1"></svg> }
-              @case ("car") { <svg lucideCar class="absolute left-3.5 z-10 box-content size-4 rounded-full bg-background p-1"></svg> }
-              @case ("transit") { <svg lucideBus class="absolute left-3.5 z-10 box-content size-4 rounded-full bg-background p-1"></svg> }
-              @default { <svg lucideLink class="absolute left-3.5 z-10 box-content size-4 rounded-full bg-background p-1"></svg> }
+            <div
+              class="trip-itinerary-drag-item grid min-w-0 gap-2"
+              [class.opacity-25]="draggingEntityId() === item.id"
+              cdkDrag [cdkDragData]="{ kind: 'item', item: item }"
+              (cdkDragStarted)="startItemDrag(item)" (cdkDragEnded)="finishDrag()">
+              @if (index > 0) {
+              <button type="button"
+                class="group/route relative mx-2 flex min-h-10 cursor-pointer items-center gap-2.5 rounded-md px-3 pl-10 text-left text-xs font-bold text-muted-foreground transition-colors duration-200 hover:bg-accent/70 hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+                [class.!pointer-events-none]="dragKind() !== null"
+                [class.!bg-transparent]="dragKind() !== null"
+                [class.!text-muted-foreground]="dragKind() !== null"
+                (click)="openItem(item)">
+                <span
+                  class="absolute -bottom-1 -top-1 left-[1.2rem] w-px bg-border transition-colors group-hover/route:bg-primary/50"
+                  [class.!bg-border]="dragKind() !== null"
+                  aria-hidden="true"></span>
+                @switch (item.transportMode) {
+                @case ("walk") { <svg lucideFootprints
+                  class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                  [class.!text-muted-foreground]="dragKind() !== null"></svg>
+                }
+                @case ("car") { <svg lucideCar
+                  class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                  [class.!text-muted-foreground]="dragKind() !== null"></svg>
+                }
+                @case ("transit") { <svg lucideBus
+                  class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                  [class.!text-muted-foreground]="dragKind() !== null"></svg>
+                }
+                @case ("other") { <svg lucideShuffle
+                  class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                  [class.!text-muted-foreground]="dragKind() !== null"></svg>
+                }
+                @default { <svg lucideLink
+                  class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-background p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                  [class.!text-muted-foreground]="dragKind() !== null"></svg>
+                }
+                }
+                <span>
+                  {{ item.transportMode
+                    ? transportLabel(item.transportMode) + (item.transportMinutes ? " · " + item.transportMinutes + " min" : "")
+                    : "Definir trajeto" }}
+                </span>
+              </button>
               }
-              <span>{{ item.transportNeedsReview ? "Revisar trajeto" : item.transportMinutes ?
-                transportLabel(item.transportMode) + " · " + item.transportMinutes + " min" : "Definir trajeto"
-                }}</span>
-            </button>
-            }
-            <article
-              class="flex min-w-0 overflow-hidden rounded-lg bg-secondary text-secondary-foreground outline-none transition-transform duration-200 focus-within:ring-2 focus-within:ring-primary/65 motion-reduce:transition-none"
-              [class.ring-2]="editorForItem(item.id)" [class.ring-primary]="editorForItem(item.id)" cdkDrag
-              [cdkDragData]="{ kind: 'item', item: item }" (focusin)="store.selectItem(item.id)"
-              (focusout)="store.selectItem(null)">
+              <article
+                class="flex min-w-0 overflow-hidden rounded-md bg-secondary text-secondary-foreground outline-none transition-[box-shadow] duration-200 ease-out focus-within:ring-2 focus-within:ring-primary/65"
+                [class.ring-2]="editorForItem(item.id)" [class.ring-primary]="editorForItem(item.id)">
               @if (imageUrls()[item.placeId]; as imageUrl) {
-              <img class="min-h-26 w-28 shrink-0 object-cover max-sm:w-22" [src]="imageUrl" [alt]="'Foto de ' + placeById(item.placeId)?.name"
-                (error)="imageFailed(item.placeId)">
+              <img class="min-h-24 w-24 shrink-0 object-cover" [src]="imageUrl"
+                [alt]="'Foto de ' + placeById(item.placeId)?.name" (error)="imageFailed(item.placeId)">
               }
               <div class="grid min-w-0 flex-1 gap-3 p-3">
                 @if (editorForItem(item.id); as editorName) {
@@ -376,23 +605,37 @@
                 </span>
                 }
                 <div class="flex items-start gap-2">
-                  <svg lucideGripVertical class="mt-0.5 size-4 shrink-0 cursor-grab text-muted-foreground"></svg>
+                    <isumi-button class="mt-0.5 shrink-0 [&_button]:!cursor-grab [&_button]:active:!cursor-grabbing"
+                      cdkDragHandle variant="ghost-primary" size="sm" iconOnly ariaLabel="Arrastar parada"
+                      (pointerdown)="prepareItemDrag($event)"
+                      (click)="$event.stopPropagation()">
+                      <svg icon lucideGripVertical class="size-4"></svg>
+                      Arrastar parada
+                    </isumi-button>
                   <div class="min-w-0 flex-1">
                     <strong class="block truncate text-sm">{{ placeById(item.placeId)?.name }}</strong>
-                    <span class="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground"><svg lucideClock3
-                        class="size-3.5"></svg>{{ item.durationMinutes }} min no local</span>
+                    <span class="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <svg lucideClock3 class="size-3.5"></svg>{{ item.durationMinutes }} min no local
+                    </span>
                   </div>
-                  <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Editar item" (click)="openItem(item)">
+                    <isumi-button variant="ghost-primary" size="sm" iconOnly ariaLabel="Editar item"
+                      (pointerdown)="$event.stopPropagation()"
+                      (click)="$event.stopPropagation(); openItem(item)">
                     <svg icon lucideRoute class="size-4"></svg>
                     Editar
                   </isumi-button>
                 </div>
-
                 <div class="hidden grid-cols-4 gap-1 max-md:grid">
-                  <button type="button" class="grid min-h-11 place-items-center rounded-md bg-background text-muted-foreground" (click)="moveRelative(item, -1)"
-                    aria-label="Mover antes"><svg lucideArrowUp class="size-4"></svg></button>
-                  <button type="button" class="grid min-h-11 place-items-center rounded-md bg-background text-muted-foreground" (click)="moveRelative(item, 1)"
-                    aria-label="Mover depois"><svg lucideArrowDown class="size-4"></svg></button>
+                  <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Mover antes"
+                    (click)="moveRelative(item, -1)">
+                    <svg icon lucideArrowUp class="size-4"></svg>
+                    Mover antes
+                  </isumi-button>
+                  <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Mover depois"
+                    (click)="moveRelative(item, 1)">
+                    <svg icon lucideArrowDown class="size-4"></svg>
+                    Mover depois
+                  </isumi-button>
                   <select class="col-span-2 min-w-0 rounded-md bg-background px-2 text-xs"
                     aria-label="Mover para outro dia" [ngModel]="item.dayId" (ngModelChange)="moveToDay(item, $event)">
                     @for (targetDay of store.days(); track targetDay.id) {
@@ -401,19 +644,58 @@
                   </select>
                 </div>
               </div>
-            </article>
-            } @empty {
-            <div class="grid min-h-32 place-content-center justify-items-center gap-2 p-6 text-center text-[0.8125rem] font-bold text-muted-foreground">
-              <svg lucidePlus class="size-5" aria-hidden="true"></svg>
-              <span>Arraste um lugar para cá ou escolha este dia na lista de lugares salvos.</span>
+              </article>
+
+              <ng-template cdkDragPreview>
+                <div
+                  class="trip-drag-preview flex cursor-grabbing overflow-hidden rounded-md bg-primary/20 text-popover-foreground shadow-lg ring-2 ring-primary/60"
+                  [style.width.px]="dragPreviewWidth()">
+                  @if (imageUrls()[item.placeId]; as previewImageUrl) {
+                  <img class="min-h-20 w-20 shrink-0 object-cover" [src]="previewImageUrl" alt="">
+                  }
+                  <div class="flex min-w-0 flex-1 items-center gap-3 p-3">
+                    <span class="grid size-8 shrink-0 place-items-center rounded-sm bg-primary text-primary-foreground">
+                      <svg lucideGripVertical class="size-4"></svg>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                      <strong class="block truncate text-sm">{{ placeById(item.placeId)?.name }}</strong>
+                    </div>
+                    <isumi-tag tone="primary" size="small">Movendo</isumi-tag>
+                  </div>
+                </div>
+              </ng-template>
+
+              <ng-template cdkDragPlaceholder>
+                @if (dropPlaceholderLabel(); as placeholderLabel) {
+                <div
+                  class="trip-drop-placeholder grid w-full shrink-0 place-items-center rounded-md border-2 border-dashed border-primary/65 bg-primary/10 px-3 text-center text-primary"
+                  [class.min-h-20]="activeDropTarget() !== 'library'"
+                  [style.height.px]="activeDropTarget() === 'library' ? libraryDropPlaceholderHeight() : null">
+                  <span class="inline-flex items-center gap-2 text-xs font-extrabold">
+                    <svg lucideMapPin class="size-4"></svg>
+                    {{ placeholderLabel }}
+                  </span>
+                </div>
+                } @else {
+                <div class="trip-drop-placeholder w-full opacity-0"
+                  [style.height.px]="itemDragPlaceholderHeight()" aria-hidden="true"></div>
+                }
+              </ng-template>
             </div>
+            } @empty {
+            @if (dragKind() === null) {
+            <isumi-empty-state class="min-h-44 justify-center" title="Este dia está livre"
+              description="Arraste uma ideia da biblioteca ou escolha este dia em um lugar salvo.">
+              <svg icon lucidePlus class="size-5"></svg>
+            </isumi-empty-state>
+            }
             }
           </div>
         </section>
         }
-        </div>
       </main>
     </div>
+
 
     @if (panel(); as activePanel) {
     <div class="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" (click)="panel.set(null)">
@@ -431,7 +713,7 @@
               @switch (activePanel) {
               @case ("place") { Adicionar lugar }
               @case ("flight") { {{ selectedFlight() ? "Editar voo" : "Adicionar voo" }} }
-              @case ("lodging") { Adicionar hospedagem }
+              @case ("lodging") { {{ selectedLodging() ? "Editar hospedagem" : "Adicionar hospedagem" }} }
               }
             </h2>
             @if (activePanel === "flight") {
@@ -477,9 +759,9 @@
               </span>
               <select isumiSelect name="direction" [ngModel]="flightDirection()"
                 (ngModelChange)="flightDirection.set($event)">
-              <option value="outbound">Ida</option>
-              <option value="return">Volta</option>
-              <option value="other">Conexão/outro</option>
+                <option value="outbound">Ida</option>
+                <option value="return">Volta</option>
+                <option value="other">Conexão/outro</option>
               </select>
             </label>
 
@@ -551,7 +833,7 @@
         </form>
         }
         @case ("lodging") {
-        <form class="grid gap-4" (ngSubmit)="createLodging()">
+        <form class="grid gap-4" (ngSubmit)="saveLodging()">
           <label class="grid gap-2"><span class="text-sm font-bold">Hospedagem</span><input isumiInput
               name="lodgingName" [ngModel]="lodgingName()" (ngModelChange)="lodgingName.set($event)"
               placeholder="Hotel ou apartamento" required></label>
@@ -563,7 +845,15 @@
             <label class="grid gap-2"><span class="text-sm font-bold">Check-out</span><input isumiInput type="date"
                 name="checkOut" [ngModel]="checkOutDate()" (ngModelChange)="checkOutDate.set($event)" required></label>
           </div>
-          <isumi-button type="submit"><svg icon lucideBedDouble class="size-4"></svg>Salvar hospedagem</isumi-button>
+          <label class="grid gap-2"><span class="text-sm font-bold">Observações</span><textarea isumiInput
+              name="lodgingNotes" rows="3" [ngModel]="lodgingNotes()" (ngModelChange)="lodgingNotes.set($event)"
+              placeholder="Horário de recepção, código de acesso..."></textarea></label>
+          <footer class="flex justify-end gap-2">
+            <isumi-button variant="secondary" type="button" (click)="panel.set(null)">Cancelar</isumi-button>
+            <isumi-button type="submit"><svg icon lucideBedDouble class="size-4"></svg>
+              {{ selectedLodging() ? "Salvar alterações" : "Adicionar hospedagem" }}
+            </isumi-button>
+          </footer>
         </form>
         }
         }

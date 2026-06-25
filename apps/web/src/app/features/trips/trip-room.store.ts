@@ -22,6 +22,8 @@ export class TripRoomStore {
   private reconnectAttempt = 0;
   private reconnectTimer: number | null = null;
   private closedIntentionally = false;
+  private localDragActive = false;
+  private queuedSnapshot: TripSnapshot | null = null;
 
   readonly snapshot = this.snapshotState.asReadonly();
   readonly connection = this.connectionState.asReadonly();
@@ -46,7 +48,21 @@ export class TripRoomStore {
   }
 
   setSnapshot(snapshot: TripSnapshot): void {
-    this.snapshotState.set(snapshot);
+    if (this.localDragActive) this.queuedSnapshot = snapshot;
+    else this.snapshotState.set(snapshot);
+  }
+
+  beginLocalDrag(): void {
+    this.localDragActive = true;
+    this.queuedSnapshot = null;
+  }
+
+  endLocalDrag(): void {
+    this.localDragActive = false;
+    if (this.queuedSnapshot) {
+      this.snapshotState.set(this.queuedSnapshot);
+      this.queuedSnapshot = null;
+    }
   }
 
   async connect(): Promise<void> {
@@ -78,6 +94,8 @@ export class TripRoomStore {
     this.connectionState.set("offline");
     this.presenceState.set([]);
     this.editingState.set({});
+    this.localDragActive = false;
+    this.queuedSnapshot = null;
   }
 
   moveItem(item: TripDayItem, targetDayId: string, targetPosition: number): void {
@@ -113,7 +131,10 @@ export class TripRoomStore {
       error?: string;
       status?: number;
     };
-    if (event.type === "snapshot" && event.snapshot) this.snapshotState.set(event.snapshot);
+    if (event.type === "snapshot" && event.snapshot) {
+      if (this.localDragActive) this.queuedSnapshot = event.snapshot;
+      else this.snapshotState.set(event.snapshot);
+    }
     if (event.type === "presence" && event.members) this.presenceState.set(event.members);
     if (event.type === "presence_update" && event.userId) {
       this.editingState.update((state) => ({ ...state, [event.userId as string]: event.selectedItemId || null }));

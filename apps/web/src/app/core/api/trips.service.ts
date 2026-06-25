@@ -9,6 +9,7 @@ import {
   TripRoom,
   TripSnapshot,
   UpdateTripFlightRequest,
+  UpdateTripLodgingRequest,
   UpsertTripDayItemRequest,
   UpsertTripPlaceRequest
 } from "./api.types";
@@ -92,6 +93,10 @@ export class TripsService {
 
   createLodging(roomId: string, payload: CreateTripLodgingRequest): Observable<TripSnapshot> {
     return this.http.post<TripSnapshot>(`${this.baseUrl}/${roomId}/lodgings`, payload);
+  }
+
+  updateLodging(roomId: string, lodgingId: string, payload: UpdateTripLodgingRequest): Observable<TripSnapshot> {
+    return this.http.patch<TripSnapshot>(`${this.baseUrl}/${roomId}/lodgings/${lodgingId}`, payload);
   }
 
   deleteLodging(roomId: string, lodgingId: string): Observable<void> {

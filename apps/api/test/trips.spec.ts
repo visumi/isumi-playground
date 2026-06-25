@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { enumerateTripDates, isWebp } from "../src";
+import { enumerateTripDates, isWebp, lodgingPeriodsOverlap } from "../src";
 
 describe("trip planner validation", () => {
   it("enumerates every trip day inclusively", () => {
@@ -23,5 +23,14 @@ describe("trip planner validation", () => {
       0x57, 0x45, 0x42, 0x50
     ]))).toBe(true);
     expect(isWebp(new TextEncoder().encode("not-a-webp-file"))).toBe(false);
+  });
+
+  it("treats check-out as an exclusive lodging boundary", () => {
+    expect(lodgingPeriodsOverlap("2026-10-12", "2026-10-14", "2026-10-14", "2026-10-16")).toBe(false);
+  });
+
+  it("detects lodging periods that share at least one night", () => {
+    expect(lodgingPeriodsOverlap("2026-10-12", "2026-10-15", "2026-10-14", "2026-10-16")).toBe(true);
+    expect(lodgingPeriodsOverlap("2026-10-13", "2026-10-14", "2026-10-12", "2026-10-16")).toBe(true);
   });
 });

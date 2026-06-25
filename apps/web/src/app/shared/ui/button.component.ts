@@ -1,6 +1,13 @@
 import { ChangeDetectionStrategy, Component, booleanAttribute, computed, input } from "@angular/core";
 
-export type IsumiButtonVariant = "primary" | "secondary" | "ghost" | "destructive" | "ghost-destructive" | "secondary-destructive";
+export type IsumiButtonVariant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "ghost-primary"
+  | "destructive"
+  | "ghost-destructive"
+  | "secondary-destructive";
 export type IsumiButtonSize = "sm" | "md" | "lg";
 export type IsumiButtonType = "button" | "submit" | "reset";
 
@@ -48,6 +55,7 @@ export class IsumiButtonComponent {
       secondary: "bg-secondary text-secondary-foreground hover:bg-ring/45 hover:text-foreground disabled:hover:bg-secondary disabled:hover:text-secondary-foreground",
       "secondary-destructive": "bg-secondary text-secondary-foreground hover:bg-red-700 hover:text-white disabled:hover:bg-transparent disabled:hover:text-destructive",
       ghost: "bg-transparent text-muted-foreground hover:bg-ring/30 hover:text-foreground disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
+      "ghost-primary": "bg-transparent text-muted-foreground hover:bg-primary hover:text-primary-foreground disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
       destructive: "bg-destructive text-white hover:bg-red-700 hover:text-white disabled:hover:bg-destructive disabled:hover:text-white",
       "ghost-destructive": "bg-transparent text-muted-foreground hover:bg-red-700 hover:text-white disabled:hover:bg-transparent disabled:hover:text-destructive"
     };

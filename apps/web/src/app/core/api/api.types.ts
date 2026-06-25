@@ -302,7 +302,6 @@ export interface TripDayItem {
   transportMode: TripTransportMode | null;
   transportMinutes: number | null;
   transportNotes: string | null;
-  transportNeedsReview: boolean;
   version: number;
 }
 
@@ -386,4 +385,8 @@ export interface CreateTripLodgingRequest {
   checkInDate: string;
   checkOutDate: string;
   notes?: string | null;
+}
+
+export interface UpdateTripLodgingRequest extends CreateTripLodgingRequest {
+  version: number;
 }
