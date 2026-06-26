@@ -5,12 +5,13 @@ import { IsumiButtonComponent } from "./button.component";
 import { IsumiEmptyStateComponent } from "./empty-state.component";
 import { IsumiInputDirective } from "./input.directive";
 import { IsumiSelectDirective } from "./select.directive";
+import { IsumiTabComponent } from "./tab.component";
 import { IsumiTagComponent } from "./tag.component";
 import { IsumiTooltipComponent } from "./tooltip.component";
 
 @Component({
   standalone: true,
-  imports: [IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective, IsumiTagComponent, IsumiTooltipComponent],
+  imports: [IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiSelectDirective, IsumiTabComponent, IsumiTagComponent, IsumiTooltipComponent],
   template: `
     <isumi-button variant="secondary" size="sm" disabled>
       <span icon data-testid="icon"></span>
@@ -23,6 +24,10 @@ import { IsumiTooltipComponent } from "./tooltip.component";
     </isumi-button>
     <isumi-button variant="ghost-destructive">Remover</isumi-button>
     <isumi-button variant="destructive">Excluir</isumi-button>
+    <div role="tablist">
+      <isumi-tab selected fullWidth>Pendentes</isumi-tab>
+      <isumi-tab fullWidth>Roteiro</isumi-tab>
+    </div>
     <input isumiInput name="title" maxlength="120" autocomplete="off" placeholder="Titulo">
     <textarea isumiInput rows="4"></textarea>
     <select isumiSelect name="kind">
@@ -115,6 +120,20 @@ describe("shared ui", () => {
     expect(button.classList).toContain("text-white");
     expect(button.classList).toContain("hover:bg-red-700");
     expect(button.classList).toContain("hover:text-white");
+  });
+
+  it("distinguishes selected tabs with accessible state and an internal active treatment", () => {
+    const tabs = fixture.debugElement.queryAll(By.css("[role='tab']"));
+    const selectedTab = tabs[0].nativeElement as HTMLButtonElement;
+    const idleTab = tabs[1].nativeElement as HTMLButtonElement;
+
+    expect(selectedTab.getAttribute("aria-selected")).toBe("true");
+    expect(selectedTab.tabIndex).toBe(0);
+    expect(selectedTab.classList).toContain("bg-secondary");
+    expect(selectedTab.className).toContain("shadow-[inset_0_0_0_2px_rgb(147_51_234_/_0.34),inset_0_1px_0_rgb(255_255_255_/_0.06)]");
+    expect(idleTab.getAttribute("aria-selected")).toBe("false");
+    expect(idleTab.tabIndex).toBe(-1);
+    expect(idleTab.classList).toContain("bg-transparent");
   });
 
   it("styles native inputs without removing their HTML attributes", () => {

@@ -106,8 +106,8 @@ import {
       </div>
 
       <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
-        <isumi-button mobileFull variant="secondary" type="button" (click)="modalRef.close()">Cancelar</isumi-button>
-        <isumi-button mobileFull type="submit">
+        <isumi-button mobileFull variant="secondary" type="button" [disabled]="modalRef.processing()" (click)="modalRef.close()">Cancelar</isumi-button>
+        <isumi-button mobileFull type="submit" [loading]="modalRef.processing()">
           <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
           Criar viagem
         </isumi-button>
@@ -136,7 +136,7 @@ export class CreateTripModalComponent {
       return;
     }
 
-    this.modalRef.close({
+    void this.modalRef.submit({
       title,
       destination,
       startDate: this.startDate(),
@@ -178,26 +178,23 @@ export class TripsComponent implements OnInit {
     await this.refresh();
   }
 
-  async openCreateModal(): Promise<void> {
-    const ref = this.modal.open<CreateTripModalComponent, unknown, CreateTripRequest>(CreateTripModalComponent, {
+  openCreateModal(): void {
+    this.modal.open<CreateTripModalComponent, unknown, CreateTripRequest>(CreateTripModalComponent, {
       ariaLabel: "Criar viagem",
-      panelClass: "sm:w-[min(100%,600px)]"
+      panelClass: "sm:w-[min(100%,600px)]",
+      onSubmit: async (payload) => {
+        this.creating.set(true);
+        try {
+          const snapshot = await firstValueFrom(this.trips.create(payload));
+          await this.router.navigate(["/tools/trips", snapshot.room.id, "room"]);
+        } catch (error) {
+          this.toast.error("Não foi possível criar a viagem.");
+          throw error;
+        } finally {
+          this.creating.set(false);
+        }
+      }
     });
-    const payload = await ref.closed;
-
-    if (!payload) {
-      return;
-    }
-
-    this.creating.set(true);
-    try {
-      const snapshot = await firstValueFrom(this.trips.create(payload));
-      await this.router.navigate(["/tools/trips", snapshot.room.id, "room"]);
-    } catch {
-      this.toast.error("Não foi possível criar a viagem.");
-    } finally {
-      this.creating.set(false);
-    }
   }
 
   private async refresh(): Promise<void> {

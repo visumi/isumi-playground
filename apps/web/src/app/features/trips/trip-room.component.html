@@ -2,9 +2,70 @@
   <isumi-breadcrumb [items]="breadcrumbItems()" />
 
   @if (loading()) {
-  <div class="grid gap-4" aria-label="Carregando roteiro">
-    <div class="h-24 animate-pulse rounded-lg bg-card"></div>
-    <div class="h-[32rem] animate-pulse rounded-lg bg-card"></div>
+  <div class="grid animate-pulse gap-5" aria-label="Carregando planejamento da viagem" aria-busy="true">
+    <div class="grid gap-5 rounded-lg bg-card p-5">
+      <div class="flex items-start justify-between gap-4">
+        <div class="grid flex-1 gap-3">
+          <span class="h-7 w-2/5 max-w-72 rounded-sm bg-secondary"></span>
+          <span class="h-4 w-3/5 max-w-96 rounded-sm bg-secondary/70"></span>
+        </div>
+        <div class="flex gap-2">
+          <span class="size-10 rounded-sm bg-secondary"></span>
+          <span class="size-10 rounded-sm bg-secondary"></span>
+        </div>
+      </div>
+      <span class="h-16 rounded-md bg-secondary/55"></span>
+    </div>
+
+    <div class="grid grid-cols-[22rem_minmax(0,1fr)] items-start gap-5 max-xl:grid-cols-1">
+      <aside class="grid gap-4">
+        <div class="grid gap-4 rounded-lg bg-card p-4">
+          <div class="flex items-center gap-3">
+            <span class="size-8 rounded-md bg-secondary"></span>
+            <span class="h-5 w-32 rounded-sm bg-secondary"></span>
+          </div>
+          <span class="h-9 rounded-md bg-background/65"></span>
+          <div class="grid gap-2">
+            <span class="h-24 rounded-md bg-secondary/65"></span>
+            <span class="h-24 rounded-md bg-secondary/65"></span>
+          </div>
+        </div>
+
+        <div class="grid gap-4 rounded-lg bg-card p-4">
+          <div class="flex items-center gap-3">
+            <span class="size-8 rounded-md bg-secondary"></span>
+            <span class="h-5 w-28 rounded-sm bg-secondary"></span>
+          </div>
+          <span class="h-24 rounded-md bg-secondary/65"></span>
+        </div>
+      </aside>
+
+      <main class="grid min-w-0 gap-4">
+        <div class="grid gap-3 rounded-lg bg-card px-4 py-3">
+          <div class="flex items-center justify-between gap-4">
+            <span class="h-9 w-40 rounded-sm bg-secondary"></span>
+            <div class="flex gap-2">
+              <span class="size-9 rounded-sm bg-secondary"></span>
+              <span class="size-9 rounded-sm bg-secondary"></span>
+            </div>
+          </div>
+          <span class="h-2 rounded-full bg-secondary"></span>
+        </div>
+
+        <div class="grid min-h-[28rem] gap-5 rounded-lg bg-card p-5">
+          <div class="grid content-start gap-3">
+            <span class="h-5 w-16 rounded-sm bg-secondary/80"></span>
+            <span class="h-6 w-52 rounded-sm bg-secondary"></span>
+          </div>
+          <span class="h-20 rounded-lg bg-secondary/60"></span>
+          <div class="grid content-start gap-2 rounded-lg bg-background/65 p-2">
+            <span class="h-28 rounded-lg bg-secondary/70"></span>
+            <span class="h-10 rounded-md bg-secondary/45"></span>
+            <span class="h-28 rounded-lg bg-secondary/70"></span>
+          </div>
+        </div>
+      </main>
+    </div>
   </div>
   } @else if (store.snapshot(); as snapshot) {
   <div class="grid gap-5" cdkDropListGroup aria-labelledby="trip-title">
@@ -215,7 +276,7 @@
         } @else {
         <div class="flex flex-wrap items-center justify-between gap-4 rounded-md bg-secondary/45 px-4 py-3">
           <div class="flex min-w-0 items-center gap-3">
-            <span class="grid size-10 shrink-0 place-items-center rounded-sm bg-primary/15 text-primary">
+            <span class="grid size-10 shrink-0 place-items-center rounded-sm bg-muted text-muted-foreground">
               <svg lucidePlaneTakeoff class="size-5" aria-hidden="true"></svg>
             </span>
             <div>
@@ -237,46 +298,44 @@
     </div>
     }
 
-    <div class="grid grid-cols-[19rem_minmax(0,1fr)] items-start gap-5 max-xl:grid-cols-1">
-      <aside class="xl:sticky xl:top-6">
-        <section class="overflow-hidden rounded-lg bg-card" aria-labelledby="trip-library-title">
+    <div class="grid grid-cols-[22rem_minmax(0,1fr)] items-start gap-5 max-xl:grid-cols-1">
+      <aside class="grid gap-4 xl:sticky xl:top-6">
+        <section class="overflow-hidden rounded-lg bg-card" aria-labelledby="places-library-title">
           <header class="flex items-start justify-between gap-3 px-4 pb-3 pt-4">
-            <div>
-              <h2 id="trip-library-title" class="m-0 text-base font-black">Biblioteca da viagem</h2>
-              <p class="m-0 mt-1 text-xs leading-5 text-muted-foreground">Paradas para encaixar e estadias que dão forma
-                ao roteiro.</p>
-            </div>
-            <span
-              class="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 text-[0.6875rem] font-bold text-primary">
-              <svg lucideMapPin class="size-3.5" aria-hidden="true"></svg>
-              {{ store.places().length + store.lodgings().length }} salvos
-            </span>
-          </header>
-
-          <div class="grid gap-3 border-t border-border px-4 py-4" aria-labelledby="places-library-title">
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <h3 id="places-library-title" class="m-0 text-sm font-black">Lugares</h3>
-                <p class="m-0 mt-0.5 text-[0.6875rem] leading-4 text-muted-foreground">Arraste uma ideia até o dia
-                  desejado.</p>
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+                  <svg lucideMapPin class="size-4" aria-hidden="true"></svg>
+                </span>
+                <h2 id="places-library-title" class="m-0 text-base font-black">Lugares salvos</h2>
+                <span class="rounded-full bg-secondary px-2 py-0.5 text-[0.6875rem] font-bold text-muted-foreground">
+                  {{ store.places().length }}
+                </span>
               </div>
+              <p class="m-0 mt-2 max-w-[34ch] text-xs leading-5 text-muted-foreground">
+                Ideias para distribuir pelos dias e transformar em paradas do roteiro.
+              </p>
+            </div>
+            <div class="shrink-0">
               <isumi-button variant="secondary" size="sm" iconOnly ariaLabel="Criar novo lugar" type="button"
                 (click)="openCreatePlace()">
                 <svg icon lucidePlus class="size-4"></svg>
                 Novo lugar
               </isumi-button>
             </div>
+          </header>
 
+          <div class="grid gap-3 border-t border-border px-4 py-4">
             <div class="grid grid-cols-2 gap-1 rounded-md bg-background/65 p-1" role="tablist"
               aria-label="Filtrar lugares salvos">
-              <isumi-button class="w-full" variant="ghost" size="sm" fullWidth type="button"
-                [ariaPressed]="placeTab() === 'unscheduled'" (click)="placeTab.set('unscheduled')">
-                Para encaixar <span class="ml-1 text-[0.6875rem]">({{ unscheduledPlaces().length }})</span>
-              </isumi-button>
-              <isumi-button class="w-full" variant="ghost" size="sm" fullWidth type="button"
-                [ariaPressed]="placeTab() === 'scheduled'" (click)="placeTab.set('scheduled')">
-                No roteiro <span class="ml-1 text-[0.6875rem]">({{ scheduledPlaces().length }})</span>
-              </isumi-button>
+              <isumi-tab fullWidth [selected]="placeTab() === 'unscheduled'"
+                (click)="placeTab.set('unscheduled')">
+                Pendentes
+              </isumi-tab>
+              <isumi-tab fullWidth [selected]="placeTab() === 'scheduled'"
+                (click)="placeTab.set('scheduled')">
+                Roteiro
+              </isumi-tab>
             </div>
 
             <div #placeLibrary id="trip-place-library"
@@ -307,43 +366,77 @@
               @for (place of visiblePlaces(); track place.id) {
               <article
                 data-place-card
-                class="group overflow-hidden rounded-md bg-secondary/60 transition-[opacity,background-color] duration-200 hover:bg-secondary/80"
+                class="overflow-hidden rounded-md bg-secondary transition-opacity duration-200"
                 [class.opacity-30]="draggingEntityId() === place.id" cdkDrag
                 [cdkDragDisabled]="placeTab() === 'scheduled'" [cdkDragData]="{ kind: 'place', place: place }"
                 (pointerdown)="preparePlaceDrag($event)"
                 (pointerup)="cancelPreparedPlaceDrag()"
                 (pointercancel)="cancelPreparedPlaceDrag()"
                 (cdkDragStarted)="startPlaceDrag(place)" (cdkDragEnded)="finishDrag()">
-                <div class="grid gap-2.5 p-3">
-                  <div class="flex items-start gap-2.5">
+                <div class="grid gap-3 p-3">
+                  <div class="flex min-w-0 items-start gap-2.5">
                     <span
-                      class="grid size-9 shrink-0 place-items-center rounded-md [&_svg]:size-4"
+                      class="grid size-10 shrink-0 place-items-center rounded-md [&_svg]:size-4"
                       [class]="categoryVisual(place.category).classes">
                       <ng-container *ngComponentOutlet="categoryVisual(place.category).icon" />
                     </span>
                     <button type="button" class="min-w-0 flex-1 text-left" (click)="openEditPlace(place)">
-                      <strong class="block truncate text-sm">{{ place.name }}</strong>
-                      <span class="mt-1 block truncate text-xs text-muted-foreground">
-                        {{ place.address || categoryLabel(place.category) }}
+                      <strong class="block break-words text-sm leading-5">{{ place.name }}</strong>
+                      <span class="mt-1 block text-[0.6875rem] font-semibold leading-4 text-muted-foreground">
+                        {{ categoryLabel(place.category) }}
                       </span>
                     </button>
-                    <isumi-button variant="ghost-primary" size="sm" iconOnly
-                      [ariaLabel]="'Editar ' + place.name" type="button" (click)="openEditPlace(place)">
-                      <svg icon lucidePencil class="size-3.5"></svg>
-                      Editar lugar
-                    </isumi-button>
+                    <div class="flex shrink-0 gap-0.5">
+                      <isumi-button variant="ghost-primary" size="sm" iconOnly
+                        [ariaLabel]="'Editar ' + place.name" type="button"
+                        (pointerdown)="$event.stopPropagation()" (click)="openEditPlace(place)">
+                        <svg icon lucidePencil class="size-3.5"></svg>
+                        Editar lugar
+                      </isumi-button>
+                      @if (placeDays(place.id).length === 0) {
+                      <isumi-button variant="ghost-destructive" size="sm" iconOnly
+                        [ariaLabel]="'Excluir ' + place.name" type="button"
+                        [loading]="deletingPlaceId() === place.id"
+                        (pointerdown)="$event.stopPropagation()" (click)="openDeletePlaceModal(place)">
+                        <svg icon lucideTrash2 class="size-3.5"></svg>
+                        Excluir lugar
+                      </isumi-button>
+                      }
+                    </div>
                   </div>
+
+                  @if (place.address) {
+                  <p class="m-0 flex min-w-0 items-start gap-2 text-xs leading-5 text-muted-foreground">
+                    <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0 text-foreground/55" aria-hidden="true"></svg>
+                    <span class="min-w-0 break-words">{{ place.address }}</span>
+                  </p>
+                  }
+
+                  @if (place.notes) {
+                  <p class="m-0 flex min-w-0 items-start gap-2 rounded-md bg-background/45 px-2.5 py-2 text-xs leading-5 text-foreground/80">
+                    <svg lucideAsterisk class="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true"></svg>
+                    <span class="min-w-0 break-words">{{ place.notes }}</span>
+                  </p>
+                  }
+
                   @if (placeTab() === "unscheduled") {
                   <div
-                    class="flex items-center gap-2 border-t border-border/70 pt-2 text-[0.6875rem] font-bold text-muted-foreground">
-                    <svg lucideGripVertical class="size-3.5 shrink-0 cursor-grab" aria-hidden="true"></svg>
+                    class="flex items-center gap-1 border-t border-border/70 pt-2 text-[0.6875rem] font-bold text-muted-foreground">
+                    <isumi-button class="[&_button]:!cursor-grab [&_button]:active:!cursor-grabbing"
+                      variant="ghost-primary" size="sm"
+                      iconOnly type="button" cdkDragHandle ariaLabel="Arraste este lugar para um dia do roteiro">
+                      <svg icon lucideGripVertical class="size-3.5" aria-hidden="true"></svg>
+                    </isumi-button>
                     <span>Arraste para adicionar ao roteiro</span>
                   </div>
                   } @else {
-                  <div class="flex flex-wrap gap-1">
+                  <div class="grid justify-items-center border-t border-border/70 pt-2">
                     @for (day of placeDays(place.id); track day.id) {
-                    <isumi-button variant="ghost" size="sm" type="button" (click)="focusDay(day.id)">
-                      Dia {{ dayNumber(day) }} · {{ day.date | date:"dd MMM" }}
+                    <isumi-button fullWidth variant="ghost-primary" size="sm" type="button"
+                      [ariaLabel]="'Ir para o dia ' + dayNumber(day)"
+                      (click)="focusDay(day.id)">
+                      <svg icon lucideCalendarDays class="size-3.5" aria-hidden="true"></svg>
+                      Dia {{ dayNumber(day) }} · {{ day.date | date:"dd/MM/yyyy" }}
                     </isumi-button>
                     }
                   </div>
@@ -362,9 +455,7 @@
                           <ng-container *ngComponentOutlet="categoryVisual(place.category).icon" />
                         </span>
                         <div class="min-w-0 flex-1">
-                          <strong class="block truncate text-sm">{{ place.name }}</strong>
-                          <span class="block truncate text-xs text-muted-foreground">{{ place.address ||
-                            categoryLabel(place.category) }}</span>
+                          <strong class="block break-words text-sm leading-5">{{ place.name }}</strong>
                         </div>
                       </div>
                       <isumi-tag tone="primary" size="small">Movendo</isumi-tag>
@@ -403,42 +494,52 @@
                 [description]="placeTab() === 'unscheduled' ? 'Salve outra ideia para continuar montando a viagem.' : 'Arraste um lugar salvo para um dos dias.'">
                 <svg icon lucideMapPin class="size-5"></svg>
               </isumi-empty-state>
-              <isumi-button variant="ghost" size="sm" fullWidth type="button" (click)="openCreatePlace()">
-                <svg icon lucidePlus class="size-4"></svg>
-                Criar lugar
-              </isumi-button>
               }
               }
             </div>
           </div>
+        </section>
 
-          <div class="grid gap-3 border-t border-border px-4 py-4" aria-labelledby="lodgings-title">
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <h3 id="lodgings-title" class="m-0 text-sm font-black">Hospedagens</h3>
-                <p class="m-0 mt-0.5 text-[0.6875rem] leading-4 text-muted-foreground">Base da viagem entre check-in e
-                  check-out.</p>
+        <section class="overflow-hidden rounded-lg bg-card" aria-labelledby="lodgings-title">
+          <header class="flex items-start justify-between gap-3 px-4 pb-3 pt-4">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+                  <svg lucideBedDouble class="size-4" aria-hidden="true"></svg>
+                </span>
+                <h2 id="lodgings-title" class="m-0 text-base font-black">Hospedagens</h2>
+                <span class="rounded-full bg-secondary px-2 py-0.5 text-[0.6875rem] font-bold text-muted-foreground">
+                  {{ store.lodgings().length }}
+                </span>
               </div>
+              <p class="m-0 mt-2 max-w-[34ch] text-xs leading-5 text-muted-foreground">
+                Onde o grupo ficará em cada trecho, com período e informações úteis.
+              </p>
+            </div>
+            <div class="shrink-0">
               <isumi-button variant="secondary" size="sm" iconOnly ariaLabel="Adicionar hospedagem" type="button"
                 (click)="openCreateLodging()">
                 <svg icon lucidePlus class="size-4"></svg>
                 Adicionar hospedagem
               </isumi-button>
             </div>
-            <div class="grid gap-2">
+          </header>
+
+          <div class="border-t border-border px-4 py-4">
+            <div class="grid gap-2.5">
               @for (lodging of store.lodgings(); track lodging.id) {
-              <article class="grid gap-2.5 rounded-md bg-secondary/60 p-3 transition-colors duration-200 hover:bg-secondary/80">
-                <div class="flex items-start gap-2.5">
-                  <span class="grid size-9 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+              <article class="grid gap-3 rounded-md bg-secondary p-3">
+                <div class="flex min-w-0 items-start gap-2.5">
+                  <span class="grid size-10 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
                     <svg lucideBedDouble class="size-4" aria-hidden="true"></svg>
                   </span>
                   <button type="button" class="min-w-0 flex-1 text-left" (click)="openEditLodging(lodging)">
-                    <strong class="block truncate text-sm">{{ lodging.name }}</strong>
-                    <span class="mt-1 block text-xs font-semibold">
-                      {{ lodging.checkInDate | date:"dd MMM" }} → {{ lodging.checkOutDate | date:"dd MMM" }}
+                    <strong class="block break-words text-sm leading-5">{{ lodging.name }}</strong>
+                    <span class="mt-1 block text-xs font-semibold leading-5 text-muted-foreground">
+                      {{ lodging.checkInDate | date:"dd/MM/yyyy" }} → {{ lodging.checkOutDate | date:"dd/MM/yyyy" }}
                     </span>
                   </button>
-                  <div class="flex gap-0.5">
+                  <div class="flex shrink-0 gap-0.5">
                     <isumi-button variant="ghost-primary" size="sm" iconOnly [ariaLabel]="'Editar ' + lodging.name"
                       (click)="openEditLodging(lodging)">
                       <svg icon lucidePencil class="size-3.5"></svg>
@@ -452,9 +553,16 @@
                   </div>
                 </div>
                 @if (lodging.address) {
-                <span class="inline-flex items-start gap-1.5 border-t border-border/70 pt-2 text-xs leading-5 text-muted-foreground">
-                  <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0"></svg>{{ lodging.address }}
-                </span>
+                <p class="m-0 flex min-w-0 items-start gap-2 text-xs leading-5 text-muted-foreground">
+                  <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0 text-foreground/55" aria-hidden="true"></svg>
+                  <span class="min-w-0 break-words">{{ lodging.address }}</span>
+                </p>
+                }
+                @if (lodging.notes) {
+                <p class="m-0 flex min-w-0 items-start gap-2 rounded-md bg-background/45 px-2.5 py-2 text-xs leading-5 text-foreground/80">
+                  <svg lucideAsterisk class="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true"></svg>
+                  <span class="min-w-0 break-words">{{ lodging.notes }}</span>
+                </p>
                 }
               </article>
               } @empty {
@@ -513,22 +621,88 @@
           </header>
 
           @if (lodgingForDay(day); as lodging) {
-          <div class="grid w-full grid-cols-[auto_1fr] items-center gap-3 rounded-md bg-primary/10 p-3"
-            aria-label="Hospedagem deste dia">
-            <span class="grid size-8 place-items-center rounded-sm bg-primary/20 text-primary">
-              <svg lucideBedDouble class="size-4"></svg>
-            </span>
-            <span class="min-w-0">
-              <strong class="block truncate text-xs">{{ lodging.name }}</strong>
-              @if (lodging.address) {
-              <span class="mt-0.5 block truncate text-[0.6875rem] text-muted-foreground">{{ lodging.address }}</span>
+          <section class="grid gap-0" aria-label="Hospedagem do dia">
+            <article
+              class="grid w-full rounded-lg bg-secondary/65 p-3 text-secondary-foreground outline-none focus-within:ring-2 focus-within:ring-primary/65"
+              aria-label="Hospedagem deste dia">
+              <div class="flex min-w-0 items-start gap-3">
+                <div class="min-w-0 flex-1">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <span class="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+                      <svg lucideBedDouble class="size-4" aria-hidden="true"></svg>
+                    </span>
+                    <div class="min-w-0">
+                      <strong class="block break-words text-[0.9375rem] font-extrabold leading-5 text-foreground/85">
+                        {{ lodging.name }}
+                      </strong>
+                      <span class="mt-0.5 block text-xs font-semibold leading-5 text-muted-foreground">
+                        {{ lodging.checkInDate | date:"dd/MM/yyyy" }} → {{ lodging.checkOutDate | date:"dd/MM/yyyy" }}
+                      </span>
+                    </div>
+                  </div>
+
+                  @if (lodging.address) {
+                  <p class="m-0 mt-1.5 flex min-w-0 items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+                    <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0 text-foreground/45" aria-hidden="true"></svg>
+                    <span class="min-w-0 break-words">{{ lodging.address }}</span>
+                  </p>
+                  }
+                </div>
+                <div class="flex shrink-0 items-center gap-0.5">
+                @if (lodging.address) {
+                  <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Copiar endereço"
+                    (pointerdown)="$event.stopPropagation()"
+                    (click)="$event.stopPropagation(); copyPlaceAddress(lodging.address)">
+                    <svg icon lucideMapPinned class="size-4"></svg>
+                    Copiar endereço
+                  </isumi-button>
+                }
+                  <isumi-button variant="ghost-primary" size="sm" iconOnly
+                    [ariaLabel]="'Editar ' + lodging.name" type="button" (click)="openEditLodging(lodging)">
+                    <svg icon lucidePencil class="size-4"></svg>
+                    Editar hospedagem
+                  </isumi-button>
+                </div>
+              </div>
+            </article>
+
+            @if (store.itemsForDay(day.id)[0]; as firstItem) {
+            @let lodgingRoute = routeFromLodging(lodging.id, firstItem.id);
+            <button type="button"
+              class="group/route relative mx-4 mt-3 flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md px-3 pl-10 text-left text-xs font-bold text-muted-foreground transition-colors duration-200 hover:bg-accent/70 hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+              (click)="openLodgingRoute(lodging, firstItem)">
+              <span
+                class="pointer-events-none absolute -bottom-5 -top-3 left-[1.375rem] w-px -translate-x-1/2 bg-border transition-colors group-hover/route:bg-primary/50"
+                aria-hidden="true"></span>
+              @switch (lodgingRoute?.transportMode) {
+              @case ("walk") { <svg lucideFootprints
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              @case ("car") { <svg lucideCar
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              @case ("transit") { <svg lucideBus
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              @case ("other") { <svg lucideShuffle
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              @default { <svg lucideLink
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
               }
-            </span>
-          </div>
+              <span>
+                {{ lodgingRoute
+                  ? transportLabel(lodgingRoute.transportMode) + " · " + lodgingRoute.durationMinutes + " min"
+                  : "Definir trajeto até a primeira parada" }}
+              </span>
+            </button>
+            }
+          </section>
           } @else {
           <div class="flex w-full flex-wrap items-center justify-between gap-4 rounded-md bg-secondary/45 px-4 py-3">
             <div class="flex min-w-0 items-center gap-3">
-              <span class="grid size-10 shrink-0 place-items-center rounded-sm bg-primary/15 text-primary">
+              <span class="grid size-10 shrink-0 place-items-center rounded-sm bg-muted text-muted-foreground">
                 <svg lucideBedDouble class="size-5" aria-hidden="true"></svg>
               </span>
               <div>
@@ -603,49 +777,85 @@
             </button>
             }
             <article
-              class="trip-itinerary-drag-item flex min-w-0 overflow-hidden rounded-md bg-secondary text-secondary-foreground outline-none transition-[box-shadow] duration-200 ease-out focus-within:ring-2 focus-within:ring-primary/65"
+              class="trip-itinerary-drag-item relative min-w-0 overflow-hidden rounded-lg bg-secondary/85 text-secondary-foreground outline-none transition-[box-shadow] duration-200 ease-out focus-within:ring-2 focus-within:ring-primary/65"
               [class.opacity-25]="draggingEntityId() === item.id"
               [class.ring-2]="editorForItem(item.id)" [class.ring-primary]="editorForItem(item.id)"
               cdkDrag [cdkDragData]="{ kind: 'item', item: item }"
               (cdkDragStarted)="startItemDrag(item)" (cdkDragEnded)="finishDrag()">
               @if (placeById(item.placeId); as itemPlace) {
-              <span
-                class="grid w-20 shrink-0 place-items-center [&_svg]:size-7"
-                [class]="categoryVisual(itemPlace.category).classes">
-                <ng-container *ngComponentOutlet="categoryVisual(itemPlace.category).icon" />
-              </span>
-              }
-              <div class="grid min-w-0 flex-1 gap-3 p-3">
+              <div class="grid min-w-0 gap-3 p-3.5">
+                <div class="flex min-w-0 items-start gap-3">
+                  <isumi-button class="shrink-0 [&_button]:!cursor-grab [&_button]:active:!cursor-grabbing"
+                    cdkDragHandle variant="ghost-primary" size="sm" iconOnly ariaLabel="Arrastar parada"
+                    (pointerdown)="prepareItemDrag($event)"
+                    (pointerup)="cancelPreparedItemDrag()"
+                    (pointercancel)="cancelPreparedItemDrag()"
+                    (click)="$event.stopPropagation()">
+                    <svg icon lucideGripVertical class="size-4"></svg>
+                    Arrastar parada
+                  </isumi-button>
+
+                  <span
+                    class="grid size-11 shrink-0 place-items-center rounded-md [&_svg]:size-5"
+                    [class]="categoryVisual(itemPlace.category).classes"
+                    aria-hidden="true">
+                    <ng-container *ngComponentOutlet="categoryVisual(itemPlace.category).icon" />
+                  </span>
+
+                  <div class="min-w-0 flex-1">
+                    <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                      <strong class="min-w-0 truncate text-[0.9375rem] font-extrabold leading-5">
+                        {{ itemPlace.name }}
+                      </strong>
+                      <span
+                        class="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[0.625rem] font-extrabold leading-4"
+                        [class]="categoryVisual(itemPlace.category).classes">
+                        {{ categoryLabel(itemPlace.category) }}
+                      </span>
+                    </div>
+
+                    @if (itemPlace.address) {
+                    <span class="mt-1.5 flex min-w-0 items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+                      <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0 text-foreground/55" aria-hidden="true"></svg>
+                      <span class="min-w-0 text-pretty">{{ itemPlace.address }}</span>
+                    </span>
+                    }
+                  </div>
+
+                  <div class="flex shrink-0 items-center gap-0.5">
+                    @if (itemPlace.address) {
+                    <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Copiar endereço"
+                      (pointerdown)="$event.stopPropagation()"
+                      (click)="$event.stopPropagation(); copyPlaceAddress(itemPlace.address)">
+                      <svg icon lucideMapPinned class="size-4"></svg>
+                      Copiar endereço
+                    </isumi-button>
+                    }
+                    <isumi-button variant="ghost-primary" size="sm" iconOnly ariaLabel="Editar lugar"
+                      (pointerdown)="$event.stopPropagation()"
+                      (click)="$event.stopPropagation(); openEditPlace(itemPlace, item)">
+                    <svg icon lucidePencil class="size-4"></svg>
+                    Editar lugar
+                    </isumi-button>
+                  </div>
+                </div>
+
+                @if (itemPlace.notes) {
+                <p
+                  class="m-0 flex items-start gap-2 rounded-md bg-background/45 px-3 py-2 text-xs leading-5 text-foreground/80">
+                  <svg lucideAsterisk class="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true"></svg>
+                  <span class="text-pretty">{{ itemPlace.notes }}</span>
+                </p>
+                }
+
                 @if (editorForItem(item.id); as editorName) {
                 <span
                   class="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/15 px-2 py-1 text-[0.6875rem] font-bold text-primary">
                   {{ editorName }} está editando
                 </span>
                 }
-                <div class="flex items-start gap-2">
-                    <isumi-button class="mt-0.5 shrink-0 [&_button]:!cursor-grab [&_button]:active:!cursor-grabbing"
-                      cdkDragHandle variant="ghost-primary" size="sm" iconOnly ariaLabel="Arrastar parada"
-                      (pointerdown)="prepareItemDrag($event)"
-                      (pointerup)="cancelPreparedItemDrag()"
-                      (pointercancel)="cancelPreparedItemDrag()"
-                      (click)="$event.stopPropagation()">
-                      <svg icon lucideGripVertical class="size-4"></svg>
-                      Arrastar parada
-                    </isumi-button>
-                  <div class="min-w-0 flex-1">
-                    <strong class="block truncate text-sm">{{ placeById(item.placeId)?.name }}</strong>
-                    <span class="mt-1 block truncate text-xs text-muted-foreground">
-                      {{ placeById(item.placeId)?.address || categoryLabel(placeById(item.placeId)!.category) }}
-                    </span>
-                  </div>
-                    <isumi-button variant="ghost-primary" size="sm" iconOnly ariaLabel="Editar lugar"
-                      (pointerdown)="$event.stopPropagation()"
-                      (click)="$event.stopPropagation(); openEditPlace(placeById(item.placeId)!, item)">
-                    <svg icon lucidePencil class="size-4"></svg>
-                    Editar lugar
-                  </isumi-button>
-                </div>
-                <div class="hidden grid-cols-4 gap-1 max-md:grid">
+
+                <div class="hidden items-center justify-start gap-1 border-t border-border/70 pt-2.5 max-md:flex">
                   <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Mover antes"
                     (click)="moveRelative(item, -1)">
                     <svg icon lucideArrowUp class="size-4"></svg>
@@ -656,14 +866,9 @@
                     <svg icon lucideArrowDown class="size-4"></svg>
                     Mover depois
                   </isumi-button>
-                  <select class="col-span-2 min-w-0 rounded-md bg-background px-2 text-xs"
-                    aria-label="Mover para outro dia" [ngModel]="item.dayId" (ngModelChange)="moveToDay(item, $event)">
-                    @for (targetDay of store.days(); track targetDay.id) {
-                    <option [value]="targetDay.id">{{ targetDay.date | date:"dd MMM" }}</option>
-                    }
-                  </select>
                 </div>
               </div>
+              }
 
               <ng-template cdkDragPreview>
                 <div
@@ -748,7 +953,7 @@
             <p class="m-0 mt-1 max-w-[52ch] text-sm leading-6 text-muted-foreground">
               @switch (activePanel) {
               @case ("place") { Guarde endereço, categoria e observações para usar este lugar no roteiro. }
-              @case ("route") { Defina como o grupo vai se deslocar entre estes dois lugares. }
+              @case ("route") { Defina como o grupo vai se deslocar entre estes dois pontos. }
               @case ("flight") { Organize o trecho, os horários e os dados de identificação do voo. }
               @case ("lodging") { Registre o período e as informações úteis da hospedagem. }
               }
@@ -761,27 +966,56 @@
         @switch (activePanel) {
         @case ("place") {
         <form class="grid gap-4" (ngSubmit)="savePlace()">
-          <label class="grid gap-2"><span class="text-sm font-bold">Nome</span><input isumiInput name="placeName"
-              [ngModel]="placeName()" (ngModelChange)="placeName.set($event)" required
-              placeholder="Café Tortoni"></label>
-          <label class="grid gap-2"><span class="text-sm font-bold">Categoria</span><select isumiSelect name="category"
-              [ngModel]="placeCategory()" (ngModelChange)="placeCategory.set($event)">
-              <option value="food">Comer e beber</option>
-              <option value="culture">Cultura</option>
-              <option value="nightlife">Vida noturna</option>
-              <option value="nature">Natureza</option>
-              <option value="shopping">Compras</option>
-              <option value="other">Outro</option>
-            </select></label>
-          <label class="grid gap-2"><span class="text-sm font-bold">Endereço</span><input isumiInput name="placeAddress"
-              [ngModel]="placeAddress()" (ngModelChange)="placeAddress.set($event)"></label>
-          <label class="grid gap-2"><span class="text-sm font-bold">Observações</span><textarea isumiInput
-              name="placeNotes" rows="3" [ngModel]="placeNotes()"
-              (ngModelChange)="placeNotes.set($event)"></textarea></label>
-          <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-2">
-            <isumi-button mobileFull variant="secondary" type="button" (click)="closePanel()">Cancelar</isumi-button>
-            <isumi-button mobileFull type="submit">
-              <svg icon lucideSave class="size-4"></svg>
+          <div class="grid gap-4 rounded-lg bg-secondary/55 p-3.5">
+            <label class="grid gap-2">
+              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                <svg lucidePin class="size-4" aria-hidden="true"></svg>
+                Nome
+              </span>
+              <input isumiInput name="placeName" [ngModel]="placeName()"
+                (ngModelChange)="placeName.set($event)" required placeholder="Café Tortoni">
+            </label>
+
+            <label class="grid gap-2">
+              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                <svg lucideList class="size-4" aria-hidden="true"></svg>
+                Categoria
+              </span>
+              <select isumiSelect name="category" [ngModel]="placeCategory()"
+                (ngModelChange)="placeCategory.set($event)">
+                <option value="food">Comer e beber</option>
+                <option value="culture">Cultura</option>
+                <option value="nightlife">Vida noturna</option>
+                <option value="nature">Natureza</option>
+                <option value="shopping">Compras</option>
+                <option value="other">Outro</option>
+              </select>
+            </label>
+
+            <label class="grid gap-2">
+              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                <svg lucideMapPin class="size-4" aria-hidden="true"></svg>
+                Endereço
+              </span>
+              <input isumiInput name="placeAddress" [ngModel]="placeAddress()"
+                (ngModelChange)="placeAddress.set($event)" placeholder="Rua, número e bairro">
+            </label>
+
+            <label class="grid gap-2">
+              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                <svg lucideAsterisk class="size-4" aria-hidden="true"></svg>
+                Observações
+              </span>
+              <textarea isumiInput name="placeNotes" rows="3" [ngModel]="placeNotes()"
+                (ngModelChange)="placeNotes.set($event)"
+                placeholder="Reserva, horário de funcionamento, dicas..."></textarea>
+            </label>
+          </div>
+
+          <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
+            <isumi-button mobileFull variant="secondary" type="button" [disabled]="savingPanel()" (click)="closePanel()">Cancelar</isumi-button>
+            <isumi-button mobileFull type="submit" [loading]="savingPanel()">
+              <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
               {{ selectedPlace() ? "Salvar alterações" : "Salvar lugar" }}
             </isumi-button>
           </footer>
@@ -789,42 +1023,56 @@
         }
         @case ("route") {
         <form class="grid gap-4" (ngSubmit)="saveRoute()">
-          <label class="grid gap-2">
-            <span class="text-sm font-bold">Como chegar</span>
-            <select isumiSelect name="routeTransportMode" [ngModel]="routeTransportMode()"
-              (ngModelChange)="routeTransportMode.set($event)" required>
-              <option value="" disabled>Selecione...</option>
-              <option value="walk">Caminhada</option>
-              <option value="car">Carro</option>
-              <option value="transit">Transporte público</option>
-              <option value="other">Outro</option>
-            </select>
-          </label>
-          <label class="grid gap-2">
-            <span class="text-sm font-bold">Duração do trajeto</span>
-            <input isumiInput type="number" min="1" max="1440" name="routeDurationMinutes"
-              [ngModel]="routeDurationMinutes()" (ngModelChange)="routeDurationMinutes.set($event)"
-              placeholder="Minutos" required>
-          </label>
-          <label class="grid gap-2">
-            <span class="text-sm font-bold">Observação do trajeto</span>
-            <textarea isumiInput name="routeNotes" rows="3" [ngModel]="routeNotes()"
-              (ngModelChange)="routeNotes.set($event)"
-              placeholder="Linha do metrô, ponto de encontro..."></textarea>
-          </label>
+          <div class="grid gap-4 rounded-lg bg-secondary/55 p-3.5">
+            <label class="grid gap-2">
+              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                <svg lucideMoveRight class="size-4" aria-hidden="true"></svg>
+                Como chegar
+              </span>
+              <select isumiSelect name="routeTransportMode" [ngModel]="routeTransportMode()"
+                (ngModelChange)="routeTransportMode.set($event)" required>
+                <option value="" disabled>Selecione...</option>
+                <option value="walk">Caminhada</option>
+                <option value="car">Carro</option>
+                <option value="transit">Transporte público</option>
+                <option value="other">Outro</option>
+              </select>
+            </label>
+
+            <label class="grid gap-2">
+              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                <svg lucideClock3 class="size-4" aria-hidden="true"></svg>
+                Duração do trajeto
+              </span>
+              <input isumiInput type="number" min="1" max="1440" name="routeDurationMinutes"
+                [ngModel]="routeDurationMinutes()" (ngModelChange)="routeDurationMinutes.set($event)"
+                placeholder="Minutos" required>
+            </label>
+
+            <label class="grid gap-2">
+              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                <svg lucideAsterisk class="size-4" aria-hidden="true"></svg>
+                Observação do trajeto
+              </span>
+              <textarea isumiInput name="routeNotes" rows="3" [ngModel]="routeNotes()"
+                (ngModelChange)="routeNotes.set($event)"
+                placeholder="Linha do metrô, ponto de encontro..."></textarea>
+            </label>
+          </div>
+
           <footer class="flex justify-between gap-2 max-sm:grid">
             @if (selectedRoute()) {
-            <isumi-button variant="ghost-destructive" type="button" (click)="clearRoute()">
-              <svg icon lucideTrash2 class="size-4"></svg>
+            <isumi-button variant="ghost-destructive" type="button" [loading]="savingPanel()" (click)="clearRoute()">
+              <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
               Limpar trajeto
             </isumi-button>
             } @else {
             <span></span>
             }
-            <div class="flex gap-2 max-sm:grid max-sm:grid-cols-2">
-              <isumi-button mobileFull variant="secondary" type="button" (click)="closePanel()">Cancelar</isumi-button>
-              <isumi-button mobileFull type="submit">
-                <svg icon lucideSave class="size-4"></svg>
+            <div class="flex gap-2 max-sm:grid max-sm:grid-cols-1">
+              <isumi-button mobileFull variant="secondary" type="button" [disabled]="savingPanel()" (click)="closePanel()">Cancelar</isumi-button>
+              <isumi-button mobileFull type="submit" [loading]="savingPanel()">
+                <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
                 Salvar trajeto
               </isumi-button>
             </div>
@@ -905,9 +1153,9 @@
             </label>
           </div>
 
-          <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-2">
-            <isumi-button mobileFull variant="secondary" type="button" (click)="closePanel()">Cancelar</isumi-button>
-            <isumi-button mobileFull type="submit">
+          <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
+            <isumi-button mobileFull variant="secondary" type="button" [disabled]="savingPanel()" (click)="closePanel()">Cancelar</isumi-button>
+            <isumi-button mobileFull type="submit" [loading]="savingPanel()">
               <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
               {{ selectedFlight() ? "Salvar voo" : "Adicionar voo" }}
             </isumi-button>
@@ -916,23 +1164,59 @@
         }
         @case ("lodging") {
         <form class="grid gap-4" (ngSubmit)="saveLodging()">
-          <label class="grid gap-2"><span class="text-sm font-bold">Hospedagem</span><input isumiInput
-              name="lodgingName" [ngModel]="lodgingName()" (ngModelChange)="lodgingName.set($event)"
-              placeholder="Hotel ou apartamento" required></label>
-          <label class="grid gap-2"><span class="text-sm font-bold">Endereço</span><input isumiInput
-              name="lodgingAddress" [ngModel]="lodgingAddress()" (ngModelChange)="lodgingAddress.set($event)"></label>
-          <div class="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-            <label class="grid gap-2"><span class="text-sm font-bold">Check-in</span><input isumiInput type="date"
-                name="checkIn" [ngModel]="checkInDate()" (ngModelChange)="checkInDate.set($event)" required></label>
-            <label class="grid gap-2"><span class="text-sm font-bold">Check-out</span><input isumiInput type="date"
-                name="checkOut" [ngModel]="checkOutDate()" (ngModelChange)="checkOutDate.set($event)" required></label>
+          <div class="grid gap-4 rounded-lg bg-secondary/55 p-3.5">
+            <label class="grid gap-2">
+              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                <svg lucideBedDouble class="size-4" aria-hidden="true"></svg>
+                Hospedagem
+              </span>
+              <input isumiInput name="lodgingName" [ngModel]="lodgingName()"
+                (ngModelChange)="lodgingName.set($event)" placeholder="Hotel ou apartamento" required>
+            </label>
+
+            <label class="grid gap-2">
+              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                <svg lucideMapPin class="size-4" aria-hidden="true"></svg>
+                Endereço
+              </span>
+              <input isumiInput name="lodgingAddress" [ngModel]="lodgingAddress()"
+                (ngModelChange)="lodgingAddress.set($event)" placeholder="Rua, número e bairro">
+            </label>
+
+            <div class="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+              <label class="grid gap-2">
+                <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                  <svg lucideCalendarDays class="size-4" aria-hidden="true"></svg>
+                  Check-in
+                </span>
+                <input isumiInput type="date" name="checkIn" [ngModel]="checkInDate()"
+                  (ngModelChange)="checkInDate.set($event)" required>
+              </label>
+              <label class="grid gap-2">
+                <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                  <svg lucideCalendarDays class="size-4" aria-hidden="true"></svg>
+                  Check-out
+                </span>
+                <input isumiInput type="date" name="checkOut" [ngModel]="checkOutDate()"
+                  (ngModelChange)="checkOutDate.set($event)" required>
+              </label>
+            </div>
+
+            <label class="grid gap-2">
+              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                <svg lucideAsterisk class="size-4" aria-hidden="true"></svg>
+                Observações
+              </span>
+              <textarea isumiInput name="lodgingNotes" rows="3" [ngModel]="lodgingNotes()"
+                (ngModelChange)="lodgingNotes.set($event)"
+                placeholder="Horário de recepção, código de acesso..."></textarea>
+            </label>
           </div>
-          <label class="grid gap-2"><span class="text-sm font-bold">Observações</span><textarea isumiInput
-              name="lodgingNotes" rows="3" [ngModel]="lodgingNotes()" (ngModelChange)="lodgingNotes.set($event)"
-              placeholder="Horário de recepção, código de acesso..."></textarea></label>
-          <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-2">
-            <isumi-button mobileFull variant="secondary" type="button" (click)="closePanel()">Cancelar</isumi-button>
-            <isumi-button mobileFull type="submit"><svg icon lucideBedDouble class="size-4"></svg>
+
+          <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
+            <isumi-button mobileFull variant="secondary" type="button" [disabled]="savingPanel()" (click)="closePanel()">Cancelar</isumi-button>
+            <isumi-button mobileFull type="submit" [loading]="savingPanel()">
+              <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
               {{ selectedLodging() ? "Salvar alterações" : "Adicionar hospedagem" }}
             </isumi-button>
           </footer>

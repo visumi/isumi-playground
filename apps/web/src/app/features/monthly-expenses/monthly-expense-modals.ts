@@ -645,8 +645,8 @@ Body: {"merchant":"Mercado Exemplo","amount":"R$ 45,90"}`;
       </div>
 
       <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
-        <isumi-button mobileFull variant="secondary" type="button" (click)="modalRef.close()">Cancelar</isumi-button>
-        <isumi-button mobileFull type="submit">
+        <isumi-button mobileFull variant="secondary" type="button" [disabled]="modalRef.processing()" (click)="modalRef.close()">Cancelar</isumi-button>
+        <isumi-button mobileFull type="submit" [loading]="modalRef.processing()">
           <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
           Salvar gasto
         </isumi-button>
@@ -689,7 +689,7 @@ export class MonthlyExpenseItemModalComponent {
     const payload = this.buildItemPayload();
 
     if (payload) {
-      this.modalRef.close(payload);
+      void this.modalRef.submit(payload);
     }
   }
 

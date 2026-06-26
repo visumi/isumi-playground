@@ -57,19 +57,19 @@ export class IsumiModalHostComponent {
   closeFromEscape(): void {
     const top = this.modal.entries().at(-1);
 
-    if (top?.closeOnEscape) {
+    if (top?.closeOnEscape && !top.ref.processing()) {
       top.ref.close();
     }
   }
 
   closeFromBackdrop(entry: IsumiModalEntry): void {
-    if (entry.closeOnBackdrop) {
+    if (entry.closeOnBackdrop && !entry.ref.processing()) {
       entry.ref.close();
     }
   }
 
   closeFromHandle(entry: IsumiModalEntry): void {
-    if (!this.isMobileDrawer()) {
+    if (!this.isMobileDrawer() || entry.ref.processing()) {
       return;
     }
 
@@ -82,7 +82,7 @@ export class IsumiModalHostComponent {
   }
 
   startDrawerDrag(event: PointerEvent, entry: IsumiModalEntry): void {
-    if (!this.isMobileDrawer()) {
+    if (!this.isMobileDrawer() || entry.ref.processing()) {
       return;
     }
 

@@ -55,4 +55,41 @@ describe("IsumiModalService", () => {
     expect(closedResult).toBe("salvo");
     expect(service.entries()).toEqual([]);
   }));
+
+  it("keeps the modal open and exposes processing while submitting", fakeAsync(() => {
+    let finishSubmit: (() => void) | undefined;
+    const onSubmit = jasmine.createSpy("onSubmit").and.returnValue(new Promise<void>((resolve) => {
+      finishSubmit = resolve;
+    }));
+    const ref = service.open<ExampleModalComponent, { title: string }, string>(ExampleModalComponent, {
+      onSubmit
+    });
+
+    void ref.submit("salvo");
+
+    expect(ref.processing()).toBeTrue();
+    expect(service.entries()[0].closing).toBeFalse();
+
+    finishSubmit?.();
+    tick();
+
+    expect(ref.processing()).toBeFalse();
+    expect(service.entries()[0].closing).toBeTrue();
+    tick(220);
+    expect(service.entries()).toEqual([]);
+  }));
+
+  it("keeps the modal open when submission fails", fakeAsync(() => {
+    const ref = service.open<ExampleModalComponent, { title: string }, string>(ExampleModalComponent, {
+      onSubmit: async () => {
+        throw new Error("Falha");
+      }
+    });
+
+    void ref.submit("salvo");
+    tick();
+
+    expect(ref.processing()).toBeFalse();
+    expect(service.entries()[0].closing).toBeFalse();
+  }));
 });

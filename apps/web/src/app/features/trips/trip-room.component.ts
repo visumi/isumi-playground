@@ -26,6 +26,7 @@ import {
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
 import {
+  LucideAsterisk,
   LucideArrowDown,
   LucideArrowUp,
   LucideBedDouble,
@@ -40,13 +41,16 @@ import {
   LucideGripVertical,
   LucideLandmark,
   LucideLink,
+  LucideList,
   LucideMapPin,
+  LucideMapPinned,
   LucideMoonStar,
   LucideMoveRight,
   LucidePencil,
   LucidePlane,
   LucidePlaneLanding,
   LucidePlaneTakeoff,
+  LucidePin,
   LucidePlus,
   LucideRoute,
   LucideSave,
@@ -83,6 +87,7 @@ import {
   IsumiModalRef,
   IsumiModalService,
   IsumiSelectDirective,
+  IsumiTabComponent,
   IsumiTagComponent,
   IsumiToastService,
   IsumiTooltipComponent,
@@ -104,7 +109,7 @@ export const PLACE_CATEGORY_VISUALS: Record<TripPlaceCategory, {
   nightlife: { label: "Vida noturna", icon: LucideMoonStar, classes: "bg-pink-500/15 text-pink-400" },
   nature: { label: "Natureza", icon: LucideTrees, classes: "bg-emerald-500/15 text-emerald-400" },
   shopping: { label: "Compras", icon: LucideShoppingBag, classes: "bg-blue-500/15 text-blue-400" },
-  other: { label: "Outro", icon: LucideMapPin, classes: "bg-muted text-muted-foreground" }
+  other: { label: "Outro", icon: LucideMapPin, classes: "bg-cyan-500/15 text-cyan-300" }
 };
 
 interface DeleteTripRoomModalData {
@@ -113,6 +118,10 @@ interface DeleteTripRoomModalData {
 
 interface DeleteTripFlightModalData {
   route: string;
+}
+
+interface DeleteTripPlaceModalData {
+  placeName: string;
 }
 
 interface TripEditorModalData {
@@ -153,8 +162,8 @@ export class TripEditorModalComponent {
       </header>
 
       <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
-        <isumi-button mobileFull variant="secondary" type="button" (click)="modalRef.close(false)">Cancelar</isumi-button>
-        <isumi-button mobileFull variant="destructive" type="button" (click)="modalRef.close(true)">
+        <isumi-button mobileFull variant="secondary" type="button" [disabled]="modalRef.processing()" (click)="modalRef.close(false)">Cancelar</isumi-button>
+        <isumi-button mobileFull variant="destructive" type="button" [loading]="modalRef.processing()" (click)="modalRef.submit(true)">
           <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
           Excluir viagem
         </isumi-button>
@@ -191,8 +200,8 @@ export class DeleteTripRoomModalComponent {
       </header>
 
       <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
-        <isumi-button mobileFull variant="secondary" type="button" (click)="modalRef.close(false)">Cancelar</isumi-button>
-        <isumi-button mobileFull variant="destructive" type="button" (click)="modalRef.close(true)">
+        <isumi-button mobileFull variant="secondary" type="button" [disabled]="modalRef.processing()" (click)="modalRef.close(false)">Cancelar</isumi-button>
+        <isumi-button mobileFull variant="destructive" type="button" [loading]="modalRef.processing()" (click)="modalRef.submit(true)">
           <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
           Excluir voo
         </isumi-button>
@@ -204,6 +213,48 @@ export class DeleteTripRoomModalComponent {
 export class DeleteTripFlightModalComponent {
   readonly data = injectIsumiModalData<DeleteTripFlightModalData>();
   readonly modalRef = injectIsumiModalRef<DeleteTripFlightModalData, boolean>();
+}
+
+@Component({
+  selector: "isumi-delete-trip-place-modal",
+  standalone: true,
+  imports: [IsumiButtonComponent, LucideTrash2, LucideX],
+  template: `
+    <div class="grid gap-5">
+      <header class="flex items-start justify-between gap-4">
+        <div>
+          <div class="mb-3 grid size-10 place-items-center rounded-sm bg-destructive/15 text-destructive">
+            <svg lucideTrash2 class="size-5" aria-hidden="true"></svg>
+          </div>
+          <h2 class="m-0 text-[1.2rem] font-black">Excluir lugar</h2>
+          <p class="m-0 mt-2 max-w-[52ch] text-sm leading-6 text-muted-foreground">
+            "{{ data?.placeName || "Este lugar" }}" será removido da biblioteca.
+            Esta ação não pode ser desfeita.
+          </p>
+        </div>
+        <isumi-button class="max-sm:hidden" variant="ghost" size="sm" iconOnly
+          ariaLabel="Fechar confirmação" (click)="modalRef.close(false)">
+          <svg icon lucideX class="size-4" aria-hidden="true"></svg>
+          Fechar
+        </isumi-button>
+      </header>
+
+      <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
+        <isumi-button mobileFull variant="secondary" type="button" [disabled]="modalRef.processing()"
+          (click)="modalRef.close(false)">Cancelar</isumi-button>
+        <isumi-button mobileFull variant="destructive" type="button" [loading]="modalRef.processing()"
+          (click)="modalRef.submit(true)">
+          <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
+          Excluir lugar
+        </isumi-button>
+      </footer>
+    </div>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class DeleteTripPlaceModalComponent {
+  readonly data = injectIsumiModalData<DeleteTripPlaceModalData>();
+  readonly modalRef = injectIsumiModalRef<DeleteTripPlaceModalData, boolean>();
 }
 
 @Component({
@@ -226,8 +277,10 @@ export class DeleteTripFlightModalComponent {
     IsumiEmptyStateComponent,
     IsumiInputDirective,
     IsumiSelectDirective,
+    IsumiTabComponent,
     IsumiTagComponent,
     IsumiTooltipComponent,
+    LucideAsterisk,
     LucideArrowDown,
     LucideArrowUp,
     LucideBedDouble,
@@ -241,12 +294,15 @@ export class DeleteTripFlightModalComponent {
     LucideFootprints,
     LucideGripVertical,
     LucideLink,
+    LucideList,
     LucideMapPin,
+    LucideMapPinned,
     LucideMoveRight,
     LucidePencil,
     LucidePlane,
     LucidePlaneLanding,
     LucidePlaneTakeoff,
+    LucidePin,
     LucidePlus,
     LucideRoute,
     LucideSave,
@@ -272,7 +328,9 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly deletingRoom = signal(false);
   readonly deletingFlightId = signal<string | null>(null);
+  readonly deletingPlaceId = signal<string | null>(null);
   readonly deletingLodgingId = signal<string | null>(null);
+  readonly savingPanel = signal(false);
   readonly focusedDayId = signal<string | null>(null);
   readonly dayAnimating = signal(false);
   readonly placeTab = signal<"unscheduled" | "scheduled">("unscheduled");
@@ -282,6 +340,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly selectedLodging = signal<TripLodging | null>(null);
   readonly selectedItemId = signal<string | null>(null);
   readonly selectedRouteFromItemId = signal<string | null>(null);
+  readonly selectedRouteFromLodgingId = signal<string | null>(null);
   readonly selectedRouteToItemId = signal<string | null>(null);
   readonly dragKind = signal<"place" | "item" | null>(null);
   readonly draggingEntityId = signal<string | null>(null);
@@ -323,9 +382,13 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly routeTransportMode = signal<TripTransportMode | "">("");
   readonly routeDurationMinutes = signal<number | null>(null);
   readonly routeNotes = signal("");
-  readonly selectedRoute = computed(() =>
-    this.routeBetween(this.selectedRouteFromItemId(), this.selectedRouteToItemId())
-  );
+  readonly selectedRoute = computed(() => {
+    const toItemId = this.selectedRouteToItemId();
+    const fromLodgingId = this.selectedRouteFromLodgingId();
+    return fromLodgingId
+      ? this.routeFromLodging(fromLodgingId, toItemId)
+      : this.routeBetween(this.selectedRouteFromItemId(), toItemId);
+  });
   readonly focusedDay = computed(() =>
     this.store.days().find((day) => day.id === this.focusedDayId()) || this.store.days()[0] || null
   );
@@ -686,7 +749,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   async savePlace(): Promise<void> {
-    if (!this.placeName().trim()) return;
+    if (!this.placeName().trim() || this.savingPanel()) return;
     const selected = this.selectedPlace();
     const payload = {
       name: this.placeName().trim(),
@@ -694,6 +757,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       address: this.placeAddress(),
       notes: this.placeNotes()
     };
+    this.savingPanel.set(true);
     try {
       const snapshot = selected
         ? await firstValueFrom(this.trips.updatePlace(this.roomId(), selected.id, {
@@ -706,7 +770,40 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       this.toast.success(selected ? "Lugar atualizado." : "Lugar salvo na biblioteca.");
     } catch {
       this.toast.error(selected ? "Não foi possível atualizar o lugar." : "Não foi possível salvar o lugar.");
+    } finally {
+      this.savingPanel.set(false);
     }
+  }
+
+  async openDeletePlaceModal(place: TripPlace): Promise<void> {
+    if (this.placeDays(place.id).length > 0) {
+      this.toast.error("Remova o lugar do roteiro antes de excluí-lo.");
+      return;
+    }
+
+    this.modal.open<DeleteTripPlaceModalComponent, DeleteTripPlaceModalData, boolean>(
+      DeleteTripPlaceModalComponent,
+      {
+        data: {
+          placeName: place.name
+        },
+        ariaLabel: "Confirmar exclusão do lugar",
+        closeOnBackdrop: false,
+        onSubmit: async () => {
+          this.deletingPlaceId.set(place.id);
+          try {
+            await firstValueFrom(this.trips.deletePlace(this.roomId(), place.id));
+            await this.reload();
+            this.toast.success("Lugar excluído.");
+          } catch (error) {
+            this.toast.error("Não foi possível excluir o lugar.");
+            throw error;
+          } finally {
+            this.deletingPlaceId.set(null);
+          }
+        }
+      }
+    );
   }
 
   routeBetween(fromItemId: string | null, toItemId: string | null): TripRoute | null {
@@ -716,9 +813,28 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     ) || null;
   }
 
+  routeFromLodging(fromLodgingId: string | null, toItemId: string | null): TripRoute | null {
+    if (!fromLodgingId || !toItemId) return null;
+    return this.store.routes().find((route) =>
+      route.fromLodgingId === fromLodgingId && route.toItemId === toItemId
+    ) || null;
+  }
+
   openRoute(fromItem: TripDayItem, toItem: TripDayItem): void {
     const route = this.routeBetween(fromItem.id, toItem.id);
     this.selectedRouteFromItemId.set(fromItem.id);
+    this.selectedRouteFromLodgingId.set(null);
+    this.selectedRouteToItemId.set(toItem.id);
+    this.routeTransportMode.set(route?.transportMode || "");
+    this.routeDurationMinutes.set(route?.durationMinutes || null);
+    this.routeNotes.set(route?.notes || "");
+    this.openEditorModal("route");
+  }
+
+  openLodgingRoute(lodging: TripLodging, toItem: TripDayItem): void {
+    const route = this.routeFromLodging(lodging.id, toItem.id);
+    this.selectedRouteFromItemId.set(null);
+    this.selectedRouteFromLodgingId.set(lodging.id);
     this.selectedRouteToItemId.set(toItem.id);
     this.routeTransportMode.set(route?.transportMode || "");
     this.routeDurationMinutes.set(route?.durationMinutes || null);
@@ -728,18 +844,20 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   async saveRoute(): Promise<void> {
     const fromItemId = this.selectedRouteFromItemId();
+    const fromLodgingId = this.selectedRouteFromLodgingId();
     const toItemId = this.selectedRouteToItemId();
     const transportMode = this.routeTransportMode();
     const durationMinutes = Number(this.routeDurationMinutes());
-    if (!fromItemId || !toItemId || !transportMode || !durationMinutes) return;
+    if ((!fromItemId && !fromLodgingId) || !toItemId || !transportMode || !durationMinutes || this.savingPanel()) return;
     const selected = this.selectedRoute();
     const payload = {
-      fromItemId,
+      ...(fromItemId ? { fromItemId } : { fromLodgingId: fromLodgingId! }),
       toItemId,
       transportMode,
       durationMinutes,
       notes: this.routeNotes()
     };
+    this.savingPanel.set(true);
     try {
       const snapshot = selected
         ? await firstValueFrom(this.trips.updateRoute(this.roomId(), selected.id, {
@@ -752,12 +870,15 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       this.toast.success(selected ? "Trajeto atualizado." : "Trajeto definido.");
     } catch {
       this.toast.error("Não foi possível salvar o trajeto.");
+    } finally {
+      this.savingPanel.set(false);
     }
   }
 
   async clearRoute(): Promise<void> {
     const route = this.selectedRoute();
-    if (!route) return;
+    if (!route || this.savingPanel()) return;
+    this.savingPanel.set(true);
     try {
       await firstValueFrom(this.trips.deleteRoute(this.roomId(), route.id));
       await this.reload();
@@ -765,11 +886,14 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       this.toast.success("Trajeto limpo.");
     } catch {
       this.toast.error("Não foi possível limpar o trajeto.");
+    } finally {
+      this.savingPanel.set(false);
     }
   }
 
   closeRouteEditor(): void {
     this.selectedRouteFromItemId.set(null);
+    this.selectedRouteFromLodgingId.set(null);
     this.selectedRouteToItemId.set(null);
     this.closePanel();
   }
@@ -799,6 +923,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   async saveFlight(): Promise<void> {
+    if (this.savingPanel()) return;
     const selectedFlight = this.selectedFlight();
     const payload: CreateTripFlightRequest = {
       direction: this.flightDirection(),
@@ -810,6 +935,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       flightNumber: this.flightNumber()
     };
 
+    this.savingPanel.set(true);
     try {
       const snapshot = selectedFlight
         ? await firstValueFrom(this.trips.updateFlight(this.roomId(), selectedFlight.id, {
@@ -825,31 +951,33 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       this.toast.error(selectedFlight
         ? "Não foi possível atualizar o voo. Confira os dados e tente novamente."
         : "Confira os dados do voo.");
+    } finally {
+      this.savingPanel.set(false);
     }
   }
 
   async openDeleteFlightModal(flight: TripFlightSegment): Promise<void> {
-    const ref = this.modal.open<DeleteTripFlightModalComponent, DeleteTripFlightModalData, boolean>(
+    this.modal.open<DeleteTripFlightModalComponent, DeleteTripFlightModalData, boolean>(
       DeleteTripFlightModalComponent,
       {
         data: { route: `${flight.departureAirport} → ${flight.arrivalAirport}` },
         ariaLabel: "Confirmar exclusão do voo",
-        closeOnBackdrop: false
+        closeOnBackdrop: false,
+        onSubmit: async () => {
+          this.deletingFlightId.set(flight.id);
+          try {
+            await firstValueFrom(this.trips.deleteFlight(this.roomId(), flight.id));
+            await this.reload();
+            this.toast.success("Voo removido do planejamento.");
+          } catch (error) {
+            this.toast.error("Não foi possível excluir o voo.");
+            throw error;
+          } finally {
+            this.deletingFlightId.set(null);
+          }
+        }
       }
     );
-
-    if (!await ref.closed) return;
-
-    this.deletingFlightId.set(flight.id);
-    try {
-      await firstValueFrom(this.trips.deleteFlight(this.roomId(), flight.id));
-      await this.reload();
-      this.toast.success("Voo removido do planejamento.");
-    } catch {
-      this.toast.error("Não foi possível excluir o voo.");
-    } finally {
-      this.deletingFlightId.set(null);
-    }
   }
 
   flightDuration(flight: TripFlightSegment): string {
@@ -894,6 +1022,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   async saveLodging(): Promise<void> {
+    if (this.savingPanel()) return;
     const selected = this.selectedLodging();
     const payload = {
       name: this.lodgingName(),
@@ -902,6 +1031,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       checkInDate: this.checkInDate(),
       checkOutDate: this.checkOutDate()
     };
+    this.savingPanel.set(true);
     try {
       const snapshot = selected
         ? await firstValueFrom(this.trips.updateLodging(this.roomId(), selected.id, {
@@ -918,6 +1048,8 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       this.toast.error(code === "lodging_date_conflict"
         ? "Este período se sobrepõe a outra hospedagem da viagem."
         : "Confira o nome e as datas da hospedagem.");
+    } finally {
+      this.savingPanel.set(false);
     }
   }
 
@@ -955,6 +1087,26 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     }
   }
 
+  async copyPlaceAddress(address: string): Promise<void> {
+    if (!address.trim()) return;
+
+    try {
+      let copied = false;
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(address);
+          copied = true;
+        } catch {
+          copied = false;
+        }
+      }
+      if (!copied) this.copyWithTextarea(address);
+      this.toast.success("Endereço copiado.");
+    } catch {
+      this.toast.error("Não foi possível copiar o endereço.");
+    }
+  }
+
   private copyWithTextarea(value: string): void {
     const textarea = document.createElement("textarea");
     textarea.value = value;
@@ -973,18 +1125,15 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     const room = this.store.room();
     if (!room || this.store.snapshot()?.currentMemberRole !== "owner") return;
 
-    const ref = this.modal.open<DeleteTripRoomModalComponent, DeleteTripRoomModalData, boolean>(
+    this.modal.open<DeleteTripRoomModalComponent, DeleteTripRoomModalData, boolean>(
       DeleteTripRoomModalComponent,
       {
         data: { roomTitle: room.title },
         ariaLabel: "Confirmar exclusão da viagem",
-        closeOnBackdrop: false
+        closeOnBackdrop: false,
+        onSubmit: () => this.deleteRoom()
       }
     );
-
-    if (await ref.closed) {
-      await this.deleteRoom();
-    }
   }
 
   private async deleteRoom(): Promise<void> {
@@ -993,8 +1142,9 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       await firstValueFrom(this.trips.delete(this.roomId()));
       this.toast.success("Viagem excluída.");
       await this.router.navigateByUrl("/tools/trips");
-    } catch {
+    } catch (error) {
       this.toast.error("Não foi possível excluir a viagem.");
+      throw error;
     } finally {
       this.deletingRoom.set(false);
     }
@@ -1044,6 +1194,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
         this.store.selectItem(null);
       } else if (panel === "route") {
         this.selectedRouteFromItemId.set(null);
+        this.selectedRouteFromLodgingId.set(null);
         this.selectedRouteToItemId.set(null);
       } else if (panel === "flight") {
         this.selectedFlight.set(null);

@@ -1,6 +1,12 @@
 import type { Client } from "@libsql/client/web";
 import { describe, expect, it, vi } from "vitest";
-import { applyTripMoveOperation, createTripRoute, enumerateTripDates, lodgingPeriodsOverlap } from "../src/trips";
+import {
+  applyTripMoveOperation,
+  createTripRoute,
+  deleteTripPlace,
+  enumerateTripDates,
+  lodgingPeriodsOverlap
+} from "../src/trips";
 
 describe("trip planner validation", () => {
   it("enumerates every trip day inclusively", () => {
@@ -54,6 +60,17 @@ describe("trip planner validation", () => {
       transportMode: "walk",
       durationMinutes: 0
     })).rejects.toThrowError("invalid_route_duration");
+  });
+
+  it("does not delete a place that is already planned", async () => {
+    const db = {
+      execute: vi.fn()
+        .mockResolvedValueOnce({ rows: [{ role: "member" }] })
+        .mockResolvedValueOnce({ rows: [{ id: "item-1" }] })
+    } as unknown as Client;
+
+    await expect(deleteTripPlace(db, "user-1", "room-1", "place-1"))
+      .rejects.toThrowError("planned_place_cannot_be_deleted");
   });
 
   it("removes only route pairs that stop being adjacent after a move", async () => {

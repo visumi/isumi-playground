@@ -35,7 +35,7 @@ import { IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, Is
 import { IsumiPageHeaderComponent } from "../../shared/ui/page-header.component";
 import { formatBrl, formatMoneyInput, normalizeDecimalInput, parseMoneyCents } from "../../shared/utils/money";
 import { environment } from "../../../environments/environment";
-import { finalize } from "rxjs";
+import { finalize, firstValueFrom } from "rxjs";
 
 import {
   CATALOG_PALETTE,
@@ -360,20 +360,15 @@ export class MonthlyExpensesComponent implements OnInit {
   }
 
   openExpenseModal(item?: MonthlyExpenseItem): void {
-    const ref = this.modal.open<MonthlyExpenseItemModalComponent, MonthlyExpenseItemModalData, UpsertMonthlyExpenseItemRequest>(MonthlyExpenseItemModalComponent, {
+    this.modal.open<MonthlyExpenseItemModalComponent, MonthlyExpenseItemModalData, UpsertMonthlyExpenseItemRequest>(MonthlyExpenseItemModalComponent, {
       data: {
         item,
         activeCategories: this.activeCategories(),
         activePaymentMethods: this.activePaymentMethods()
       },
       ariaLabel: item ? "Editar gasto mensal" : "Adicionar gasto mensal",
-      panelClass: "w-[min(100%,860px)]"
-    });
-
-    ref.afterClosed().subscribe((payload) => {
-      if (payload) {
-        this.saveExpenseItem(payload, item);
-      }
+      panelClass: "w-[min(100%,860px)]",
+      onSubmit: (payload) => this.saveExpenseItem(payload, item)
     });
   }
 
@@ -386,7 +381,7 @@ export class MonthlyExpensesComponent implements OnInit {
   }
 
   openPendingApproval(pending: MonthlyExpensePendingItem): void {
-    const ref = this.modal.open<MonthlyExpenseItemModalComponent, MonthlyExpenseItemModalData, UpsertMonthlyExpenseItemRequest>(MonthlyExpenseItemModalComponent, {
+    this.modal.open<MonthlyExpenseItemModalComponent, MonthlyExpenseItemModalData, UpsertMonthlyExpenseItemRequest>(MonthlyExpenseItemModalComponent, {
       data: {
         initialDescription: pending.merchantName,
         initialTotalCents: pending.amount,
@@ -394,39 +389,35 @@ export class MonthlyExpensesComponent implements OnInit {
         activePaymentMethods: this.activePaymentMethods()
       },
       ariaLabel: "Aprovar compra pendente",
-      panelClass: "w-[min(100%,860px)]"
-    });
-
-    ref.afterClosed().subscribe((payload) => {
-      if (payload) {
-        this.approvePendingItem(pending, payload);
-      }
+      panelClass: "w-[min(100%,860px)]",
+      onSubmit: (payload) => this.approvePendingItem(pending, payload)
     });
   }
 
-  approvePendingItem(pending: MonthlyExpensePendingItem, payload: UpsertMonthlyExpenseItemRequest): void {
+  async approvePendingItem(pending: MonthlyExpensePendingItem, payload: UpsertMonthlyExpenseItemRequest): Promise<void> {
     const detail = this.detail();
     if (!detail) {
-      return;
+      throw new Error("Mês ativo não encontrado.");
     }
 
     this.saving.set(true);
-    this.api.approvePendingItem(detail.month.id, pending.id, {
-      description: payload.description,
-      categoryId: payload.categoryId,
-      paymentMethodId: payload.paymentMethodId,
-      installmentTotal: payload.installmentTotal,
-      expenseType: payload.expenseType
-    }).pipe(
-      finalize(() => this.saving.set(false))
-    ).subscribe({
-      next: (updated) => {
-        this.setDetail(updated);
-        this.reloadMonthsOnly();
-        this.toast.success("Compra aprovada.", { id: "monthly-expense-pending-approved" });
-      },
-      error: () => this.toast.error("Não foi possível aprovar esta compra.", { id: "monthly-expense-pending-approve-error" })
-    });
+    try {
+      const updated = await firstValueFrom(this.api.approvePendingItem(detail.month.id, pending.id, {
+        description: payload.description,
+        categoryId: payload.categoryId,
+        paymentMethodId: payload.paymentMethodId,
+        installmentTotal: payload.installmentTotal,
+        expenseType: payload.expenseType
+      }));
+      this.setDetail(updated);
+      this.reloadMonthsOnly();
+      this.toast.success("Compra aprovada.", { id: "monthly-expense-pending-approved" });
+    } catch (error) {
+      this.toast.error("Não foi possível aprovar esta compra.", { id: "monthly-expense-pending-approve-error" });
+      throw error;
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   dismissPendingItem(pending: MonthlyExpensePendingItem): void {
@@ -447,11 +438,11 @@ export class MonthlyExpensesComponent implements OnInit {
     });
   }
 
-  saveExpenseItem(payload: UpsertMonthlyExpenseItemRequest, item?: MonthlyExpenseItem): void {
+  async saveExpenseItem(payload: UpsertMonthlyExpenseItemRequest, item?: MonthlyExpenseItem): Promise<void> {
     const detail = this.detail();
 
     if (!detail) {
-      return;
+      throw new Error("Mês ativo não encontrado.");
     }
 
     const request = item
@@ -459,15 +450,15 @@ export class MonthlyExpensesComponent implements OnInit {
       : this.api.createItem(detail.month.id, payload);
 
     this.saving.set(true);
-    request.pipe(
-      finalize(() => this.saving.set(false))
-    ).subscribe({
-      next: (updated) => {
-        this.setDetail(updated);
-        this.reloadMonthsOnly();
-      },
-      error: () => this.toast.error("Não foi possível salvar o gasto.", { id: "monthly-expense-item-save-error" })
-    });
+    try {
+      this.setDetail(await firstValueFrom(request));
+      this.reloadMonthsOnly();
+    } catch (error) {
+      this.toast.error("Não foi possível salvar o gasto.", { id: "monthly-expense-item-save-error" });
+      throw error;
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   deleteExpenseItem(item: MonthlyExpenseItem): void {

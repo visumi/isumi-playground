@@ -1,4 +1,4 @@
-import { Injectable, InjectionToken, Injector, Type, computed, inject, signal } from "@angular/core";
+import { Injectable, InjectionToken, Injector, Signal, Type, computed, inject, signal } from "@angular/core";
 import { Observable, ReplaySubject } from "rxjs";
 
 export const ISUMI_MODAL_DATA = new InjectionToken<unknown>("ISUMI_MODAL_DATA");
@@ -12,12 +12,13 @@ export function injectIsumiModalRef<TData = unknown, TResult = unknown>(): Isumi
   return inject(ISUMI_MODAL_REF) as IsumiModalRef<TData, TResult>;
 }
 
-export interface IsumiModalConfig<TData = unknown> {
+export interface IsumiModalConfig<TData = unknown, TResult = unknown> {
   data?: TData;
   ariaLabel?: string;
   panelClass?: string;
   closeOnBackdrop?: boolean;
   closeOnEscape?: boolean;
+  onSubmit?: (result: TResult) => Promise<void>;
 }
 
 export interface IsumiModalEntry {
@@ -34,13 +35,17 @@ export interface IsumiModalEntry {
 
 export class IsumiModalRef<TData = unknown, TResult = unknown> {
   private readonly closedSubject = new ReplaySubject<TResult | undefined>(1);
+  private readonly processingState = signal(false);
   private closeHandler: ((result?: TResult) => void) | null = null;
+  private readonly submitHandler: ((result: TResult) => Promise<void>) | null;
 
   readonly data: TData | undefined;
   readonly closed: Promise<TResult | undefined>;
+  readonly processing: Signal<boolean> = this.processingState.asReadonly();
 
-  constructor(data: TData | undefined) {
+  constructor(data: TData | undefined, submitHandler?: (result: TResult) => Promise<void>) {
     this.data = data;
+    this.submitHandler = submitHandler || null;
     this.closed = new Promise((resolve) => {
       this.afterClosed().subscribe((result) => resolve(result));
     });
@@ -51,7 +56,32 @@ export class IsumiModalRef<TData = unknown, TResult = unknown> {
   }
 
   close(result?: TResult): void {
+    if (this.processingState()) {
+      return;
+    }
+
     this.closeHandler?.(result);
+  }
+
+  async submit(result: TResult): Promise<void> {
+    if (this.processingState()) {
+      return;
+    }
+
+    if (!this.submitHandler) {
+      this.close(result);
+      return;
+    }
+
+    this.processingState.set(true);
+
+    try {
+      await this.submitHandler(result);
+      this.processingState.set(false);
+      this.close(result);
+    } catch {
+      this.processingState.set(false);
+    }
   }
 
   attachCloseHandler(closeHandler: (result?: TResult) => void): void {
@@ -77,10 +107,10 @@ export class IsumiModalService {
 
   open<TComponent, TData = unknown, TResult = unknown>(
     component: Type<TComponent>,
-    config: IsumiModalConfig<TData> = {}
+    config: IsumiModalConfig<TData, TResult> = {}
   ): IsumiModalRef<TData, TResult> {
     const id = this.nextId++;
-    const ref = new IsumiModalRef<TData, TResult>(config.data);
+    const ref = new IsumiModalRef<TData, TResult>(config.data, config.onSubmit);
     const injector = Injector.create({
       parent: this.parentInjector,
       providers: [

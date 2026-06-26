@@ -3,6 +3,7 @@ import { HttpErrorResponse } from "@angular/common/http";
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
+import { firstValueFrom } from "rxjs";
 import { LucideArrowRight, LucideConciergeBell, LucideDollarSign, LucideMinus, LucidePencil, LucidePlus, LucideFiles, LucideReceiptText, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUserRound, LucideUsers, LucideX, LucideFrown } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
 import { ExpenseItem, ExpenseParticipant, ExpenseParticipantTotal, ExpenseRoomDetail, ExpenseSettlement, UpsertExpenseItemRequest } from "../../core/api/api.types";
@@ -158,8 +159,8 @@ const MAX_SPLIT_UNITS = 99;
       </section>
 
       <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-2">
-        <isumi-button variant="secondary" type="button" (click)="modalRef.close()">Cancelar</isumi-button>
-        <isumi-button type="submit" [disabled]="!canSubmit()">
+        <isumi-button variant="secondary" type="button" [disabled]="modalRef.processing()" (click)="modalRef.close()">Cancelar</isumi-button>
+        <isumi-button type="submit" [disabled]="!canSubmit()" [loading]="modalRef.processing()">
           <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
           {{ data?.item ? "Salvar item" : "Adicionar item" }}
         </isumi-button>
@@ -220,7 +221,7 @@ export class ExpenseItemModalComponent {
     const payload = this.buildPayload();
 
     if (payload) {
-      this.modalRef.close(payload);
+      void this.modalRef.submit(payload);
     }
   }
 
@@ -278,8 +279,8 @@ export class ExpenseItemModalComponent {
       </header>
 
       <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
-        <isumi-button mobileFull variant="secondary" type="button" (click)="modalRef.close(false)">Cancelar</isumi-button>
-        <isumi-button mobileFull variant="destructive" type="button" (click)="modalRef.close(true)">
+        <isumi-button mobileFull variant="secondary" type="button" [disabled]="modalRef.processing()" (click)="modalRef.close(false)">Cancelar</isumi-button>
+        <isumi-button mobileFull variant="destructive" type="button" [loading]="modalRef.processing()" (click)="modalRef.submit(true)">
           <svg icon lucideTrash2 class="size-4" aria-hidden="true"></svg>
           Excluir sala
         </isumi-button>
@@ -436,28 +437,18 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   }
 
   openNewItemModal(): void {
-    const ref = this.modal.open<ExpenseItemModalComponent, ExpenseItemModalData, UpsertExpenseItemRequest>(ExpenseItemModalComponent, {
+    this.modal.open<ExpenseItemModalComponent, ExpenseItemModalData, UpsertExpenseItemRequest>(ExpenseItemModalComponent, {
       data: { participants: this.participants() },
-      ariaLabel: "Adicionar item da divisão"
-    });
-
-    ref.afterClosed().subscribe((payload) => {
-      if (payload) {
-        this.saveItemPayload(payload);
-      }
+      ariaLabel: "Adicionar item da divisão",
+      onSubmit: (payload) => this.saveItemPayload(payload)
     });
   }
 
   editItem(item: ExpenseItem): void {
-    const ref = this.modal.open<ExpenseItemModalComponent, ExpenseItemModalData, UpsertExpenseItemRequest>(ExpenseItemModalComponent, {
+    this.modal.open<ExpenseItemModalComponent, ExpenseItemModalData, UpsertExpenseItemRequest>(ExpenseItemModalComponent, {
       data: { participants: this.participants(), item },
-      ariaLabel: "Editar item da divisão"
-    });
-
-    ref.afterClosed().subscribe((payload) => {
-      if (payload) {
-        this.saveItemPayload(payload, item.id);
-      }
+      ariaLabel: "Editar item da divisão",
+      onSubmit: (payload) => this.saveItemPayload(payload, item.id)
     });
   }
 
@@ -485,15 +476,11 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const ref = this.modal.open<DeleteExpenseRoomModalComponent, DeleteExpenseRoomModalData, boolean>(DeleteExpenseRoomModalComponent, {
+    this.modal.open<DeleteExpenseRoomModalComponent, DeleteExpenseRoomModalData, boolean>(DeleteExpenseRoomModalComponent, {
       data: { roomName: room.name },
-      ariaLabel: "Confirmar exclusao da sala"
-    });
-
-    ref.afterClosed().subscribe((confirmed) => {
-      if (confirmed) {
-        this.deleteRoom();
-      }
+      ariaLabel: "Confirmar exclusão da sala",
+      closeOnBackdrop: false,
+      onSubmit: () => this.deleteRoom()
     });
   }
 
@@ -628,7 +615,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     this.savingSettlementKey.set(null);
   }
 
-  private deleteRoom(): void {
+  private async deleteRoom(): Promise<void> {
     if (this.deletingRoom()) {
       return;
     }
@@ -636,20 +623,17 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     this.deletingRoom.set(true);
     this.error.set(null);
     this.stopAutoRefresh();
-    this.expenses.deleteRoom(this.roomId()).subscribe({
-      next: () => {
-        this.toast.success("Sala excluída.", { id: "expense-delete-room-success" });
-        void this.router.navigate(["/tools/expenses"]);
-      },
-      error: () => {
-        this.toast.error("Não foi possível excluir esta sala.", { id: "expense-delete-room-error" });
-        this.deletingRoom.set(false);
-        this.startAutoRefresh();
-      },
-      complete: () => {
-        this.deletingRoom.set(false);
-      }
-    });
+    try {
+      await firstValueFrom(this.expenses.deleteRoom(this.roomId()));
+      this.toast.success("Sala excluída.", { id: "expense-delete-room-success" });
+      await this.router.navigate(["/tools/expenses"]);
+    } catch (error) {
+      this.toast.error("Não foi possível excluir esta sala.", { id: "expense-delete-room-error" });
+      this.startAutoRefresh();
+      throw error;
+    } finally {
+      this.deletingRoom.set(false);
+    }
   }
 
   private startAutoRefresh(): void {
@@ -679,7 +663,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     this.stopAutoRefresh();
   }
 
-  private saveItemPayload(payload: UpsertExpenseItemRequest, itemId?: string): void {
+  private async saveItemPayload(payload: UpsertExpenseItemRequest, itemId?: string): Promise<void> {
     const request = itemId
       ? this.expenses.updateItem(this.roomId(), itemId, payload)
       : this.expenses.createItem(this.roomId(), payload);
@@ -687,20 +671,17 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     this.saving.set(true);
     this.savingItemId.set(itemId ?? "new");
     this.error.set(null);
-    request.subscribe({
-      next: (updated) => this.setDetail(updated),
-      error: () => {
-        this.toast.error("Não foi possível salvar o item. Confira valor, pagador e partes.", {
+    try {
+      this.setDetail(await firstValueFrom(request));
+    } catch (error) {
+      this.toast.error("Não foi possível salvar o item. Confira valor, pagador e partes.", {
           id: "expense-save-item-error"
-        });
-        this.saving.set(false);
-        this.savingItemId.set(null);
-      },
-      complete: () => {
-        this.saving.set(false);
-        this.savingItemId.set(null);
-      }
-    });
+      });
+      throw error;
+    } finally {
+      this.saving.set(false);
+      this.savingItemId.set(null);
+    }
   }
 
 }

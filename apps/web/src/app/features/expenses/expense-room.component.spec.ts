@@ -97,14 +97,14 @@ describe("ExpenseRoomComponent", () => {
     expect(router.navigate).toHaveBeenCalledWith(["/tools/expenses", "room-1"]);
   });
 
-  it("deletes the room after confirmation and returns to the room list", () => {
+  it("deletes the room after confirmation and returns to the room list", async () => {
     const expenses = jasmine.createSpyObj<ExpensesService>("ExpensesService", ["getRoom", "deleteRoom", "deleteParticipant"]);
     const modal = jasmine.createSpyObj<IsumiModalService>("IsumiModalService", ["open"]);
     const toast = jasmine.createSpyObj<IsumiToastService>("IsumiToastService", ["success", "error"]);
     expenses.getRoom.and.returnValue(of(roomDetail()));
     expenses.deleteRoom.and.returnValue(of(undefined));
     expenses.deleteParticipant.and.returnValue(of(undefined));
-    modal.open.and.returnValue({ afterClosed: () => of(true) } as never);
+    modal.open.and.returnValue({} as never);
     TestBed.overrideProvider(ExpensesService, { useValue: expenses });
     TestBed.overrideProvider(IsumiModalService, { useValue: modal });
     TestBed.overrideProvider(IsumiToastService, { useValue: toast });
@@ -115,6 +115,8 @@ describe("ExpenseRoomComponent", () => {
     fixture.componentInstance.detail.set(roomDetail());
 
     fixture.componentInstance.openDeleteRoomModal();
+    const config = modal.open.calls.mostRecent().args[1] as { onSubmit: () => Promise<void> };
+    await config.onSubmit();
 
     expect(modal.open).toHaveBeenCalled();
     expect(expenses.deleteRoom).toHaveBeenCalledWith("room-1");
