@@ -98,6 +98,50 @@ import { TripRoomStore } from "./trip-room.store";
 
 type TrayDragData = { kind: "place"; place: TripPlace };
 type ItemDragData = { kind: "item"; item: TripDayItem };
+export interface ObservationTextSegment {
+  text: string;
+  href?: string;
+}
+
+const OBSERVATION_URL_PATTERN = /\b((?:https?:\/\/|www\.)[^\s<>"']+)/gi;
+const TRAILING_URL_PUNCTUATION = /[),.;:!?]+$/;
+
+export function googleMapsUrlForAddress(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address.trim())}`;
+}
+
+export function linkifyObservationText(text: string): ObservationTextSegment[] {
+  const segments: ObservationTextSegment[] = [];
+  let cursor = 0;
+
+  for (const match of text.matchAll(OBSERVATION_URL_PATTERN)) {
+    const rawUrl = match[0];
+    const matchIndex = match.index ?? 0;
+    const trimmedUrl = rawUrl.replace(TRAILING_URL_PUNCTUATION, "");
+    const trailingText = rawUrl.slice(trimmedUrl.length);
+
+    if (matchIndex > cursor) {
+      segments.push({ text: text.slice(cursor, matchIndex) });
+    }
+
+    segments.push({
+      text: trimmedUrl,
+      href: trimmedUrl.startsWith("www.") ? `https://${trimmedUrl}` : trimmedUrl
+    });
+
+    if (trailingText) {
+      segments.push({ text: trailingText });
+    }
+
+    cursor = matchIndex + rawUrl.length;
+  }
+
+  if (cursor < text.length) {
+    segments.push({ text: text.slice(cursor) });
+  }
+
+  return segments.length > 0 ? segments : [{ text }];
+}
 
 export const PLACE_CATEGORY_VISUALS: Record<TripPlaceCategory, {
   label: string;
@@ -351,6 +395,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly placeDragPlaceholderHeight = signal(96);
   readonly itemDragPlaceholderHeight = signal(96);
   readonly libraryDropPlaceholderHeight = signal(128);
+  readonly dropPlaceholderHeight = 96;
   readonly dragPreviewWidth = signal(304);
   readonly dropFeedbackDayId = signal<string | null>(null);
   @ViewChild("placeLibrary") private placeLibrary?: ElementRef<HTMLElement>;
@@ -1088,23 +1133,48 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   async copyPlaceAddress(address: string): Promise<void> {
-    if (!address.trim()) return;
+    const normalizedAddress = address.trim();
+    if (!normalizedAddress) return;
+
+    const mapUrl = this.googleMapsUrl(normalizedAddress);
 
     try {
       let copied = false;
       if (navigator.clipboard?.writeText) {
         try {
-          await navigator.clipboard.writeText(address);
+          await navigator.clipboard.writeText(mapUrl);
           copied = true;
         } catch {
           copied = false;
         }
       }
-      if (!copied) this.copyWithTextarea(address);
-      this.toast.success("Endereço copiado.");
+      if (!copied) this.copyWithTextarea(mapUrl);
+      this.toast.success(this.shouldOfferGoogleMapsOpen()
+        ? "Link copiado. Abrindo o Google Maps..."
+        : "Link do mapa copiado.");
+      this.openGoogleMapsOnMobile(mapUrl);
     } catch {
-      this.toast.error("Não foi possível copiar o endereço.");
+      this.toast.error("Não foi possível copiar o link do mapa.");
     }
+  }
+
+  googleMapsUrl(address: string): string {
+    return googleMapsUrlForAddress(address);
+  }
+
+  observationTextSegments(text: string): ObservationTextSegment[] {
+    return linkifyObservationText(text);
+  }
+
+  private openGoogleMapsOnMobile(mapUrl: string): void {
+    if (!this.shouldOfferGoogleMapsOpen()) return;
+    window.setTimeout(() => {
+      window.location.href = mapUrl;
+    }, 250);
+  }
+
+  private shouldOfferGoogleMapsOpen(): boolean {
+    return window.matchMedia("(pointer: coarse)").matches && window.matchMedia("(max-width: 768px)").matches;
   }
 
   private copyWithTextarea(value: string): void {

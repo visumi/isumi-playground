@@ -147,11 +147,11 @@
         @if (snapshot.flights.length > 0) {
         <div
           class="snap-x gap-2.5 overflow-x-auto px-0.5 pb-2 pt-0.5"
-          [ngClass]="snapshot.flights.length <= 2 ? 'grid grid-cols-2 max-sm:grid-cols-1' : 'flex'">
+          [ngClass]="snapshot.flights.length <= 2 ? 'grid grid-cols-[repeat(auto-fit,minmax(min(32.5rem,100%),1fr))]' : 'flex'">
           @for (flight of snapshot.flights; track flight.id) {
           <article
-            class="grid flex-none snap-start grid-cols-[minmax(17rem,1fr)_12.5rem] overflow-hidden rounded-lg border border-border max-sm:w-full max-sm:min-w-full max-sm:grid-cols-1"
-            [ngClass]="snapshot.flights.length <= 2 ? 'min-w-0' : 'min-w-[32.5rem]'">
+            class="grid flex-none snap-start grid-cols-[minmax(17rem,1fr)_12.5rem] overflow-hidden rounded-lg border border-border max-lg:grid-cols-1 max-sm:w-full max-sm:min-w-full"
+            [ngClass]="snapshot.flights.length <= 2 ? 'min-w-0' : 'min-w-[min(32.5rem,100%)]'">
             <div class="grid min-w-0 gap-4 bg-secondary/60 p-4 max-sm:gap-5 max-sm:p-3.5">
               <header class="flex items-start justify-between gap-3">
                 <div class="flex min-w-0 items-center gap-2">
@@ -229,10 +229,10 @@
             </div>
 
             <aside
-              class="grid min-h-40 content-between gap-3 border-l border-dashed border-border bg-background/45 p-4 max-sm:min-h-0 max-sm:grid-cols-[1fr_auto] max-sm:items-center max-sm:border-l-0 max-sm:border-t max-sm:p-3.5"
+              class="grid min-h-40 content-between gap-3 border-l border-dashed border-border bg-background/45 p-4 max-lg:min-h-0 max-lg:grid-cols-[1fr_auto] max-lg:items-center max-lg:border-l-0 max-lg:border-t max-lg:p-3.5"
               aria-label="Detalhes do voo">
               <div
-                class="flex items-center justify-between gap-3 max-sm:col-start-2 max-sm:row-start-1 max-sm:justify-self-end">
+                class="flex items-center justify-between gap-3 max-lg:col-start-2 max-lg:row-start-1 max-lg:justify-self-end">
                 <span
                   class="inline-flex items-center gap-1.5 text-[0.625rem] font-black uppercase tracking-[0.12em] text-muted-foreground">
                   <svg lucideTicket class="size-3.5" [class.text-emerald-400]="flight.direction === 'outbound'"
@@ -245,22 +245,22 @@
                   [class.text-red-400]="flight.direction === 'return'">{{ flight.flightNumber || "—" }}</span>
               </div>
               <div
-                class="-mt-1 flex h-8 w-full items-stretch gap-px overflow-hidden opacity-60 max-sm:col-span-2 max-sm:mt-0 max-sm:h-6"
+                class="-mt-1 flex h-8 w-full items-stretch gap-px overflow-hidden opacity-60 max-lg:col-span-2 max-lg:mt-0 max-lg:h-6"
                 aria-hidden="true">
                 @for (bar of [2, 4, 1, 3, 2, 5, 1, 4, 2, 3, 1, 5, 2, 4, 1, 3, 2, 5, 1, 4, 3, 1, 5, 2, 4, 1, 3, 2, 5, 1];
                 track $index) {
                 <span class="h-full min-w-px flex-1 bg-muted-foreground" [class.flex-2]="bar === 4 || bar === 5"></span>
                 }
               </div>
-              <div class="flex justify-end gap-1 max-sm:col-start-1 max-sm:row-start-1 max-sm:justify-self-start">
-                <isumi-button class="max-sm:[&_button]:size-11" variant="ghost" size="sm" iconOnly
+              <div class="flex justify-end gap-1 max-lg:col-start-1 max-lg:row-start-1 max-lg:justify-self-start">
+                <isumi-button class="max-lg:[&_button]:size-11" variant="ghost" size="sm" iconOnly
                   [attr.title]="'Editar voo ' + flight.departureAirport + ' para ' + flight.arrivalAirport"
                   [ariaLabel]="'Editar voo ' + flight.departureAirport + ' para ' + flight.arrivalAirport"
                   (click)="openEditFlight(flight)">
                   <svg icon lucidePencil class="size-3.5" aria-hidden="true"></svg>
                   Editar voo
                 </isumi-button>
-                <isumi-button class="max-sm:[&_button]:size-11" variant="ghost-destructive" size="sm" iconOnly
+                <isumi-button class="max-lg:[&_button]:size-11" variant="ghost-destructive" size="sm" iconOnly
                   [attr.title]="'Excluir voo ' + flight.departureAirport + ' para ' + flight.arrivalAirport"
                   [loading]="deletingFlightId() === flight.id"
                   [ariaLabel]="'Excluir voo ' + flight.departureAirport + ' para ' + flight.arrivalAirport"
@@ -387,7 +387,7 @@
                       </span>
                     </button>
                     <div class="flex shrink-0 gap-0.5">
-                      <isumi-button variant="ghost-primary" size="sm" iconOnly
+                      <isumi-button variant="ghost" size="sm" iconOnly
                         [ariaLabel]="'Editar ' + place.name" type="button"
                         (pointerdown)="$event.stopPropagation()" (click)="openEditPlace(place)">
                         <svg icon lucidePencil class="size-3.5"></svg>
@@ -415,7 +415,16 @@
                   @if (place.notes) {
                   <p class="m-0 flex min-w-0 items-start gap-2 rounded-md bg-background/45 px-2.5 py-2 text-xs leading-5 text-foreground/80">
                     <svg lucideAsterisk class="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true"></svg>
-                    <span class="min-w-0 break-words">{{ place.notes }}</span>
+                    <span class="min-w-0 break-words">
+                      @for (segment of observationTextSegments(place.notes); track $index) {
+                      @if (segment.href) {
+                      <a class="font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                        [href]="segment.href" target="_blank" rel="noopener noreferrer">{{ segment.text }}</a>
+                      } @else {
+                      <span>{{ segment.text }}</span>
+                      }
+                      }
+                    </span>
                   </p>
                   }
 
@@ -468,11 +477,7 @@
                   <div
                     class="trip-drop-placeholder w-full shrink-0"
                     [class.p-1]="activeDropTarget() !== 'library'"
-                    [style.height.px]="activeDropTarget() === 'library'
-                      ? libraryDropPlaceholderHeight()
-                      : dragKind() === 'item'
-                        ? itemDragPlaceholderHeight()
-                        : placeDragPlaceholderHeight()">
+                    [style.height.px]="dropPlaceholderHeight">
                     <div
                       class="grid h-full place-items-center rounded-md border-2 border-dashed border-primary/65 bg-primary/10 px-3 text-center text-primary">
                       <span class="inline-flex items-center gap-2 text-xs font-extrabold">
@@ -540,7 +545,7 @@
                     </span>
                   </button>
                   <div class="flex shrink-0 gap-0.5">
-                    <isumi-button variant="ghost-primary" size="sm" iconOnly [ariaLabel]="'Editar ' + lodging.name"
+                    <isumi-button variant="ghost" size="sm" iconOnly [ariaLabel]="'Editar ' + lodging.name"
                       (click)="openEditLodging(lodging)">
                       <svg icon lucidePencil class="size-3.5"></svg>
                       Editar
@@ -561,7 +566,16 @@
                 @if (lodging.notes) {
                 <p class="m-0 flex min-w-0 items-start gap-2 rounded-md bg-background/45 px-2.5 py-2 text-xs leading-5 text-foreground/80">
                   <svg lucideAsterisk class="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true"></svg>
-                  <span class="min-w-0 break-words">{{ lodging.notes }}</span>
+                  <span class="min-w-0 break-words">
+                    @for (segment of observationTextSegments(lodging.notes); track $index) {
+                    @if (segment.href) {
+                    <a class="font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                      [href]="segment.href" target="_blank" rel="noopener noreferrer">{{ segment.text }}</a>
+                    } @else {
+                    <span>{{ segment.text }}</span>
+                    }
+                    }
+                  </span>
                 </p>
                 }
               </article>
@@ -650,14 +664,14 @@
                 </div>
                 <div class="flex shrink-0 items-center gap-0.5">
                 @if (lodging.address) {
-                  <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Copiar endereço"
+                  <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Copiar link do mapa"
                     (pointerdown)="$event.stopPropagation()"
                     (click)="$event.stopPropagation(); copyPlaceAddress(lodging.address)">
                     <svg icon lucideMapPinned class="size-4"></svg>
-                    Copiar endereço
+                    Copiar link do mapa
                   </isumi-button>
                 }
-                  <isumi-button variant="ghost-primary" size="sm" iconOnly
+                  <isumi-button variant="ghost" size="sm" iconOnly
                     [ariaLabel]="'Editar ' + lodging.name" type="button" (click)="openEditLodging(lodging)">
                     <svg icon lucidePencil class="size-4"></svg>
                     Editar hospedagem
@@ -824,14 +838,14 @@
 
                   <div class="flex shrink-0 items-center gap-0.5">
                     @if (itemPlace.address) {
-                    <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Copiar endereço"
+                    <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Copiar link do mapa"
                       (pointerdown)="$event.stopPropagation()"
                       (click)="$event.stopPropagation(); copyPlaceAddress(itemPlace.address)">
                       <svg icon lucideMapPinned class="size-4"></svg>
-                      Copiar endereço
+                      Copiar link do mapa
                     </isumi-button>
                     }
-                    <isumi-button variant="ghost-primary" size="sm" iconOnly ariaLabel="Editar lugar"
+                    <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Editar lugar"
                       (pointerdown)="$event.stopPropagation()"
                       (click)="$event.stopPropagation(); openEditPlace(itemPlace, item)">
                     <svg icon lucidePencil class="size-4"></svg>
@@ -844,7 +858,16 @@
                 <p
                   class="m-0 flex items-start gap-2 rounded-md bg-background/45 px-3 py-2 text-xs leading-5 text-foreground/80">
                   <svg lucideAsterisk class="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true"></svg>
-                  <span class="text-pretty">{{ itemPlace.notes }}</span>
+                  <span class="min-w-0 break-words text-pretty">
+                    @for (segment of observationTextSegments(itemPlace.notes); track $index) {
+                    @if (segment.href) {
+                    <a class="font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                      [href]="segment.href" target="_blank" rel="noopener noreferrer">{{ segment.text }}</a>
+                    } @else {
+                    <span>{{ segment.text }}</span>
+                    }
+                    }
+                  </span>
                 </p>
                 }
 
@@ -893,11 +916,7 @@
                 <div
                   class="trip-drop-placeholder w-full shrink-0"
                   [class.p-1]="activeDropTarget() !== 'library'"
-                  [style.height.px]="activeDropTarget() === 'library'
-                    ? libraryDropPlaceholderHeight()
-                    : dragKind() === 'item'
-                      ? itemDragPlaceholderHeight()
-                      : placeDragPlaceholderHeight()">
+                  [style.height.px]="dropPlaceholderHeight">
                   <div
                     class="grid h-full place-items-center rounded-md border-2 border-dashed border-primary/65 bg-primary/10 px-3 text-center text-primary">
                     <span class="inline-flex items-center gap-2 text-xs font-extrabold">
