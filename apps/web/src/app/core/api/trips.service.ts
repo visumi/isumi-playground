@@ -10,6 +10,7 @@ import {
   TripSnapshot,
   UpdateTripFlightRequest,
   UpdateTripLodgingRequest,
+  UpdateTripPlaceCoordinatesRequest,
   UpsertTripDayItemRequest,
   UpsertTripPlaceRequest,
   UpsertTripRouteRequest
@@ -46,6 +47,14 @@ export class TripsService {
 
   updatePlace(roomId: string, placeId: string, payload: UpsertTripPlaceRequest): Observable<TripSnapshot> {
     return this.http.patch<TripSnapshot>(`${this.baseUrl}/${roomId}/places/${placeId}`, payload);
+  }
+
+  updatePlaceCoordinates(
+    roomId: string,
+    placeId: string,
+    payload: UpdateTripPlaceCoordinatesRequest
+  ): Observable<TripSnapshot> {
+    return this.http.patch<TripSnapshot>(`${this.baseUrl}/${roomId}/places/${placeId}/coordinates`, payload);
   }
 
   deletePlace(roomId: string, placeId: string): Observable<void> {

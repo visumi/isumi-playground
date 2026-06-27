@@ -42,6 +42,7 @@ import {
   LucideLandmark,
   LucideLink,
   LucideList,
+  LucideMap,
   LucideMapPin,
   LucideMapPinned,
   LucideMoonStar,
@@ -94,6 +95,8 @@ import {
   injectIsumiModalData,
   injectIsumiModalRef
 } from "../../shared/ui";
+import { TripDayMapModalComponent, TripDayMapModalData } from "./trip-day-map-modal.component";
+import { TripDayMapPoint } from "./trip-day-map.component";
 import { TripRoomStore } from "./trip-room.store";
 
 type TrayDragData = { kind: "place"; place: TripPlace };
@@ -339,6 +342,7 @@ export class DeleteTripPlaceModalComponent {
     LucideGripVertical,
     LucideLink,
     LucideList,
+    LucideMap,
     LucideMapPin,
     LucideMapPinned,
     LucideMoveRight,
@@ -440,6 +444,10 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly focusedDayIndex = computed(() =>
     this.store.days().findIndex((day) => day.id === this.focusedDay()?.id)
   );
+  readonly focusedDayMapAddressCount = computed(() => {
+    const day = this.focusedDay();
+    return day ? this.mapAddressCountForDay(day) : 0;
+  });
   readonly canShowPreviousDays = computed(() => this.focusedDayIndex() > 0);
   readonly canShowNextDays = computed(() =>
     this.focusedDayIndex() >= 0 && this.focusedDayIndex() < this.store.days().length - 1
@@ -1230,6 +1238,79 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   transportLabel(mode: TripTransportMode | null): string {
     return { walk: "Caminhada", car: "Carro", transit: "Transporte público", other: "Outro" }[mode || "other"];
+  }
+
+  openDayMap(day: TripDay): void {
+    const placesWithAddress = this.placesWithAddressForDay(day);
+    this.modal.open<TripDayMapModalComponent, TripDayMapModalData, void>(
+      TripDayMapModalComponent,
+      {
+        data: {
+          roomId: this.roomId(),
+          dayNumber: this.dayNumber(day),
+          date: day.date,
+          points: this.mapPointsForDay(day),
+          failedPlaces: this.failedMapPlacesForDay(day),
+          pendingCount: placesWithAddress.filter((place) => place.geocodingStatus === "pending").length,
+          onSnapshot: (snapshot) => this.store.setSnapshot(snapshot)
+        },
+        ariaLabel: `Mapa do dia ${this.dayNumber(day)}`,
+        panelClass: "sm:!w-[min(calc(100vw-2rem),76rem)]"
+      }
+    );
+  }
+
+  mapAddressCountForDay(day: TripDay): number {
+    return this.placesWithAddressForDay(day).length;
+  }
+
+  private mapPointsForDay(day: TripDay): TripDayMapPoint[] {
+    return this.store.itemsForDay(day.id)
+      .map((item, index) => {
+        const place = this.placeById(item.placeId);
+        if (
+          !place?.address
+          || place.latitude === null
+          || place.longitude === null
+          || !Number.isFinite(place.latitude)
+          || !Number.isFinite(place.longitude)
+        ) return null;
+        return {
+          id: item.id,
+          name: place.name,
+          address: place.address,
+          category: place.category,
+          position: index + 1,
+          latitude: place.latitude,
+          longitude: place.longitude
+        };
+      })
+      .filter((point): point is TripDayMapPoint => point !== null);
+  }
+
+  private placesWithAddressForDay(day: TripDay): TripPlace[] {
+    return this.store.itemsForDay(day.id)
+      .map((item) => this.placeById(item.placeId))
+      .filter((place): place is TripPlace => !!place?.address?.trim());
+  }
+
+  private failedMapPlacesForDay(day: TripDay): TripDayMapModalData["failedPlaces"] {
+    return this.store.itemsForDay(day.id)
+      .map((item, index) => {
+        const place = this.placeById(item.placeId);
+        if (!place?.address?.trim() || place.geocodingStatus !== "failed") return null;
+        return {
+          id: place.id,
+          name: place.name,
+          address: place.address,
+          category: place.category,
+          position: index + 1,
+          version: place.version,
+          latitude: place.latitude,
+          longitude: place.longitude
+        };
+      })
+      .filter((place): place is TripDayMapModalData["failedPlaces"][number] => place !== null);
   }
 
   private async reload(): Promise<void> {

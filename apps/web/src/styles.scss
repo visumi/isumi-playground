@@ -156,6 +156,213 @@ body {
   order: -1;
 }
 
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.leaflet-container {
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  display: block;
+}
+
+.leaflet-container .leaflet-overlay-pane svg,
+.leaflet-container .leaflet-marker-pane img,
+.leaflet-container .leaflet-shadow-pane img,
+.leaflet-container .leaflet-tile-pane img,
+.leaflet-container img.leaflet-image-layer,
+.leaflet-container .leaflet-tile {
+  max-width: none !important;
+  max-height: none !important;
+  padding: 0;
+}
+
+.leaflet-tile {
+  visibility: hidden;
+}
+
+.leaflet-tile-loaded {
+  visibility: inherit;
+}
+
+.leaflet-pane {
+  z-index: 400;
+}
+
+.leaflet-tile-pane {
+  z-index: 200;
+}
+
+.leaflet-overlay-pane {
+  z-index: 400;
+}
+
+.leaflet-shadow-pane {
+  z-index: 500;
+}
+
+.leaflet-marker-pane {
+  z-index: 600;
+}
+
+.leaflet-tooltip-pane {
+  z-index: 650;
+}
+
+.leaflet-popup-pane {
+  z-index: 700;
+}
+
+.leaflet-control {
+  position: relative;
+  z-index: 800;
+  pointer-events: auto;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  position: absolute;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.leaflet-top {
+  top: 0;
+}
+
+.leaflet-right {
+  right: 0;
+}
+
+.leaflet-bottom {
+  bottom: 0;
+}
+
+.leaflet-left {
+  left: 0;
+}
+
+.leaflet-control {
+  float: left;
+  clear: both;
+}
+
+.leaflet-right .leaflet-control {
+  float: right;
+}
+
+.leaflet-top .leaflet-control {
+  margin-top: 10px;
+}
+
+.leaflet-bottom .leaflet-control {
+  margin-bottom: 10px;
+}
+
+.leaflet-left .leaflet-control {
+  margin-left: 10px;
+}
+
+.leaflet-right .leaflet-control {
+  margin-right: 10px;
+}
+
+.trip-map-marker {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 2px solid rgb(244 244 245 / 0.95);
+  border-radius: 999px 999px 999px 0.25rem;
+  box-shadow: 0 6px 8px rgb(0 0 0 / 0.28);
+  color: rgb(250 250 250);
+  font-size: 0.75rem;
+  font-weight: 900;
+  line-height: 1;
+  position: relative;
+  transform: rotate(-45deg);
+}
+
+.trip-map-marker::before {
+  content: "";
+  position: absolute;
+  inset: 0.42rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.18);
+}
+
+.trip-map-marker {
+  > * {
+    position: relative;
+    z-index: 1;
+    transform: rotate(45deg);
+  }
+}
+
+.trip-map-marker--food {
+  background: rgb(245 158 11);
+}
+
+.trip-map-marker--culture {
+  background: rgb(139 92 246);
+}
+
+.trip-map-marker--nightlife {
+  background: rgb(236 72 153);
+}
+
+.trip-map-marker--nature {
+  background: rgb(16 185 129);
+}
+
+.trip-map-marker--shopping {
+  background: rgb(59 130 246);
+}
+
+.trip-map-marker--other {
+  background: rgb(6 182 212);
+}
+
+.leaflet-container {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--color-popover);
+  color: var(--color-popover-foreground);
+}
+
+.leaflet-popup-content {
+  margin: 0.75rem 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .trip-drop-list.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder),
   .trip-itinerary-drag-item.cdk-drag-animating,

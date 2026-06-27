@@ -22,11 +22,13 @@ import {
   updateTripFlight,
   updateTripLodging,
   updateTripPlace,
+  updateTripPlaceCoordinates,
   updateTripRoute,
   updateTripRoom,
   type TripDayItemInput,
   type TripFlightInput,
   type TripLodgingInput,
+  type TripPlaceCoordinatesInput,
   type TripPlaceInput,
   type TripRouteInput,
   type TripRoomInput
@@ -133,16 +135,49 @@ export async function handleTripRequest(
   if (placeMatch) {
     const [, roomId, placeId] = placeMatch;
     if (request.method === "POST" && !placeId) {
-      return snapshotResponse(env, roomId, user.uid, await createTripPlace(db, user.uid, roomId, await readJson<TripPlaceInput>(request)), 201, corsHeaders);
+      return snapshotResponse(
+        env,
+        roomId,
+        user.uid,
+        await createTripPlace(db, user.uid, roomId, await readJson<TripPlaceInput>(request), tripGeocoder(env)),
+        201,
+        corsHeaders
+      );
     }
     if (request.method === "PATCH" && placeId) {
-      return snapshotResponse(env, roomId, user.uid, await updateTripPlace(db, user.uid, roomId, placeId, await readJson<TripPlaceInput>(request)), 200, corsHeaders);
+      return snapshotResponse(
+        env,
+        roomId,
+        user.uid,
+        await updateTripPlace(db, user.uid, roomId, placeId, await readJson<TripPlaceInput>(request), tripGeocoder(env)),
+        200,
+        corsHeaders
+      );
     }
     if (request.method === "DELETE" && placeId) {
       await deleteTripPlace(db, user.uid, roomId, placeId);
       await notifyRoom(env, roomId, await getTripSnapshot(db, user.uid, roomId), user.uid);
       return new Response(null, { status: 204, headers: corsHeaders });
     }
+  }
+
+  const placeCoordinatesMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)\/places\/([^/]+)\/coordinates$/);
+  if (placeCoordinatesMatch && request.method === "PATCH") {
+    const [, roomId, placeId] = placeCoordinatesMatch;
+    return snapshotResponse(
+      env,
+      roomId,
+      user.uid,
+      await updateTripPlaceCoordinates(
+        db,
+        user.uid,
+        roomId,
+        placeId,
+        await readJson<TripPlaceCoordinatesInput>(request)
+      ),
+      200,
+      corsHeaders
+    );
   }
 
   const itemMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)\/items(?:\/([^/]+))?$/);
@@ -231,6 +266,13 @@ async function notifyRoom(env: Env, roomId: string, snapshot: unknown, actorUser
 
 function realtimeSecret(env: Env): Uint8Array {
   return new TextEncoder().encode(requiredEnv(env.REALTIME_TICKET_SECRET, "REALTIME_TICKET_SECRET"));
+}
+
+function tripGeocoder(env: Env) {
+  return {
+    userAgent: env.GEOCODER_USER_AGENT,
+    email: env.GEOCODER_EMAIL
+  };
 }
 
 async function readJson<T>(request: Request): Promise<T> {

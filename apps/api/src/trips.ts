@@ -21,6 +21,18 @@ export interface TripPlaceInput {
   version?: number;
 }
 
+export interface TripPlaceCoordinatesInput {
+  latitude?: number;
+  longitude?: number;
+  version?: number;
+}
+
+export interface TripGeocoderConfig {
+  userAgent?: string;
+  email?: string;
+  fetch?: typeof fetch;
+}
+
 export interface TripDayItemInput {
   dayId?: string;
   placeId?: string;
@@ -157,6 +169,7 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
     db.execute({
       sql: `
         SELECT id, name, category, address, notes, created_by_user_id,
+               latitude, longitude, geocoded_address, geocoded_at, geocoding_status,
                version, created_at, updated_at
         FROM trip_places WHERE room_id = ? ORDER BY created_at, id
       `,
@@ -216,6 +229,11 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       category: String(row.category),
       address: row.address ? String(row.address) : null,
       notes: row.notes ? String(row.notes) : null,
+      latitude: row.latitude === null || row.latitude === undefined ? null : Number(row.latitude),
+      longitude: row.longitude === null || row.longitude === undefined ? null : Number(row.longitude),
+      geocodedAddress: row.geocoded_address ? String(row.geocoded_address) : null,
+      geocodedAt: row.geocoded_at ? toUtcIsoTimestamp(String(row.geocoded_at)) : null,
+      geocodingStatus: row.geocoding_status ? String(row.geocoding_status) : null,
       createdByUserId: String(row.created_by_user_id),
       version: Number(row.version),
       createdAt: toUtcIsoTimestamp(String(row.created_at)),
@@ -312,48 +330,111 @@ export async function deleteTripRoom(db: Client, userId: string, roomId: string)
   await db.execute({ sql: "DELETE FROM trip_rooms WHERE id = ?", args: [roomId] });
 }
 
-export async function createTripPlace(db: Client, userId: string, roomId: string, payload: TripPlaceInput) {
+export async function createTripPlace(
+  db: Client,
+  userId: string,
+  roomId: string,
+  payload: TripPlaceInput,
+  geocoder?: TripGeocoderConfig
+) {
   await assertTripMember(db, roomId, userId);
   const placeId = crypto.randomUUID();
+  const address = nullableText(payload.address, 240);
   await executeStatementsAtomically(db, [
     {
       sql: `
-        INSERT INTO trip_places (id, room_id, name, category, address, notes, created_by_user_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO trip_places
+          (id, room_id, name, category, address, notes, created_by_user_id, geocoding_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
         placeId,
         roomId,
         requiredText(payload.name, "missing_place_name", 160),
         category(payload.category),
-        nullableText(payload.address, 240),
+        address,
         nullableText(payload.notes, 2000),
-        userId
+        userId,
+        address ? "pending" : null
       ]
     },
     touchRoom(roomId)
   ]);
+  if (address) await geocodeTripPlaceAddress(db, roomId, placeId, address, geocoder);
   return getTripSnapshot(db, userId, roomId);
 }
 
-export async function updateTripPlace(db: Client, userId: string, roomId: string, placeId: string, payload: TripPlaceInput) {
+export async function updateTripPlace(
+  db: Client,
+  userId: string,
+  roomId: string,
+  placeId: string,
+  payload: TripPlaceInput,
+  geocoder?: TripGeocoderConfig
+) {
   await assertTripMember(db, roomId, userId);
   const version = integer(payload.version, "missing_entity_version", 1, Number.MAX_SAFE_INTEGER);
+  const currentResult = await db.execute({
+    sql: "SELECT address FROM trip_places WHERE id = ? AND room_id = ? LIMIT 1",
+    args: [placeId, roomId]
+  });
+  const current = currentResult.rows[0];
+  if (!current) throw new HttpError(404, "not_found");
+  const address = nullableText(payload.address, 240);
+  const addressChanged = (current.address ? String(current.address) : null) !== address;
   const result = await db.execute({
     sql: `
       UPDATE trip_places SET name = ?, category = ?, address = ?, notes = ?,
+        latitude = CASE WHEN ? THEN NULL ELSE latitude END,
+        longitude = CASE WHEN ? THEN NULL ELSE longitude END,
+        geocoded_address = CASE WHEN ? THEN NULL ELSE geocoded_address END,
+        geocoded_at = CASE WHEN ? THEN NULL ELSE geocoded_at END,
+        geocoding_status = CASE WHEN ? THEN ? ELSE geocoding_status END,
         version = version + 1, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND room_id = ? AND version = ?
     `,
     args: [
       requiredText(payload.name, "missing_place_name", 160),
       category(payload.category),
-      nullableText(payload.address, 240),
+      address,
       nullableText(payload.notes, 2000),
+      addressChanged ? 1 : 0,
+      addressChanged ? 1 : 0,
+      addressChanged ? 1 : 0,
+      addressChanged ? 1 : 0,
+      addressChanged ? 1 : 0,
+      address ? "pending" : null,
       placeId,
       roomId,
       version
     ]
+  });
+  if (result.rowsAffected === 0) throw new HttpError(409, "entity_version_conflict");
+  if (addressChanged && address) await geocodeTripPlaceAddress(db, roomId, placeId, address, geocoder);
+  await db.execute(touchRoom(roomId));
+  return getTripSnapshot(db, userId, roomId);
+}
+
+export async function updateTripPlaceCoordinates(
+  db: Client,
+  userId: string,
+  roomId: string,
+  placeId: string,
+  payload: TripPlaceCoordinatesInput
+) {
+  await assertTripMember(db, roomId, userId);
+  const version = integer(payload.version, "missing_entity_version", 1, Number.MAX_SAFE_INTEGER);
+  const latitude = coordinate(payload.latitude, "invalid_latitude", -90, 90);
+  const longitude = coordinate(payload.longitude, "invalid_longitude", -180, 180);
+  const result = await db.execute({
+    sql: `
+      UPDATE trip_places
+      SET latitude = ?, longitude = ?, geocoded_address = address,
+        geocoded_at = CURRENT_TIMESTAMP, geocoding_status = 'resolved',
+        version = version + 1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND room_id = ? AND version = ?
+    `,
+    args: [latitude, longitude, placeId, roomId, version]
   });
   if (result.rowsAffected === 0) throw new HttpError(409, "entity_version_conflict");
   await db.execute(touchRoom(roomId));
@@ -820,6 +901,75 @@ export function lodgingPeriodsOverlap(
   return firstCheckIn < secondCheckOut && firstCheckOut > secondCheckIn;
 }
 
+export async function geocodeTripPlaceAddress(
+  db: Pick<Client, "execute">,
+  roomId: string,
+  placeId: string,
+  address: string,
+  config: TripGeocoderConfig = {}
+): Promise<void> {
+  const normalizedAddress = address.trim();
+  if (!normalizedAddress) return;
+
+  const geocoderFetch = config.fetch || fetch;
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("q", normalizedAddress);
+  if (config.email) url.searchParams.set("email", config.email);
+
+  try {
+    const response = await geocoderFetch(url.toString(), {
+      headers: {
+        "Accept": "application/json",
+        "User-Agent": config.userAgent || "isumi-playground/1.0"
+      }
+    });
+
+    if (!response.ok) {
+      await markTripPlaceGeocodingFailed(db, roomId, placeId);
+      return;
+    }
+
+    const results = await response.json() as Array<{ lat?: string; lon?: string; display_name?: string }>;
+    const result = results[0];
+    const latitude = Number(result?.lat);
+    const longitude = Number(result?.lon);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      await markTripPlaceGeocodingFailed(db, roomId, placeId);
+      return;
+    }
+
+    await db.execute({
+      sql: `
+        UPDATE trip_places
+        SET latitude = ?, longitude = ?, geocoded_address = ?, geocoded_at = CURRENT_TIMESTAMP,
+          geocoding_status = 'resolved', updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND room_id = ?
+      `,
+      args: [latitude, longitude, result.display_name || normalizedAddress, placeId, roomId]
+    });
+  } catch {
+    await markTripPlaceGeocodingFailed(db, roomId, placeId);
+  }
+}
+
+async function markTripPlaceGeocodingFailed(
+  db: Pick<Client, "execute">,
+  roomId: string,
+  placeId: string
+): Promise<void> {
+  await db.execute({
+    sql: `
+      UPDATE trip_places
+      SET latitude = NULL, longitude = NULL, geocoded_at = CURRENT_TIMESTAMP,
+        geocoding_status = 'failed', updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND room_id = ?
+    `,
+    args: [placeId, roomId]
+  });
+}
+
 export async function assertTripMember(db: Client, roomId: string, userId: string): Promise<{ role: "owner" | "member" }> {
   const result = await db.execute({
     sql: "SELECT role FROM trip_members WHERE room_id = ? AND user_id = ? LIMIT 1",
@@ -976,6 +1126,13 @@ function date(value: unknown, error: string): string {
 
 function integer(value: unknown, error: string, min: number, max: number): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) {
+    throw new HttpError(400, error);
+  }
+  return value;
+}
+
+function coordinate(value: unknown, error: string, min: number, max: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) {
     throw new HttpError(400, error);
   }
   return value;

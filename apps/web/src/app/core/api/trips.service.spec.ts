@@ -62,6 +62,23 @@ describe("TripsService", () => {
     request.flush({});
   });
 
+  it("updates a place with manual coordinates", () => {
+    service.updatePlaceCoordinates("trip-1", "place-1", {
+      latitude: -22.8969586,
+      longitude: -47.0780046,
+      version: 5
+    }).subscribe();
+
+    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/places/place-1/coordinates");
+    expect(request.request.method).toBe("PATCH");
+    expect(request.request.body).toEqual({
+      latitude: -22.8969586,
+      longitude: -47.0780046,
+      version: 5
+    });
+    request.flush({});
+  });
+
   it("requests a short-lived realtime ticket", () => {
     service.realtimeTicket("trip-1").subscribe();
     const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/realtime-ticket");

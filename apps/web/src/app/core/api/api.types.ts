@@ -286,6 +286,11 @@ export interface TripPlace {
   category: TripPlaceCategory;
   address: string | null;
   notes: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  geocodedAddress: string | null;
+  geocodedAt: string | null;
+  geocodingStatus: "pending" | "resolved" | "failed" | null;
   createdByUserId: string;
   version: number;
   createdAt: string;
@@ -360,6 +365,12 @@ export interface UpsertTripPlaceRequest {
   address?: string | null;
   notes?: string | null;
   version?: number;
+}
+
+export interface UpdateTripPlaceCoordinatesRequest {
+  latitude: number;
+  longitude: number;
+  version: number;
 }
 
 export interface UpsertTripDayItemRequest {

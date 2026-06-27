@@ -622,9 +622,9 @@
         </div>
         @if (focusedDay(); as day) {
         <section #dayPanel
-          class="relative grid min-w-0 gap-5 overflow-hidden rounded-lg bg-card p-5 shadow-md will-change-[transform,opacity,filter]"
+          class="relative grid min-w-0 gap-5 overflow-visible rounded-lg bg-card p-5 shadow-md will-change-[transform,opacity,filter]"
           [attr.aria-labelledby]="'day-new-' + day.id" (pointerdown)="focusDay(day.id)">
-          <span class="absolute inset-x-0 top-0 h-1 bg-primary/80" aria-hidden="true"></span>
+          <span class="absolute inset-x-0 top-0 h-1 rounded-t-lg bg-primary/80" aria-hidden="true"></span>
           <header class="flex items-start justify-between gap-4">
             <div class="min-w-0">
               <strong class="text-xl font-black leading-none text-primary">Dia {{ dayNumber(day) }}</strong>
@@ -632,6 +632,16 @@
                 {{ day.date | date:"EEEE, dd 'de' MMMM" }}
               </h2>
             </div>
+            <isumi-tooltip
+              [label]="mapAddressCountForDay(day) > 0 ? 'Visualizar mapa do dia' : 'Adicione endereços para ver o mapa'">
+              <isumi-button variant="secondary" size="sm" iconOnly type="button"
+                [disabled]="mapAddressCountForDay(day) === 0"
+                [ariaLabel]="'Visualizar mapa do dia ' + dayNumber(day)"
+                (click)="openDayMap(day)">
+                <svg icon lucideMap class="size-4" aria-hidden="true"></svg>
+                Visualizar mapa do dia
+              </isumi-button>
+            </isumi-tooltip>
           </header>
 
           @if (lodgingForDay(day); as lodging) {
@@ -829,9 +839,9 @@
                     </div>
 
                     @if (itemPlace.address) {
-                    <span class="mt-1.5 flex min-w-0 items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+                    <span class="mt-1.5 flex min-w-0 items-start gap-1.5 text-xs leading-5 text-muted-foreground max-md:hidden">
                       <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0 text-foreground/55" aria-hidden="true"></svg>
-                      <span class="min-w-0 text-pretty">{{ itemPlace.address }}</span>
+                      <span class="min-w-0 break-words">{{ itemPlace.address }}</span>
                     </span>
                     }
                   </div>
@@ -853,6 +863,13 @@
                     </isumi-button>
                   </div>
                 </div>
+
+                @if (itemPlace.address) {
+                <span class="ml-12 hidden min-w-0 items-start gap-1.5 text-xs leading-5 text-muted-foreground max-md:flex">
+                  <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0 text-foreground/55" aria-hidden="true"></svg>
+                  <span class="min-w-0 break-words">{{ itemPlace.address }}</span>
+                </span>
+                }
 
                 @if (itemPlace.notes) {
                 <p

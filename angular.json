@@ -22,6 +22,9 @@
             "outputPath": "dist/isumi-playground",
             "index": "apps/web/src/index.html",
             "browser": "apps/web/src/main.ts",
+            "allowedCommonJsDependencies": [
+              "leaflet"
+            ],
             "polyfills": [
               "zone.js"
             ],
@@ -33,6 +36,7 @@
               }
             ],
             "styles": [
+              "node_modules/leaflet/dist/leaflet.css",
               "apps/web/src/styles.scss"
             ]
           },
@@ -81,6 +85,7 @@
               "zone.js/testing"
             ],
             "styles": [
+              "node_modules/leaflet/dist/leaflet.css",
               "apps/web/src/styles.scss"
             ]
           }
