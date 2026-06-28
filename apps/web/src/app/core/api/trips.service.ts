@@ -10,7 +10,7 @@ import {
   TripSnapshot,
   UpdateTripFlightRequest,
   UpdateTripLodgingRequest,
-  UpdateTripPlaceCoordinatesRequest,
+  UpdateTripDayItemOrderRequest,
   UpsertTripDayItemRequest,
   UpsertTripPlaceRequest,
   UpsertTripRouteRequest
@@ -49,14 +49,6 @@ export class TripsService {
     return this.http.patch<TripSnapshot>(`${this.baseUrl}/${roomId}/places/${placeId}`, payload);
   }
 
-  updatePlaceCoordinates(
-    roomId: string,
-    placeId: string,
-    payload: UpdateTripPlaceCoordinatesRequest
-  ): Observable<TripSnapshot> {
-    return this.http.patch<TripSnapshot>(`${this.baseUrl}/${roomId}/places/${placeId}/coordinates`, payload);
-  }
-
   deletePlace(roomId: string, placeId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${roomId}/places/${placeId}`);
   }
@@ -67,6 +59,10 @@ export class TripsService {
 
   deleteItem(roomId: string, itemId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${roomId}/items/${itemId}`);
+  }
+
+  reorderDayItems(roomId: string, dayId: string, payload: UpdateTripDayItemOrderRequest): Observable<TripSnapshot> {
+    return this.http.patch<TripSnapshot>(`${this.baseUrl}/${roomId}/days/${dayId}/items/order`, payload);
   }
 
   createRoute(roomId: string, payload: UpsertTripRouteRequest): Observable<TripSnapshot> {

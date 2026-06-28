@@ -684,16 +684,29 @@
                 {{ formatDateOnlyLong(day.date) }}
               </h2>
             </div>
-            <isumi-tooltip
-              [label]="mapAddressCountForDay(day) > 0 ? 'Visualizar mapa do dia' : 'Adicione endereços para ver o mapa'">
-              <isumi-button variant="secondary" size="sm" iconOnly type="button"
-                [disabled]="mapAddressCountForDay(day) === 0"
-                [ariaLabel]="'Visualizar mapa do dia ' + dayNumber(day)"
-                (click)="openDayMap(day)">
-                <svg icon lucideMap class="size-4" aria-hidden="true"></svg>
-                Visualizar mapa do dia
-              </isumi-button>
-            </isumi-tooltip>
+            <div class="flex shrink-0 items-center gap-1">
+              <isumi-tooltip
+                [label]="canOrderDayByProximity(day) ? 'Ordenar paradas' : 'Adicione paradas para ordenar'">
+                <isumi-button variant="secondary" size="sm" iconOnly type="button"
+                  [disabled]="!canOrderDayByProximity(day) || sortingDayId() !== null"
+                  [loading]="sortingDayId() === day.id"
+                  [ariaLabel]="'Ordenar roteiro do dia ' + dayNumber(day) + ' por proximidade'"
+                  (click)="orderDayByProximity(day)">
+                  <svg icon lucideShuffle class="size-4" aria-hidden="true"></svg>
+                  Ordenar por proximidade
+                </isumi-button>
+              </isumi-tooltip>
+              <isumi-tooltip
+                [label]="mapAddressCountForDay(day) > 0 ? 'Visualizar mapa do dia' : 'Adicione coordenadas para ver o mapa'">
+                <isumi-button variant="secondary" size="sm" iconOnly type="button"
+                  [disabled]="mapAddressCountForDay(day) === 0"
+                  [ariaLabel]="'Visualizar mapa do dia ' + dayNumber(day)"
+                  (click)="openDayMap(day)">
+                  <svg icon lucideMap class="size-4" aria-hidden="true"></svg>
+                  Visualizar mapa do dia
+                </isumi-button>
+              </isumi-tooltip>
+            </div>
           </header>
 
           @if (lodgingForDay(day); as lodging) {
@@ -980,7 +993,7 @@
                 <div
                   class="trip-drop-placeholder w-full shrink-0"
                   [class.p-1]="activeDropTarget() !== 'library'"
-                  [style.height.px]="dropPlaceholderHeight">
+                  [style.height.px]="dragKind() === 'item' ? itemDragPlaceholderHeight() : dropPlaceholderHeight">
                   <div
                     class="grid h-full place-items-center rounded-md border-2 border-dashed border-primary/65 bg-primary/10 px-3 text-center text-primary">
                     <span class="inline-flex items-center gap-2 text-xs font-extrabold">
@@ -1082,6 +1095,16 @@
               </span>
               <input isumiInput name="placeAddress" [ngModel]="placeAddress()"
                 (ngModelChange)="placeAddress.set($event)" placeholder="Rua, número e bairro">
+            </label>
+
+            <label class="grid gap-2">
+              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                <svg lucideMapPinned class="size-4" aria-hidden="true"></svg>
+                Coordenadas
+              </span>
+              <input isumiInput name="placeCoordinates" inputmode="decimal" [ngModel]="placeCoordinates()"
+                (ngModelChange)="placeCoordinates.set($event)"
+                placeholder="-22.90074812189194, -47.07999569988155" required>
             </label>
 
             <label class="grid gap-2">
@@ -1264,6 +1287,16 @@
               </span>
               <input isumiInput name="lodgingAddress" [ngModel]="lodgingAddress()"
                 (ngModelChange)="lodgingAddress.set($event)" placeholder="Rua, número e bairro">
+            </label>
+
+            <label class="grid gap-2">
+              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                <svg lucideMapPinned class="size-4" aria-hidden="true"></svg>
+                Coordenadas
+              </span>
+              <input isumiInput name="lodgingCoordinates" inputmode="decimal" [ngModel]="lodgingCoordinates()"
+                (ngModelChange)="lodgingCoordinates.set($event)"
+                placeholder="-22.90074812189194, -47.07999569988155" required>
             </label>
 
             <div class="grid grid-cols-2 gap-3 max-sm:grid-cols-1">

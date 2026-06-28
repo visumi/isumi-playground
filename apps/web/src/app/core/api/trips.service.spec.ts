@@ -62,19 +62,15 @@ describe("TripsService", () => {
     request.flush({});
   });
 
-  it("updates a place with manual coordinates", () => {
-    service.updatePlaceCoordinates("trip-1", "place-1", {
-      latitude: -22.8969586,
-      longitude: -47.0780046,
-      version: 5
+  it("reorders day items in one request", () => {
+    service.reorderDayItems("trip-1", "day-1", {
+      itemIds: ["item-2", "item-1"]
     }).subscribe();
 
-    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/places/place-1/coordinates");
+    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/days/day-1/items/order");
     expect(request.request.method).toBe("PATCH");
     expect(request.request.body).toEqual({
-      latitude: -22.8969586,
-      longitude: -47.0780046,
-      version: 5
+      itemIds: ["item-2", "item-1"]
     });
     request.flush({});
   });
@@ -110,6 +106,8 @@ describe("TripsService", () => {
       address: "Rua Principal, 10",
       checkInDate: "2026-10-12",
       checkOutDate: "2026-10-14",
+      latitude: -22.8969586,
+      longitude: -47.0780046,
       notes: "Recepção 24 horas",
       version: 3
     }).subscribe();

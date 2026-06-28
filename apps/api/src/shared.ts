@@ -6,8 +6,6 @@ export interface Env {
   FIREBASE_PROJECT_ID: string;
   OWNER_EMAIL: string;
   REALTIME_TICKET_SECRET: string;
-  GEOCODER_USER_AGENT?: string;
-  GEOCODER_EMAIL?: string;
   ALLOWED_ORIGIN?: string;
   TRIP_ROOM: DurableObjectNamespace<import("./trip-room").TripRoom>;
 }

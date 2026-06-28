@@ -8,8 +8,7 @@
     "enabled": true
   },
   "vars": {
-    "ALLOWED_ORIGIN": "http://localhost:4200",
-    "GEOCODER_USER_AGENT": "isumi-playground/1.0"
+    "ALLOWED_ORIGIN": "http://localhost:4200"
   },
   "secrets": {
     "required": [

@@ -344,6 +344,8 @@ export interface TripLodging {
   checkInDate: string;
   checkOutDate: string;
   notes: string | null;
+  latitude: number | null;
+  longitude: number | null;
   version: number;
 }
 
@@ -372,13 +374,13 @@ export interface UpsertTripPlaceRequest {
   category: TripPlaceCategory;
   address?: string | null;
   notes?: string | null;
+  latitude: number;
+  longitude: number;
   version?: number;
 }
 
-export interface UpdateTripPlaceCoordinatesRequest {
-  latitude: number;
-  longitude: number;
-  version: number;
+export interface UpdateTripDayItemOrderRequest {
+  itemIds: string[];
 }
 
 export interface UpsertTripDayItemRequest {
@@ -416,6 +418,8 @@ export interface CreateTripLodgingRequest {
   checkInDate: string;
   checkOutDate: string;
   notes?: string | null;
+  latitude: number;
+  longitude: number;
 }
 
 export interface UpdateTripLodgingRequest extends CreateTripLodgingRequest {

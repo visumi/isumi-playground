@@ -13,10 +13,11 @@ import type * as Leaflet from "leaflet";
 import { TripPlaceCategory } from "../../core/api/api.types";
 
 export interface TripDayMapPoint {
+  kind: "place" | "lodging";
   id: string;
   name: string;
   address: string;
-  category: TripPlaceCategory;
+  category?: TripPlaceCategory;
   position: number;
   latitude: number;
   longitude: number;
@@ -30,6 +31,15 @@ const CATEGORY_MARKER_CLASSES: Record<TripPlaceCategory, string> = {
   shopping: "trip-map-marker--shopping",
   other: "trip-map-marker--other"
 };
+
+const LODGING_MARKER_ICON = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M2 20v-8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8" />
+    <path d="M4 10V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4" />
+    <path d="M12 4v6" />
+    <path d="M2 18h20" />
+  </svg>
+`;
 
 type LeafletImport = typeof Leaflet | { default: typeof Leaflet };
 
@@ -47,7 +57,7 @@ type LeafletImport = typeof Leaflet | { default: typeof Leaflet };
         <div>
           <strong class="block text-sm">Nenhum ponto localizado</strong>
           <p class="m-0 mt-1 max-w-[34ch] text-xs leading-5 text-muted-foreground">
-            Salve endereços nos lugares deste dia para exibir pins no mapa.
+            Salve coordenadas na hospedagem ou nos lugares deste dia para exibir pins no mapa.
           </p>
         </div>
       </div>
@@ -109,16 +119,20 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
     for (const point of this.points) {
       const position: Leaflet.LatLngExpression = [point.latitude, point.longitude];
       coordinates.push(position);
+      const markerClass = point.kind === "lodging"
+        ? "trip-map-marker--lodging"
+        : CATEGORY_MARKER_CLASSES[point.category || "other"];
+      const markerContent = point.kind === "lodging" ? LODGING_MARKER_ICON : `<span>${point.position}</span>`;
       this.leaflet.marker(position, {
         icon: this.leaflet.divIcon({
           className: "",
-          html: `<span class="trip-map-marker ${CATEGORY_MARKER_CLASSES[point.category]}"><span>${point.position}</span></span>`,
-          iconSize: [32, 32],
-          iconAnchor: [16, 32],
-          popupAnchor: [0, -30]
+          html: `<span class="trip-map-marker ${markerClass}">${markerContent}</span>`,
+          iconSize: point.kind === "lodging" ? [36, 36] : [32, 32],
+          iconAnchor: point.kind === "lodging" ? [18, 36] : [16, 32],
+          popupAnchor: [0, point.kind === "lodging" ? -34 : -30]
         })
       })
-        .bindPopup(`<strong>${escapeHtml(point.name)}</strong><br><span>${escapeHtml(point.address)}</span>`)
+        .bindPopup(`<strong>${escapeHtml(point.name)}</strong><br><span>${escapeHtml(point.kind === "lodging" ? "Hospedagem" : `Parada ${point.position}`)}</span><br><span>${escapeHtml(point.address)}</span>`)
         .addTo(this.markerLayer);
     }
 

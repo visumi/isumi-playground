@@ -106,6 +106,11 @@ export interface ObservationTextSegment {
   href?: string;
 }
 
+export interface CoordinatePair {
+  latitude: number;
+  longitude: number;
+}
+
 const OBSERVATION_URL_PATTERN = /\b((?:https?:\/\/|www\.)[^\s<>"']+)/gi;
 const TRAILING_URL_PUNCTUATION = /[),.;:!?]+$/;
 const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
@@ -156,6 +161,51 @@ export function linkifyObservationText(text: string): ObservationTextSegment[] {
   }
 
   return segments.length > 0 ? segments : [{ text }];
+}
+
+export function parseCoordinatePair(value: string): CoordinatePair | null {
+  const match = value.trim().match(/^(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)$/);
+  if (!match) return null;
+  const latitude = Number(match[1].replace(",", "."));
+  const longitude = Number(match[2].replace(",", "."));
+  if (
+    !Number.isFinite(latitude)
+    || !Number.isFinite(longitude)
+    || latitude < -90
+    || latitude > 90
+    || longitude < -180
+    || longitude > 180
+  ) return null;
+  return { latitude, longitude };
+}
+
+export function formatCoordinatePair(latitude: number | null, longitude: number | null): string {
+  return latitude === null || longitude === null ? "" : `${latitude}, ${longitude}`;
+}
+
+export function hasValidCoordinates<T extends { latitude: number | null; longitude: number | null }>(point: T): point is T & {
+  latitude: number;
+  longitude: number;
+} {
+  return point.latitude !== null
+    && point.longitude !== null
+    && Number.isFinite(point.latitude)
+    && Number.isFinite(point.longitude);
+}
+
+export function haversineDistanceInMeters(from: CoordinatePair, to: CoordinatePair): number {
+  const earthRadiusMeters = 6_371_000;
+  const fromLatitude = degreesToRadians(from.latitude);
+  const toLatitude = degreesToRadians(to.latitude);
+  const latitudeDelta = degreesToRadians(to.latitude - from.latitude);
+  const longitudeDelta = degreesToRadians(to.longitude - from.longitude);
+  const haversine = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(fromLatitude) * Math.cos(toLatitude) * Math.sin(longitudeDelta / 2) ** 2;
+  return 2 * earthRadiusMeters * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function degreesToRadians(degrees: number): number {
+  return degrees * Math.PI / 180;
 }
 
 function dateOnlyValue(date: string): Date {
@@ -430,6 +480,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly placeName = signal("");
   readonly placeCategory = signal<TripPlaceCategory>("other");
   readonly placeAddress = signal("");
+  readonly placeCoordinates = signal("");
   readonly placeNotes = signal("");
   readonly flightDirection = signal<CreateTripFlightRequest["direction"]>("outbound");
   readonly departureAirport = signal("");
@@ -440,9 +491,11 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly flightNumber = signal("");
   readonly lodgingName = signal("");
   readonly lodgingAddress = signal("");
+  readonly lodgingCoordinates = signal("");
   readonly lodgingNotes = signal("");
   readonly checkInDate = signal("");
   readonly checkOutDate = signal("");
+  readonly sortingDayId = signal<string | null>(null);
 
   readonly routeTransportMode = signal<TripTransportMode | "">("");
   readonly routeDurationMinutes = signal<number | null>(null);
@@ -550,6 +603,18 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     return this.store.lodgings().find((lodging) =>
       lodging.checkInDate <= day.date && lodging.checkOutDate >= day.date
     ) || null;
+  }
+
+  canOrderDayByProximity(day: TripDay): boolean {
+    const lodging = this.lodgingForDay(day);
+    const items = this.store.itemsForDay(day.id);
+    return !!lodging
+      && hasValidCoordinates(lodging)
+      && items.length >= 2
+      && items.every((item) => {
+        const place = this.placeById(item.placeId);
+        return !!place && hasValidCoordinates(place);
+      });
   }
 
   formatDateOnly(date: string): string {
@@ -747,6 +812,30 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.focusDay(dayId);
   }
 
+  async orderDayByProximity(day: TripDay): Promise<void> {
+    if (!this.canOrderDayByProximity(day) || this.sortingDayId()) return;
+    const lodging = this.lodgingForDay(day);
+    if (!lodging || !hasValidCoordinates(lodging)) return;
+
+    const orderedItemIds = this.orderItemsByProximityFrom(
+      { latitude: lodging.latitude, longitude: lodging.longitude },
+      this.store.itemsForDay(day.id)
+    ).map((item) => item.id);
+
+    this.sortingDayId.set(day.id);
+    try {
+      const snapshot = await firstValueFrom(this.trips.reorderDayItems(this.roomId(), day.id, {
+        itemIds: orderedItemIds
+      }));
+      this.store.setSnapshot(snapshot);
+      this.toast.success("Roteiro ordenado por proximidade.");
+    } catch {
+      this.toast.error("Não foi possível ordenar o roteiro.");
+    } finally {
+      this.sortingDayId.set(null);
+    }
+  }
+
   showPreviousDays(): void {
     if (!this.canShowPreviousDays()) return;
     void this.changeFocusedDay(this.focusedDayIndex() - 1);
@@ -801,6 +890,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.placeName.set("");
     this.placeCategory.set("other");
     this.placeAddress.set("");
+    this.placeCoordinates.set("");
     this.placeNotes.set("");
     this.openEditorModal("place");
   }
@@ -810,6 +900,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.placeName.set(place.name);
     this.placeCategory.set(place.category);
     this.placeAddress.set(place.address || "");
+    this.placeCoordinates.set(formatCoordinatePair(place.latitude, place.longitude));
     this.placeNotes.set(place.notes || "");
     this.openEditorModal("place");
     if (!item) return;
@@ -827,12 +918,19 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   async savePlace(): Promise<void> {
     if (!this.placeName().trim() || this.savingPanel()) return;
+    const coordinates = parseCoordinatePair(this.placeCoordinates());
+    if (!coordinates) {
+      this.toast.error("Informe as coordenadas no formato latitude, longitude.");
+      return;
+    }
     const selected = this.selectedPlace();
     const payload = {
       name: this.placeName().trim(),
       category: this.placeCategory(),
       address: this.placeAddress(),
-      notes: this.placeNotes()
+      notes: this.placeNotes(),
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude
     };
     this.savingPanel.set(true);
     try {
@@ -1071,6 +1169,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.selectedLodging.set(null);
     this.lodgingName.set("");
     this.lodgingAddress.set("");
+    this.lodgingCoordinates.set("");
     this.lodgingNotes.set("");
     this.initializeDateForms();
     this.openEditorModal("lodging");
@@ -1082,6 +1181,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.selectedLodging.set(null);
     this.lodgingName.set("");
     this.lodgingAddress.set("");
+    this.lodgingCoordinates.set("");
     this.lodgingNotes.set("");
     this.checkInDate.set(day.date);
     this.checkOutDate.set(nextDate.toISOString().slice(0, 10));
@@ -1092,6 +1192,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.selectedLodging.set(lodging);
     this.lodgingName.set(lodging.name);
     this.lodgingAddress.set(lodging.address || "");
+    this.lodgingCoordinates.set(formatCoordinatePair(lodging.latitude, lodging.longitude));
     this.lodgingNotes.set(lodging.notes || "");
     this.checkInDate.set(lodging.checkInDate);
     this.checkOutDate.set(lodging.checkOutDate);
@@ -1100,13 +1201,20 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   async saveLodging(): Promise<void> {
     if (this.savingPanel()) return;
+    const coordinates = parseCoordinatePair(this.lodgingCoordinates());
+    if (!coordinates) {
+      this.toast.error("Informe as coordenadas da hospedagem no formato latitude, longitude.");
+      return;
+    }
     const selected = this.selectedLodging();
     const payload = {
       name: this.lodgingName(),
       address: this.lodgingAddress(),
       notes: this.lodgingNotes(),
       checkInDate: this.checkInDate(),
-      checkOutDate: this.checkOutDate()
+      checkOutDate: this.checkOutDate(),
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude
     };
     this.savingPanel.set(true);
     try {
@@ -1265,18 +1373,13 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   openDayMap(day: TripDay): void {
-    const placesWithAddress = this.placesWithAddressForDay(day);
     this.modal.open<TripDayMapModalComponent, TripDayMapModalData, void>(
       TripDayMapModalComponent,
       {
         data: {
-          roomId: this.roomId(),
           dayNumber: this.dayNumber(day),
           date: day.date,
-          points: this.mapPointsForDay(day),
-          failedPlaces: this.failedMapPlacesForDay(day),
-          pendingCount: placesWithAddress.filter((place) => place.geocodingStatus === "pending").length,
-          onSnapshot: (snapshot) => this.store.setSnapshot(snapshot)
+          points: this.mapPointsForDay(day)
         },
         ariaLabel: `Mapa do dia ${this.dayNumber(day)}`,
         panelClass: "sm:!w-[min(calc(100vw-2rem),76rem)]"
@@ -1285,24 +1388,34 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   mapAddressCountForDay(day: TripDay): number {
-    return this.placesWithAddressForDay(day).length;
+    return this.mapPointsForDay(day).length;
   }
 
   private mapPointsForDay(day: TripDay): TripDayMapPoint[] {
-    return this.store.itemsForDay(day.id)
-      .map((item, index) => {
+    const lodging = this.lodgingForDay(day);
+    const lodgingPoint: TripDayMapPoint[] = lodging && hasValidCoordinates(lodging)
+      ? [{
+          kind: "lodging",
+          id: `lodging-${lodging.id}`,
+          name: lodging.name,
+          address: lodging.address || "Endereço não informado",
+          position: 0,
+          latitude: lodging.latitude,
+          longitude: lodging.longitude
+        }]
+      : [];
+    const placePoints = this.store.itemsForDay(day.id)
+      .map((item, index): TripDayMapPoint | null => {
         const place = this.placeById(item.placeId);
         if (
-          !place?.address
-          || place.latitude === null
-          || place.longitude === null
-          || !Number.isFinite(place.latitude)
-          || !Number.isFinite(place.longitude)
+          !place
+          || !hasValidCoordinates(place)
         ) return null;
         return {
+          kind: "place" as const,
           id: item.id,
           name: place.name,
-          address: place.address,
+          address: place.address || "Endereço não informado",
           category: place.category,
           position: index + 1,
           latitude: place.latitude,
@@ -1310,31 +1423,39 @@ export class TripRoomComponent implements OnInit, OnDestroy {
         };
       })
       .filter((point): point is TripDayMapPoint => point !== null);
+    return [...lodgingPoint, ...placePoints];
   }
 
-  private placesWithAddressForDay(day: TripDay): TripPlace[] {
-    return this.store.itemsForDay(day.id)
-      .map((item) => this.placeById(item.placeId))
-      .filter((place): place is TripPlace => !!place?.address?.trim());
-  }
+  private orderItemsByProximityFrom(start: CoordinatePair, items: TripDayItem[]): TripDayItem[] {
+    const remaining = [...items];
+    const ordered: TripDayItem[] = [];
+    let current = start;
 
-  private failedMapPlacesForDay(day: TripDay): TripDayMapModalData["failedPlaces"] {
-    return this.store.itemsForDay(day.id)
-      .map((item, index) => {
-        const place = this.placeById(item.placeId);
-        if (!place?.address?.trim() || place.geocodingStatus !== "failed") return null;
-        return {
-          id: place.id,
-          name: place.name,
-          address: place.address,
-          category: place.category,
-          position: index + 1,
-          version: place.version,
+    while (remaining.length > 0) {
+      let nearestIndex = 0;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      for (let index = 0; index < remaining.length; index += 1) {
+        const place = this.placeById(remaining[index].placeId);
+        if (!place || !hasValidCoordinates(place)) continue;
+        const distance = haversineDistanceInMeters(current, {
           latitude: place.latitude,
           longitude: place.longitude
-        };
-      })
-      .filter((place): place is TripDayMapModalData["failedPlaces"][number] => place !== null);
+        });
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = index;
+        }
+      }
+
+      const [nextItem] = remaining.splice(nearestIndex, 1);
+      const nextPlace = this.placeById(nextItem.placeId);
+      if (nextPlace && hasValidCoordinates(nextPlace)) {
+        current = { latitude: nextPlace.latitude, longitude: nextPlace.longitude };
+      }
+      ordered.push(nextItem);
+    }
+
+    return ordered;
   }
 
   private async reload(): Promise<void> {
