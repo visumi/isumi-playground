@@ -145,7 +145,7 @@ body {
 }
 
 .trip-place-library > .cdk-drag-placeholder {
-  order: 1;
+  order: -1;
 }
 
 .trip-place-library--drag-empty > .cdk-drag-placeholder {

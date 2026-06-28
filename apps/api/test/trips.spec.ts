@@ -64,6 +64,31 @@ describe("trip planner validation", () => {
     })).rejects.toThrowError("invalid_route_duration");
   });
 
+  it("allows lodging routes on the check-out day", async () => {
+    let statements: Array<{ sql: string }> = [];
+    const execute = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ role: "member" }] })
+      .mockResolvedValueOnce({ rows: [{ 1: 1 }] });
+    const db = {
+      execute,
+      batch: vi.fn().mockImplementation(async (nextStatements: Array<{ sql: string }>) => {
+        statements = nextStatements;
+        throw new Error("stop_after_route_batch");
+      })
+    } as unknown as Client;
+
+    await expect(createTripRoute(db, "user-1", "room-1", {
+      fromLodgingId: "lodging-1",
+      toItemId: "item-1",
+      transportMode: "walk",
+      durationMinutes: 12
+    })).rejects.toThrowError("stop_after_route_batch");
+
+    const lodgingRouteCheck = String(execute.mock.calls[1][0].sql);
+    expect(lodgingRouteCheck).toContain("day.date <= lodging.check_out_date");
+    expect(statements[0]?.sql).toContain("INSERT INTO trip_routes");
+  });
+
   it("does not delete a place that is already planned", async () => {
     const db = {
       execute: vi.fn()

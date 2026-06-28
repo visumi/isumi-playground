@@ -108,6 +108,18 @@ export interface ObservationTextSegment {
 
 const OBSERVATION_URL_PATTERN = /\b((?:https?:\/\/|www\.)[^\s<>"']+)/gi;
 const TRAILING_URL_PUNCTUATION = /[),.;:!?]+$/;
+const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "UTC"
+});
+const LONG_DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "long",
+  weekday: "long",
+  timeZone: "UTC"
+});
 
 export function googleMapsUrlForAddress(address: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address.trim())}`;
@@ -144,6 +156,10 @@ export function linkifyObservationText(text: string): ObservationTextSegment[] {
   }
 
   return segments.length > 0 ? segments : [{ text }];
+}
+
+function dateOnlyValue(date: string): Date {
+  return new Date(`${date.slice(0, 10)}T12:00:00Z`);
 }
 
 export const PLACE_CATEGORY_VISUALS: Record<TripPlaceCategory, {
@@ -532,8 +548,16 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   lodgingForDay(day: TripDay): TripLodging | null {
     return this.store.lodgings().find((lodging) =>
-      lodging.checkInDate <= day.date && lodging.checkOutDate > day.date
+      lodging.checkInDate <= day.date && lodging.checkOutDate >= day.date
     ) || null;
+  }
+
+  formatDateOnly(date: string): string {
+    return SHORT_DATE_FORMATTER.format(dateOnlyValue(date));
+  }
+
+  formatDateOnlyLong(date: string): string {
+    return LONG_DATE_FORMATTER.format(dateOnlyValue(date));
   }
 
   editorForItem(itemId: string): string | null {

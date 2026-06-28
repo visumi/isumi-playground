@@ -31,6 +31,8 @@ const CATEGORY_MARKER_CLASSES: Record<TripPlaceCategory, string> = {
   other: "trip-map-marker--other"
 };
 
+type LeafletImport = typeof Leaflet | { default: typeof Leaflet };
+
 @Component({
   selector: "isumi-trip-day-map",
   standalone: true,
@@ -65,7 +67,7 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
   private refreshTimers: number[] = [];
 
   async ngAfterViewInit(): Promise<void> {
-    this.leaflet = await import("leaflet");
+    this.leaflet = resolveLeafletModule(await import("leaflet"));
     const container = this.mapContainer!.nativeElement;
     this.map = this.leaflet.map(container, {
       zoomControl: true,
@@ -143,6 +145,10 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
       this.refreshTimers.push(window.setTimeout(refresh, delay));
     }
   }
+}
+
+function resolveLeafletModule(leaflet: LeafletImport): typeof Leaflet {
+  return "default" in leaflet && typeof leaflet.default.map === "function" ? leaflet.default : leaflet as typeof Leaflet;
 }
 
 function escapeHtml(value: string): string {

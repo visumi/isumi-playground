@@ -679,7 +679,7 @@ export async function applyTripMoveOperation(db: Client, userId: string, roomId:
               INNER JOIN trip_days day
                 ON day.id = destination.day_id
                AND day.date >= lodging.check_in_date
-               AND day.date < lodging.check_out_date
+               AND day.date <= lodging.check_out_date
               WHERE lodging.id = trip_routes.from_lodging_id
             )
           )
@@ -842,7 +842,7 @@ export async function updateTripLodging(
         WHERE destination.id = trip_routes.to_item_id
           AND destination.position = 0
           AND day.date >= ?
-          AND day.date < ?
+          AND day.date <= ?
       )
     `,
     args: [roomId, lodgingId, checkIn, checkOut]
@@ -1079,7 +1079,7 @@ async function assertLodgingToFirstItem(
       INNER JOIN trip_days day
         ON day.id = destination.day_id
        AND day.date >= lodging.check_in_date
-       AND day.date < lodging.check_out_date
+       AND day.date <= lodging.check_out_date
       WHERE lodging.id = ? AND lodging.room_id = ?
       LIMIT 1
     `,

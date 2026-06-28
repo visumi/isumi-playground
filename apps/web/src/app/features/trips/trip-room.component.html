@@ -78,7 +78,7 @@
             <span class="inline-flex items-center gap-1.5"><svg lucideMapPin class="size-4"></svg>{{
               snapshot.room.destination }}</span>
             <span class="inline-flex items-center gap-1.5"><svg lucideCalendarDays class="size-4"></svg>{{
-              snapshot.room.startDate | date:"dd/MM/yyyy" }} – {{ snapshot.room.endDate | date:"dd/MM/yyyy" }}</span>
+              formatDateOnly(snapshot.room.startDate) }} – {{ formatDateOnly(snapshot.room.endDate) }}</span>
           </p>
         </div>
 
@@ -299,7 +299,7 @@
     }
 
     <div class="grid grid-cols-[22rem_minmax(0,1fr)] items-start gap-5 max-xl:grid-cols-1">
-      <aside class="grid gap-4 xl:sticky xl:top-6">
+      <aside class="grid gap-4 xl:sticky xl:top-6 xl:self-start">
         <section class="overflow-hidden rounded-lg bg-card" aria-labelledby="places-library-title">
           <header class="flex items-start justify-between gap-3 px-4 pb-3 pt-4">
             <div class="min-w-0">
@@ -339,7 +339,7 @@
             </div>
 
             <div #placeLibrary id="trip-place-library"
-              class="trip-place-library trip-drop-list grid max-h-[48dvh] gap-2 overflow-y-auto rounded-md transition-[min-height,background-color,box-shadow] duration-200"
+              class="trip-place-library trip-drop-list flex max-h-[min(34rem,calc(100dvh-18rem))] min-h-64 flex-col gap-2 overflow-y-auto overscroll-contain rounded-md pb-1 pr-1 transition-[min-height,background-color,box-shadow] duration-200 max-xl:max-h-[42dvh]"
               [class.bg-primary/5]="dragKind() !== null"
               [class.ring-2]="dragKind() !== null"
               [class.ring-primary/45]="dragKind() !== null"
@@ -366,7 +366,7 @@
               @for (place of visiblePlaces(); track place.id) {
               <article
                 data-place-card
-                class="overflow-hidden rounded-md bg-secondary transition-opacity duration-200"
+                class="shrink-0 rounded-md bg-secondary transition-opacity duration-200"
                 [class.opacity-30]="draggingEntityId() === place.id" cdkDrag
                 [cdkDragDisabled]="placeTab() === 'scheduled'" [cdkDragData]="{ kind: 'place', place: place }"
                 (pointerdown)="preparePlaceDrag($event)"
@@ -441,11 +441,11 @@
                   } @else {
                   <div class="grid justify-items-center border-t border-border/70 pt-2">
                     @for (day of placeDays(place.id); track day.id) {
-                    <isumi-button fullWidth variant="ghost-primary" size="sm" type="button"
+                    <isumi-button fullWidth variant="ghost" size="sm" type="button"
                       [ariaLabel]="'Ir para o dia ' + dayNumber(day)"
                       (click)="focusDay(day.id)">
                       <svg icon lucideCalendarDays class="size-3.5" aria-hidden="true"></svg>
-                      Dia {{ dayNumber(day) }} · {{ day.date | date:"dd/MM/yyyy" }}
+                      Dia {{ dayNumber(day) }} · {{ formatDateOnly(day.date) }}
                     </isumi-button>
                     }
                   </div>
@@ -531,7 +531,7 @@
           </header>
 
           <div class="border-t border-border px-4 py-4">
-            <div class="grid gap-2.5">
+            <div class="grid max-h-[min(24rem,calc(100dvh-18rem))] gap-2.5 overflow-y-auto overscroll-contain pb-1 pr-1 max-xl:max-h-[36dvh]">
               @for (lodging of store.lodgings(); track lodging.id) {
               <article class="grid gap-3 rounded-md bg-secondary p-3">
                 <div class="flex min-w-0 items-start gap-2.5">
@@ -541,7 +541,7 @@
                   <button type="button" class="min-w-0 flex-1 text-left" (click)="openEditLodging(lodging)">
                     <strong class="block break-words text-sm leading-5">{{ lodging.name }}</strong>
                     <span class="mt-1 block text-xs font-semibold leading-5 text-muted-foreground">
-                      {{ lodging.checkInDate | date:"dd/MM/yyyy" }} → {{ lodging.checkOutDate | date:"dd/MM/yyyy" }}
+                      {{ formatDateOnly(lodging.checkInDate) }} → {{ formatDateOnly(lodging.checkOutDate) }}
                     </span>
                   </button>
                   <div class="flex shrink-0 gap-0.5">
@@ -629,7 +629,7 @@
             <div class="min-w-0">
               <strong class="text-xl font-black leading-none text-primary">Dia {{ dayNumber(day) }}</strong>
               <h2 [id]="'day-new-' + day.id" class="m-0 mt-1 text-lg font-black text-balance">
-                {{ day.date | date:"EEEE, dd 'de' MMMM" }}
+                {{ formatDateOnlyLong(day.date) }}
               </h2>
             </div>
             <isumi-tooltip
@@ -660,7 +660,7 @@
                         {{ lodging.name }}
                       </strong>
                       <span class="mt-0.5 block text-xs font-semibold leading-5 text-muted-foreground">
-                        {{ lodging.checkInDate | date:"dd/MM/yyyy" }} → {{ lodging.checkOutDate | date:"dd/MM/yyyy" }}
+                        {{ formatDateOnly(lodging.checkInDate) }} → {{ formatDateOnly(lodging.checkOutDate) }}
                       </span>
                     </div>
                   </div>
@@ -673,19 +673,14 @@
                   }
                 </div>
                 <div class="flex shrink-0 items-center gap-0.5">
-                @if (lodging.address) {
+                  @if (lodging.address) {
                   <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Copiar link do mapa"
                     (pointerdown)="$event.stopPropagation()"
                     (click)="$event.stopPropagation(); copyPlaceAddress(lodging.address)">
                     <svg icon lucideMapPinned class="size-4"></svg>
                     Copiar link do mapa
                   </isumi-button>
-                }
-                  <isumi-button variant="ghost" size="sm" iconOnly
-                    [ariaLabel]="'Editar ' + lodging.name" type="button" (click)="openEditLodging(lodging)">
-                    <svg icon lucidePencil class="size-4"></svg>
-                    Editar hospedagem
-                  </isumi-button>
+                  }
                 </div>
               </div>
             </article>
