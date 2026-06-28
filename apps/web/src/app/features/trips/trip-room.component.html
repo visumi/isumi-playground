@@ -391,7 +391,6 @@
               [class.min-h-32]="dragKind() === null && libraryVisuallyEmpty()"
               [class.min-h-64]="!libraryVisuallyEmpty()"
               [class.pb-1]="dragKind() === null"
-              [class.pr-1]="dragKind() === null"
               [class.bg-primary/5]="dragKind() !== null"
               [class.ring-2]="dragKind() !== null"
               [class.ring-primary/45]="dragKind() !== null"
@@ -418,7 +417,7 @@
               @for (place of visiblePlaces(); track place.id) {
               <article
                 data-place-card
-                class="shrink-0 rounded-md bg-secondary transition-opacity duration-200"
+                class="w-full shrink-0 rounded-md bg-secondary transition-opacity duration-200"
                 [class.opacity-30]="draggingEntityId() === place.id" cdkDrag
                 [cdkDragDisabled]="placeTab() === 'scheduled'" [cdkDragData]="{ kind: 'place', place: place }"
                 (pointerdown)="preparePlaceDrag($event)"
@@ -583,9 +582,9 @@
           </header>
 
           <div class="border-t border-border px-4 py-4">
-            <div class="grid max-h-[min(24rem,calc(100dvh-18rem))] gap-2.5 overflow-y-auto overscroll-contain pb-1 pr-1 max-xl:max-h-[36dvh]">
+            <div class="grid max-h-[min(24rem,calc(100dvh-18rem))] gap-2.5 overflow-y-auto overscroll-contain pb-1 max-xl:max-h-[36dvh]">
               @for (lodging of store.lodgings(); track lodging.id) {
-              <article class="grid gap-3 rounded-md bg-secondary p-3">
+              <article class="grid w-full gap-3 rounded-md bg-secondary p-3">
                 <div class="flex min-w-0 items-start gap-2.5">
                   <span class="grid size-10 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
                     <svg lucideBedDouble class="size-4" aria-hidden="true"></svg>
