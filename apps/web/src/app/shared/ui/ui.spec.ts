@@ -122,18 +122,21 @@ describe("shared ui", () => {
     expect(button.classList).toContain("hover:text-white");
   });
 
-  it("distinguishes selected tabs with accessible state and an internal active treatment", () => {
+  it("distinguishes selected tabs with accessible state and a quiet active treatment", () => {
     const tabs = fixture.debugElement.queryAll(By.css("[role='tab']"));
     const selectedTab = tabs[0].nativeElement as HTMLButtonElement;
     const idleTab = tabs[1].nativeElement as HTMLButtonElement;
 
     expect(selectedTab.getAttribute("aria-selected")).toBe("true");
     expect(selectedTab.tabIndex).toBe(0);
-    expect(selectedTab.classList).toContain("bg-secondary");
-    expect(selectedTab.className).toContain("shadow-[inset_0_0_0_2px_rgb(147_51_234_/_0.34),inset_0_1px_0_rgb(255_255_255_/_0.06)]");
+    expect(selectedTab.classList).toContain("bg-secondary/90");
+    expect(selectedTab.classList).toContain("after:opacity-70");
+    expect(selectedTab.className).toContain("transition-[background-color,color]");
+    expect(selectedTab.className).not.toContain("shadow-");
     expect(idleTab.getAttribute("aria-selected")).toBe("false");
     expect(idleTab.tabIndex).toBe(-1);
     expect(idleTab.classList).toContain("bg-transparent");
+    expect(idleTab.classList).toContain("hover:bg-secondary/60");
   });
 
   it("styles native inputs without removing their HTML attributes", () => {

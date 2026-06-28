@@ -387,12 +387,16 @@
             </div>
 
             <div #placeLibrary id="trip-place-library"
-              class="trip-place-library trip-drop-list flex max-h-[min(34rem,calc(100dvh-18rem))] min-h-64 flex-col gap-2 overflow-y-auto overscroll-contain rounded-md pb-1 pr-1 transition-[min-height,background-color,box-shadow] duration-200 max-xl:max-h-[42dvh]"
+              class="trip-place-library trip-drop-list flex max-h-[min(34rem,calc(100dvh-18rem))] flex-col gap-2 overflow-y-auto overscroll-contain rounded-md transition-[min-height,background-color,box-shadow] duration-200 max-xl:max-h-[42dvh]"
+              [class.min-h-32]="dragKind() === null && libraryVisuallyEmpty()"
+              [class.min-h-64]="!libraryVisuallyEmpty()"
+              [class.pb-1]="dragKind() === null"
+              [class.pr-1]="dragKind() === null"
               [class.bg-primary/5]="dragKind() !== null"
               [class.ring-2]="dragKind() !== null"
               [class.ring-primary/45]="dragKind() !== null"
               [class.p-2]="dragKind() !== null"
-              [class.min-h-52]="dragKind() !== null && libraryVisuallyEmpty()"
+              [class.min-h-40]="dragKind() !== null && libraryVisuallyEmpty()"
               [class.trip-place-library--drag-empty]="dragKind() !== null && libraryVisuallyEmpty()"
               cdkDropList [cdkDropListData]="unscheduledPlaces()" [cdkDropListSortingDisabled]="true"
               (cdkDropListEntered)="activateDropTarget('library')"

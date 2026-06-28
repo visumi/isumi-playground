@@ -125,7 +125,7 @@ const MAX_SPLIT_UNITS = 99;
                   </div>
                 </div>
 
-                <div class="grid grid-cols-[32px_64px_32px] items-center gap-1">
+                <div class="grid grid-cols-[36px_64px_36px] items-center gap-1.5">
                   <isumi-button type="button" variant="ghost" size="sm" iconOnly ariaLabel="Diminuir partes de {{ participant.name }}" (click)="decrementSplitUnit(participant.id)">
                     <svg icon lucideMinus class="size-4" aria-hidden="true"></svg>
                     Diminuir
@@ -158,9 +158,9 @@ const MAX_SPLIT_UNITS = 99;
         </div>
       </section>
 
-      <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-2">
-        <isumi-button variant="secondary" type="button" [disabled]="modalRef.processing()" (click)="modalRef.close()">Cancelar</isumi-button>
-        <isumi-button type="submit" [disabled]="!canSubmit()" [loading]="modalRef.processing()">
+      <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
+        <isumi-button mobileFull variant="secondary" type="button" [disabled]="modalRef.processing()" (click)="modalRef.close()">Cancelar</isumi-button>
+        <isumi-button mobileFull type="submit" [disabled]="!canSubmit()" [loading]="modalRef.processing()">
           <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
           {{ data?.item ? "Salvar item" : "Adicionar item" }}
         </isumi-button>
