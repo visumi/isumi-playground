@@ -2,15 +2,15 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable, inject } from "@angular/core";
 import { Observable } from "rxjs";
 import { environment } from "../../../environments/environment";
-import { CreateExpenseRoomRequest, ExpenseRoom, ExpenseRoomDetail, UpdateExpenseSettlementRequest, UpsertExpenseItemRequest, UpsertExpenseParticipantRequest } from "./api.types";
+import { CreateExpenseRoomRequest, ExpenseRoomDetail, ExpenseRoomSummary, UpdateExpenseSettlementRequest, UpsertExpenseItemRequest, UpsertExpenseParticipantRequest } from "./api.types";
 
 @Injectable({ providedIn: "root" })
 export class ExpensesService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiBaseUrl}/tools/expenses/rooms`;
 
-  listRooms(): Observable<ExpenseRoom[]> {
-    return this.http.get<ExpenseRoom[]>(this.baseUrl);
+  listRooms(): Observable<ExpenseRoomSummary[]> {
+    return this.http.get<ExpenseRoomSummary[]>(this.baseUrl);
   }
 
   createRoom(payload: CreateExpenseRoomRequest): Observable<ExpenseRoomDetail> {

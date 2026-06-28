@@ -102,7 +102,33 @@ export async function listTripRooms(db: Client, userId: string) {
     `,
     args: [userId]
   });
-  return result.rows.map((row) => mapRoom(row as TripRoomRow));
+  const rooms = result.rows.map((row) => mapRoom(row as TripRoomRow));
+
+  if (rooms.length === 0) {
+    return [];
+  }
+
+  const members = await db.execute({
+    sql: `
+      SELECT m.room_id, m.user_id, m.role, m.joined_at, u.email, u.name, u.picture
+      FROM trip_members m
+      INNER JOIN users u ON u.id = m.user_id
+      WHERE m.room_id IN (${rooms.map(() => "?").join(", ")})
+      ORDER BY m.role DESC, m.joined_at
+    `,
+    args: rooms.map((room) => room.id)
+  });
+  const membersByRoom = new Map<string, Array<ReturnType<typeof mapTripMember>>>();
+
+  for (const row of members.rows) {
+    const roomId = String(row.room_id);
+    membersByRoom.set(roomId, [...(membersByRoom.get(roomId) || []), mapTripMember(row)]);
+  }
+
+  return rooms.map((room) => ({
+    ...room,
+    members: membersByRoom.get(room.id) || []
+  }));
 }
 
 export async function createTripRoom(db: Client, user: AuthUser, payload: TripRoomInput) {
@@ -210,14 +236,7 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
   return {
     room: mapRoom(room),
     currentMemberRole: member.role,
-    members: members.rows.map((row) => ({
-      userId: String(row.user_id),
-      role: String(row.role),
-      email: String(row.email),
-      name: row.name ? String(row.name) : null,
-      picture: row.picture ? String(row.picture) : null,
-      joinedAt: toUtcIsoTimestamp(String(row.joined_at))
-    })),
+    members: members.rows.map(mapTripMember),
     days: days.rows.map((row) => ({
       id: String(row.id),
       date: String(row.date),
@@ -997,6 +1016,17 @@ function mapRoom(row: TripRoomRow) {
     revision: Number(row.revision),
     createdAt: toUtcIsoTimestamp(row.created_at),
     updatedAt: toUtcIsoTimestamp(row.updated_at)
+  };
+}
+
+function mapTripMember(row: Row) {
+  return {
+    userId: String(row.user_id),
+    role: String(row.role),
+    email: String(row.email),
+    name: row.name ? String(row.name) : null,
+    picture: row.picture ? String(row.picture) : null,
+    joinedAt: toUtcIsoTimestamp(String(row.joined_at))
   };
 }
 

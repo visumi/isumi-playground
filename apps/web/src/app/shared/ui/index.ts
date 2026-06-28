@@ -1,4 +1,5 @@
 export * from "./avatar.component";
+export * from "./avatar-group.component";
 export * from "./breadcrumb.component";
 export * from "./button.component";
 export * from "./checkbox.component";

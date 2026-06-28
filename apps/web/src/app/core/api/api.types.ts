@@ -265,6 +265,10 @@ export interface TripRoom {
   updatedAt: string;
 }
 
+export interface ExpenseRoomSummary extends ExpenseRoom {
+  participants: ExpenseParticipant[];
+}
+
 export interface TripMember {
   userId: string;
   role: "owner" | "member";
@@ -272,6 +276,10 @@ export interface TripMember {
   name: string | null;
   picture: string | null;
   joinedAt: string;
+}
+
+export interface TripRoomSummary extends TripRoom {
+  members: TripMember[];
 }
 
 export interface TripDay {

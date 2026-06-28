@@ -80,7 +80,7 @@ import {
 } from "../../core/api/api.types";
 import { TripsService } from "../../core/api/trips.service";
 import {
-  IsumiAvatarComponent,
+  IsumiAvatarGroupComponent,
   IsumiBreadcrumbComponent,
   IsumiButtonComponent,
   IsumiEmptyStateComponent,
@@ -334,7 +334,7 @@ export class DeleteTripPlaceModalComponent {
     CdkDragPreview,
     CdkDropList,
     CdkDropListGroup,
-    IsumiAvatarComponent,
+    IsumiAvatarGroupComponent,
     IsumiBreadcrumbComponent,
     IsumiButtonComponent,
     IsumiEmptyStateComponent,

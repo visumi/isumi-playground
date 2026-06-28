@@ -4,9 +4,10 @@ import { FormsModule } from "@angular/forms";
 import { Router, RouterLink } from "@angular/router";
 import { LucideArrowRight, LucideCalendarDays, LucideMapPin, LucidePlus, LucideRoute, LucideSave, LucideX } from "@lucide/angular";
 import { firstValueFrom } from "rxjs";
-import { CreateTripRequest, TripRoom } from "../../core/api/api.types";
+import { CreateTripRequest, TripRoomSummary } from "../../core/api/api.types";
 import { TripsService } from "../../core/api/trips.service";
 import {
+  IsumiAvatarGroupComponent,
   IsumiButtonComponent,
   IsumiEmptyStateComponent,
   IsumiInputDirective,
@@ -152,6 +153,7 @@ export class CreateTripModalComponent {
   imports: [
     DatePipe,
     RouterLink,
+    IsumiAvatarGroupComponent,
     IsumiButtonComponent,
     IsumiEmptyStateComponent,
     IsumiPageHeaderComponent,
@@ -170,7 +172,7 @@ export class TripsComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly toast = inject(IsumiToastService);
   private readonly modal = inject(IsumiModalService);
-  readonly rooms = signal<TripRoom[]>([]);
+  readonly rooms = signal<TripRoomSummary[]>([]);
   readonly loading = signal(true);
   readonly creating = signal(false);
 

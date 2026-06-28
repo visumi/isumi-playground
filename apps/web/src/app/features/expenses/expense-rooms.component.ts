@@ -4,13 +4,13 @@ import { FormsModule } from "@angular/forms";
 import { Router, RouterLink } from "@angular/router";
 import { LucideArrowRight, LucideCalendar, LucideHash, LucidePlus, LucideReceiptText, LucideWalletCards } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
-import { ExpenseRoom } from "../../core/api/api.types";
-import { IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, IsumiTagComponent, IsumiToastService } from "../../shared/ui";
+import { ExpenseRoomSummary } from "../../core/api/api.types";
+import { IsumiAvatarGroupComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, IsumiTagComponent, IsumiToastService } from "../../shared/ui";
 
 @Component({
   selector: "isumi-expense-rooms",
   standalone: true,
-  imports: [DatePipe, FormsModule, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, IsumiTagComponent, LucideArrowRight, LucideCalendar, LucideHash, LucidePlus, LucideReceiptText, LucideWalletCards, RouterLink],
+  imports: [DatePipe, FormsModule, IsumiAvatarGroupComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, IsumiTagComponent, LucideArrowRight, LucideCalendar, LucideHash, LucidePlus, LucideReceiptText, LucideWalletCards, RouterLink],
   templateUrl: "./expense-rooms.component.html",
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -19,7 +19,7 @@ export class ExpenseRoomsComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly toast = inject(IsumiToastService);
 
-  readonly rooms = signal<ExpenseRoom[]>([]);
+  readonly rooms = signal<ExpenseRoomSummary[]>([]);
   readonly roomName = signal("");
   readonly loading = signal(false);
   readonly saving = signal(false);

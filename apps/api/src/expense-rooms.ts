@@ -102,7 +102,32 @@ export async function listExpenseRooms(db: Client, userId: string) {
     args: [userId]
   });
 
-  return (result.rows as unknown as ExpenseRoomRow[]).map(mapExpenseRoom);
+  const rooms = (result.rows as unknown as ExpenseRoomRow[]).map(mapExpenseRoom);
+
+  if (rooms.length === 0) {
+    return [];
+  }
+
+  const participants = await db.execute({
+    sql: `
+      SELECT p.id, p.room_id, p.user_id, p.name, u.picture, p.kind, p.role, p.created_at, p.updated_at
+      FROM expense_participants p
+      LEFT JOIN users u ON u.id = p.user_id
+      WHERE p.room_id IN (${rooms.map(() => "?").join(", ")})
+      ORDER BY p.kind DESC, p.created_at ASC
+    `,
+    args: rooms.map((room) => room.id)
+  });
+  const participantsByRoom = new Map<string, ReturnType<typeof mapExpenseParticipant>[]>();
+
+  for (const row of participants.rows as unknown as ExpenseParticipantRow[]) {
+    participantsByRoom.set(row.room_id, [...(participantsByRoom.get(row.room_id) || []), mapExpenseParticipant(row)]);
+  }
+
+  return rooms.map((room) => ({
+    ...room,
+    participants: participantsByRoom.get(room.id) || []
+  }));
 }
 
 export async function createExpenseRoom(db: Client, user: AuthUser, payload: { name?: string }) {

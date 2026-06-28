@@ -6,7 +6,7 @@ import {
   CreateTripFlightRequest,
   CreateTripLodgingRequest,
   CreateTripRequest,
-  TripRoom,
+  TripRoomSummary,
   TripSnapshot,
   UpdateTripFlightRequest,
   UpdateTripLodgingRequest,
@@ -21,8 +21,8 @@ export class TripsService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiBaseUrl}/tools/trips`;
 
-  list(): Observable<TripRoom[]> {
-    return this.http.get<TripRoom[]>(this.baseUrl);
+  list(): Observable<TripRoomSummary[]> {
+    return this.http.get<TripRoomSummary[]>(this.baseUrl);
   }
 
   create(payload: CreateTripRequest): Observable<TripSnapshot> {
