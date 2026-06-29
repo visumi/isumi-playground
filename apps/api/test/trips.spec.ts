@@ -2,13 +2,15 @@ import type { Client } from "@libsql/client/web";
 import { describe, expect, it, vi } from "vitest";
 import {
   applyTripMoveOperation,
+  createTripFlight,
   createTripLodging,
   createTripPlace,
   createTripRoute,
   deleteTripPlace,
   enumerateTripDates,
   lodgingPeriodsOverlap,
-  reorderTripDayItems
+  reorderTripDayItems,
+  updateTripFlight
 } from "../src/trips";
 
 describe("trip planner validation", () => {
@@ -63,6 +65,132 @@ describe("trip planner validation", () => {
       transportMode: "walk",
       durationMinutes: 0
     })).rejects.toThrowError("invalid_route_duration");
+  });
+
+  it("creates a flight with an optional connection and manual layover", async () => {
+    let statements: Array<{ sql: string; args: unknown[] }> = [];
+    const db = {
+      execute: vi.fn().mockResolvedValueOnce({ rows: [{ role: "member" }] }),
+      batch: vi.fn().mockImplementation(async (nextStatements: Array<{ sql: string; args: unknown[] }>) => {
+        statements = nextStatements;
+        throw new Error("stop_after_flight_batch");
+      })
+    } as unknown as Client;
+
+    await expect(createTripFlight(db, "user-1", "room-1", {
+      direction: "outbound",
+      departureAirport: "GRU",
+      arrivalAirport: "EZE",
+      departureAt: "2026-10-12T08:00",
+      arrivalAt: "2026-10-12T11:00",
+      airline: "LATAM",
+      flightNumber: "LA8000",
+      connection: {
+        departureAirport: "EZE",
+        arrivalAirport: "AEP",
+        departureAt: "2026-10-12T13:30",
+        arrivalAt: "2026-10-12T14:10",
+        airline: "Aerolineas",
+        flightNumber: "AR100",
+        layoverMinutes: 150
+      }
+    })).rejects.toThrowError("stop_after_flight_batch");
+
+    expect(statements[0]?.sql).toContain("INSERT INTO trip_flight_segments");
+    expect(statements[1]?.sql).toContain("INSERT INTO trip_flight_connections");
+    expect(statements[1]?.args).toEqual(expect.arrayContaining(["EZE", "AEP", 150]));
+  });
+
+  it("rejects invalid flight direction and connection layover", async () => {
+    const directionDb = {
+      execute: vi.fn().mockResolvedValueOnce({ rows: [{ role: "member" }] })
+    } as unknown as Client;
+
+    await expect(createTripFlight(directionDb, "user-1", "room-1", {
+      direction: "other" as never,
+      departureAirport: "GRU",
+      arrivalAirport: "EZE",
+      departureAt: "2026-10-12T08:00",
+      arrivalAt: "2026-10-12T11:00"
+    })).rejects.toThrowError("invalid_flight_direction");
+
+    const layoverDb = {
+      execute: vi.fn().mockResolvedValueOnce({ rows: [{ role: "member" }] })
+    } as unknown as Client;
+
+    await expect(createTripFlight(layoverDb, "user-1", "room-1", {
+      direction: "outbound",
+      departureAirport: "GRU",
+      arrivalAirport: "EZE",
+      departureAt: "2026-10-12T08:00",
+      arrivalAt: "2026-10-12T11:00",
+      connection: {
+        departureAirport: "EZE",
+        arrivalAirport: "AEP",
+        departureAt: "2026-10-12T13:30",
+        arrivalAt: "2026-10-12T14:10",
+        layoverMinutes: 3000
+      }
+    })).rejects.toThrowError("invalid_connection_layover");
+  });
+
+  it("updates a flight connection by replacing the previous nested segment", async () => {
+    let statements: Array<{ sql: string; args: unknown[] }> = [];
+    const db = {
+      execute: vi.fn()
+        .mockResolvedValueOnce({ rows: [{ role: "member" }] })
+        .mockResolvedValueOnce({ rowsAffected: 1 }),
+      batch: vi.fn().mockImplementation(async (nextStatements: Array<{ sql: string; args: unknown[] }>) => {
+        statements = nextStatements;
+        throw new Error("stop_after_update_connection_batch");
+      })
+    } as unknown as Client;
+
+    await expect(updateTripFlight(db, "user-1", "room-1", "flight-1", {
+      direction: "return",
+      departureAirport: "AEP",
+      arrivalAirport: "EZE",
+      departureAt: "2026-10-16T15:00",
+      arrivalAt: "2026-10-16T16:00",
+      version: 2,
+      connection: {
+        departureAirport: "EZE",
+        arrivalAirport: "GRU",
+        departureAt: "2026-10-16T18:30",
+        arrivalAt: "2026-10-16T21:10",
+        layoverMinutes: 150
+      }
+    })).rejects.toThrowError("stop_after_update_connection_batch");
+
+    expect(statements[0]?.sql).toContain("DELETE FROM trip_flight_connections");
+    expect(statements[1]?.sql).toContain("INSERT INTO trip_flight_connections");
+    expect(statements[1]?.args).toEqual(expect.arrayContaining(["EZE", "GRU", 150]));
+  });
+
+  it("removes a flight connection when the nested segment is null", async () => {
+    let statements: Array<{ sql: string; args: unknown[] }> = [];
+    const db = {
+      execute: vi.fn()
+        .mockResolvedValueOnce({ rows: [{ role: "member" }] })
+        .mockResolvedValueOnce({ rowsAffected: 1 }),
+      batch: vi.fn().mockImplementation(async (nextStatements: Array<{ sql: string; args: unknown[] }>) => {
+        statements = nextStatements;
+        throw new Error("stop_after_remove_connection_batch");
+      })
+    } as unknown as Client;
+
+    await expect(updateTripFlight(db, "user-1", "room-1", "flight-1", {
+      direction: "outbound",
+      departureAirport: "GRU",
+      arrivalAirport: "EZE",
+      departureAt: "2026-10-12T08:00",
+      arrivalAt: "2026-10-12T11:00",
+      version: 3,
+      connection: null
+    })).rejects.toThrowError("stop_after_remove_connection_batch");
+
+    expect(statements[0]?.sql).toContain("DELETE FROM trip_flight_connections");
+    expect(statements.some((statement) => statement.sql.includes("INSERT INTO trip_flight_connections"))).toBe(false);
   });
 
   it("allows lodging routes on the check-out day", async () => {

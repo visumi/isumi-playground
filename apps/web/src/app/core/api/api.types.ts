@@ -324,15 +324,28 @@ export interface TripRoute {
   version: number;
 }
 
-export interface TripFlightSegment {
+export interface TripFlightConnection {
   id: string;
-  direction: "outbound" | "return" | "other";
   departureAirport: string;
   arrivalAirport: string;
   departureAt: string;
   arrivalAt: string;
   airline: string | null;
   flightNumber: string | null;
+  layoverMinutes: number;
+  version: number;
+}
+
+export interface TripFlightSegment {
+  id: string;
+  direction: "outbound" | "return";
+  departureAirport: string;
+  arrivalAirport: string;
+  departureAt: string;
+  arrivalAt: string;
+  airline: string | null;
+  flightNumber: string | null;
+  connection: TripFlightConnection | null;
   position: number;
   version: number;
 }
@@ -399,13 +412,22 @@ export interface UpsertTripRouteRequest {
 }
 
 export interface CreateTripFlightRequest {
-  direction: "outbound" | "return" | "other";
+  direction: "outbound" | "return";
   departureAirport: string;
   arrivalAirport: string;
   departureAt: string;
   arrivalAt: string;
   airline?: string | null;
   flightNumber?: string | null;
+  connection?: {
+    departureAirport: string;
+    arrivalAirport: string;
+    departureAt: string;
+    arrivalAt: string;
+    airline?: string | null;
+    flightNumber?: string | null;
+    layoverMinutes: number;
+  } | null;
 }
 
 export interface UpdateTripFlightRequest extends CreateTripFlightRequest {

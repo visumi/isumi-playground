@@ -91,12 +91,22 @@ describe("TripsService", () => {
       arrivalAt: "2026-10-16T20:40",
       airline: "LATAM",
       flightNumber: "LA8001",
+      connection: {
+        departureAirport: "GRU",
+        arrivalAirport: "VCP",
+        departureAt: "2026-10-16T22:00",
+        arrivalAt: "2026-10-16T22:45",
+        airline: "Azul",
+        flightNumber: "AD4000",
+        layoverMinutes: 80
+      },
       version: 2
     }).subscribe();
 
     const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/flights/flight-1");
     expect(request.request.method).toBe("PATCH");
     expect(request.request.body.version).toBe(2);
+    expect(request.request.body.connection.layoverMinutes).toBe(80);
     request.flush({});
   });
 

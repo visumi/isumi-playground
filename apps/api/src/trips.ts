@@ -43,14 +43,25 @@ export interface TripRouteInput {
 }
 
 export interface TripFlightInput {
-  direction?: "outbound" | "return" | "other";
+  direction?: "outbound" | "return";
   departureAirport?: string;
   arrivalAirport?: string;
   departureAt?: string;
   arrivalAt?: string;
   airline?: string | null;
   flightNumber?: string | null;
+  connection?: TripFlightConnectionInput | null;
   version?: number;
+}
+
+export interface TripFlightConnectionInput {
+  departureAirport?: string;
+  arrivalAirport?: string;
+  departureAt?: string;
+  arrivalAt?: string;
+  airline?: string | null;
+  flightNumber?: string | null;
+  layoverMinutes?: number;
 }
 
 export interface TripLodgingInput {
@@ -178,7 +189,7 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
   const room = roomResult.rows[0] as TripRoomRow | undefined;
   if (!room) throw new HttpError(404, "not_found");
 
-  const [members, days, places, items, routes, flights, lodgings] = await Promise.all([
+  const [members, days, places, items, routes, flights, flightConnections, lodgings] = await Promise.all([
     db.execute({
       sql: `
         SELECT m.user_id, m.role, m.joined_at, u.email, u.name, u.picture
@@ -216,7 +227,17 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       sql: `
         SELECT id, direction, departure_airport, arrival_airport, departure_at, arrival_at,
                airline, flight_number, position, version
-        FROM trip_flight_segments WHERE room_id = ? ORDER BY departure_at, position
+        FROM trip_flight_segments WHERE room_id = ? AND direction IN ('outbound', 'return') ORDER BY departure_at, position
+      `,
+      args: [roomId]
+    }),
+    db.execute({
+      sql: `
+        SELECT c.id, c.flight_id, c.departure_airport, c.arrival_airport, c.departure_at,
+               c.arrival_at, c.airline, c.flight_number, c.layover_minutes, c.version
+        FROM trip_flight_connections c
+        INNER JOIN trip_flight_segments f ON f.id = c.flight_id
+        WHERE f.room_id = ?
       `,
       args: [roomId]
     }),
@@ -229,6 +250,11 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       args: [roomId]
     })
   ]);
+
+  const connectionsByFlightId = new Map<string, Row>();
+  for (const row of flightConnections.rows) {
+    connectionsByFlightId.set(String(row.flight_id), row);
+  }
 
   return {
     room: mapRoom(room),
@@ -281,6 +307,7 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       arrivalAt: String(row.arrival_at),
       airline: row.airline ? String(row.airline) : null,
       flightNumber: row.flight_number ? String(row.flight_number) : null,
+      connection: mapFlightConnection(connectionsByFlightId.get(String(row.id))),
       position: Number(row.position),
       version: Number(row.version)
     })),
@@ -687,6 +714,7 @@ export async function applyTripMoveOperation(db: Client, userId: string, roomId:
 
 export async function createTripFlight(db: Client, userId: string, roomId: string, payload: TripFlightInput) {
   await assertTripMember(db, roomId, userId);
+  const flightId = crypto.randomUUID();
   await executeStatementsAtomically(db, [
     {
       sql: `
@@ -696,7 +724,7 @@ export async function createTripFlight(db: Client, userId: string, roomId: strin
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
-        crypto.randomUUID(),
+        flightId,
         roomId,
         flightDirection(payload.direction),
         requiredText(payload.departureAirport, "missing_departure_airport", 12),
@@ -708,6 +736,7 @@ export async function createTripFlight(db: Client, userId: string, roomId: strin
         Date.now()
       ]
     },
+    ...upsertFlightConnectionStatements(flightId, payload.connection, false),
     touchRoom(roomId)
   ]);
   return getTripSnapshot(db, userId, roomId);
@@ -743,7 +772,13 @@ export async function updateTripFlight(
     ]
   });
   if (result.rowsAffected === 0) throw new HttpError(409, "entity_version_conflict");
-  await db.execute(touchRoom(roomId));
+  const connectionStatements = Object.prototype.hasOwnProperty.call(payload, "connection")
+    ? upsertFlightConnectionStatements(flightId, payload.connection, true)
+    : [];
+  await executeStatementsAtomically(db, [
+    ...connectionStatements,
+    touchRoom(roomId)
+  ]);
   return getTripSnapshot(db, userId, roomId);
 }
 
@@ -931,6 +966,22 @@ function mapTripMember(row: Row) {
     picture: row.picture ? String(row.picture) : null,
     joinedAt: toUtcIsoTimestamp(String(row.joined_at))
   };
+}
+
+function mapFlightConnection(row: Row | undefined) {
+  return row
+    ? {
+        id: String(row.id),
+        departureAirport: String(row.departure_airport),
+        arrivalAirport: String(row.arrival_airport),
+        departureAt: String(row.departure_at),
+        arrivalAt: String(row.arrival_at),
+        airline: row.airline ? String(row.airline) : null,
+        flightNumber: row.flight_number ? String(row.flight_number) : null,
+        layoverMinutes: Number(row.layover_minutes),
+        version: Number(row.version)
+      }
+    : null;
 }
 
 function touchRoom(roomId: string): InStatement {
@@ -1125,8 +1176,39 @@ function optionalText(value: unknown, max: number): string | null {
   return normalized ? normalized.slice(0, max) : null;
 }
 
-function flightDirection(value: unknown): "outbound" | "return" | "other" {
-  return ["outbound", "return", "other"].includes(String(value))
-    ? value as "outbound" | "return" | "other"
-    : "other";
+function upsertFlightConnectionStatements(
+  flightId: string,
+  payload: TripFlightConnectionInput | null | undefined,
+  replaceExisting: boolean
+): InStatement[] {
+  const statements: InStatement[] = replaceExisting
+    ? [{ sql: "DELETE FROM trip_flight_connections WHERE flight_id = ?", args: [flightId] }]
+    : [];
+  if (!payload) return statements;
+
+  statements.push({
+    sql: `
+      INSERT INTO trip_flight_connections
+        (id, flight_id, departure_airport, arrival_airport, departure_at,
+         arrival_at, airline, flight_number, layover_minutes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    args: [
+      crypto.randomUUID(),
+      flightId,
+      requiredText(payload.departureAirport, "missing_connection_departure_airport", 12),
+      requiredText(payload.arrivalAirport, "missing_connection_arrival_airport", 12),
+      requiredText(payload.departureAt, "missing_connection_departure_time", 40),
+      requiredText(payload.arrivalAt, "missing_connection_arrival_time", 40),
+      nullableText(payload.airline, 120),
+      nullableText(payload.flightNumber, 30),
+      integer(payload.layoverMinutes, "invalid_connection_layover", 0, 2880)
+    ]
+  });
+  return statements;
+}
+
+function flightDirection(value: unknown): "outbound" | "return" {
+  if (!["outbound", "return"].includes(String(value))) throw new HttpError(400, "invalid_flight_direction");
+  return value as "outbound" | "return";
 }

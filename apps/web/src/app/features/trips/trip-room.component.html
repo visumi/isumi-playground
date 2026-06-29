@@ -206,23 +206,19 @@
                   <span class="grid size-8 shrink-0 place-items-center rounded-sm"
                     [class.bg-emerald-500/15]="flight.direction === 'outbound'"
                     [class.text-emerald-400]="flight.direction === 'outbound'"
-                    [class.bg-amber-500/15]="flight.direction === 'other'"
-                    [class.text-amber-400]="flight.direction === 'other'"
                     [class.bg-red-500/15]="flight.direction === 'return'"
                     [class.text-red-400]="flight.direction === 'return'">
                     @switch (flight.direction) {
                     @case ("outbound") { <svg lucidePlaneTakeoff class="size-4" aria-hidden="true"></svg> }
                     @case ("return") { <svg lucidePlaneLanding class="size-4" aria-hidden="true"></svg> }
-                    @default { <svg lucidePlane class="size-4" aria-hidden="true"></svg> }
                     }
                   </span>
                   <div class="min-w-0">
                     <span class="block text-[0.6875rem] font-black uppercase tracking-[0.12em]"
                       [class.text-emerald-400]="flight.direction === 'outbound'"
-                      [class.text-amber-400]="flight.direction === 'other'"
                       [class.text-red-400]="flight.direction === 'return'">
                       <span class="max-sm:hidden">Cartão de embarque · </span>{{ flight.direction === "outbound" ? "Ida"
-                      : flight.direction === "return" ? "Volta" : "Conexão" }}
+                      : "Volta" }}
                     </span>
                     <span class="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground max-sm:mt-0.5">
                       <span class="truncate font-bold text-foreground">{{ flight.airline || "Companhia não informada"
@@ -252,8 +248,8 @@
                     </span>
                   </time>
                 </div>
-                <div class="grid place-items-center" [class.text-emerald-400]="flight.direction === 'outbound'"
-                  [class.text-amber-400]="flight.direction === 'other'"
+                <div class="grid place-items-center"
+                  [class.text-emerald-400]="flight.direction === 'outbound'"
                   [class.text-red-400]="flight.direction === 'return'" aria-hidden="true">
                   <svg lucideMoveRight class="size-8 stroke-[1.5] max-sm:size-6"></svg>
                 </div>
@@ -274,6 +270,22 @@
                   </time>
                 </div>
               </div>
+
+              @if (flight.connection; as connection) {
+              <div class="flex items-center justify-between gap-3 border-t border-border pt-3">
+                <span class="inline-flex min-w-0 items-center gap-2 text-xs font-extrabold text-muted-foreground">
+                  <svg lucidePlane class="size-3.5 shrink-0 text-primary" aria-hidden="true"></svg>
+                  <span>1 parada</span>
+                </span>
+                <isumi-button variant="ghost" size="sm" iconOnly
+                  [attr.title]="'Ver detalhes do voo ' + flight.departureAirport + ' para ' + flight.arrivalAirport"
+                  [ariaLabel]="'Ver detalhes do voo ' + flight.departureAirport + ' para ' + flight.arrivalAirport"
+                  (click)="openFlightDetailsModal(flight)">
+                  <svg icon lucideInfo class="size-3.5" aria-hidden="true"></svg>
+                  Ver detalhes
+                </isumi-button>
+              </div>
+              }
             </div>
 
             <aside
@@ -284,12 +296,10 @@
                 <span
                   class="inline-flex items-center gap-1.5 text-[0.625rem] font-black uppercase tracking-[0.12em] text-muted-foreground">
                   <svg lucideTicket class="size-3.5" [class.text-emerald-400]="flight.direction === 'outbound'"
-                    [class.text-amber-400]="flight.direction === 'other'"
                     [class.text-red-400]="flight.direction === 'return'" aria-hidden="true"></svg>
-                  Trecho
+                  Voo
                 </span>
                 <span class="font-mono text-xs font-black" [class.text-emerald-400]="flight.direction === 'outbound'"
-                  [class.text-amber-400]="flight.direction === 'other'"
                   [class.text-red-400]="flight.direction === 'return'">{{ flight.flightNumber || "—" }}</span>
               </div>
               <div
@@ -1024,7 +1034,10 @@
 
     <ng-template #editorModal>
       @if (panel(); as activePanel) {
-      <div class="grid max-h-[calc(min(720px,calc(100dvh-32px))-40px)] min-h-0 gap-5 overflow-y-auto overscroll-contain max-sm:max-h-[calc(100dvh-112px)]">
+      <div
+        class="grid max-h-[calc(min(820px,calc(100dvh-32px))-40px)] min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-5 overflow-x-hidden overscroll-contain max-sm:max-h-[calc(100dvh-112px)]"
+        [class.overflow-y-auto]="activePanel !== 'flight'"
+        [class.overflow-hidden]="activePanel === 'flight'">
         <header class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h2 class="m-0 inline-flex items-center gap-2 text-[1.2rem] font-black">
@@ -1185,8 +1198,77 @@
         </form>
         }
         @case ("flight") {
-        <form class="grid gap-4" (ngSubmit)="saveFlight()">
-          <div class="grid gap-4 rounded-lg bg-secondary/55 p-3.5">
+        <form class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4" (ngSubmit)="submitFlightForm()">
+          <nav class="min-w-0 rounded-md bg-secondary/35 px-2 py-3" aria-label="Etapas do voo">
+            <ol class="relative grid w-full min-w-0 grid-cols-4">
+              <span
+                class="pointer-events-none absolute top-[1.125rem] z-0 h-0.5 rounded-full bg-border"
+                style="left: calc(100% / 8); right: calc(100% / 8);"
+                aria-hidden="true"></span>
+              @for (step of flightEditorSteps; track step.id) {
+              @let isActive = flightEditorStep() === step.id;
+              @let isComplete = $index < flightStepIndex();
+              @let isLocked = $index > flightStepIndex() + (flightCanGoNext() ? 1 : 0) || savingPanel();
+              <li class="relative min-w-0">
+                <button
+                  class="group relative z-10 grid w-full min-w-0 cursor-pointer justify-items-center gap-1.5 px-1 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:cursor-not-allowed"
+                  type="button"
+                  [disabled]="isLocked"
+                  [attr.aria-current]="isActive ? 'step' : null"
+                  [attr.title]="step.label + ' · ' + step.description + (isLocked ? ' · bloqueado' : '')"
+                  (click)="goToFlightStep(step.id)">
+                  <span
+                    class="relative z-10 grid size-9 place-items-center rounded-full border bg-background text-muted-foreground transition-[box-shadow,border-color] group-disabled:ring-0"
+                    [class.border-transparent]="isActive || isComplete"
+                    [class.border-border]="!isActive && !isComplete"
+                    [class.group-hover:ring-2]="!isActive && !isComplete"
+                    [class.group-hover:ring-ring/45]="!isActive && !isComplete"
+                    [class.bg-primary]="isActive"
+                    [class.text-primary-foreground]="isActive"
+                    [class.bg-purple-500]="isComplete && !isActive"
+                    [class.text-white]="isComplete && !isActive"
+                    [class.bg-secondary]="isLocked">
+                    @if (isComplete) {
+                    <svg lucideCheck class="size-4 stroke-3" aria-hidden="true"></svg>
+                    } @else if (isLocked) {
+                    <svg lucideLock class="size-3.5" aria-hidden="true"></svg>
+                    } @else {
+                    @switch (step.id) {
+                    @case ("route") { <svg lucideRoute class="size-4" aria-hidden="true"></svg> }
+                    @case ("schedule") { <svg lucideClock3 class="size-4" aria-hidden="true"></svg> }
+                    @case ("details") { <svg lucideTicket class="size-4" aria-hidden="true"></svg> }
+                    @case ("review") { <svg lucideSave class="size-4" aria-hidden="true"></svg> }
+                    }
+                    }
+                  </span>
+                  <span
+                    class="block w-full truncate text-[0.7rem] font-black leading-4 text-muted-foreground transition-colors max-sm:text-[0.66rem]"
+                    [class.text-foreground]="isActive"
+                    [class.text-primary]="isComplete && !isActive">
+                    {{ step.label }}
+                  </span>
+                  <span
+                    class="hidden max-w-[8rem] truncate text-[0.68rem] font-semibold leading-4 text-muted-foreground/90 sm:block"
+                    [class.text-foreground/80]="isActive">
+                    {{ isLocked ? "Bloqueado" : step.description }}
+                  </span>
+                </button>
+              </li>
+              }
+            </ol>
+          </nav>
+
+          <div class="min-h-0 overflow-y-auto overscroll-contain pr-1">
+          @switch (flightEditorStep()) {
+          @case ("route") {
+          <section class="grid min-w-0 gap-4 rounded-lg bg-secondary/55 p-4" aria-labelledby="flight-route-step-title">
+            <div>
+              <h3 id="flight-route-step-title" class="m-0 text-base font-black">Qual é o trecho?</h3>
+              <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">
+                Comece pelo sentido da viagem e pelos aeroportos. Use siglas ou nomes curtos.
+              </p>
+            </div>
+
             <label class="grid gap-2">
               <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
                 <svg lucideRoute class="size-4" aria-hidden="true"></svg>
@@ -1196,74 +1278,269 @@
                 (ngModelChange)="flightDirection.set($event)">
                 <option value="outbound">Ida</option>
                 <option value="return">Volta</option>
-                <option value="other">Conexão/outro</option>
               </select>
             </label>
 
-            <div class="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+            <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-3 max-sm:grid-cols-1">
               <label class="grid gap-2">
                 <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
                   <svg lucidePlaneTakeoff class="size-4" aria-hidden="true"></svg>
                   Origem
                 </span>
-                <input isumiInput name="departureAirport" maxlength="12" [ngModel]="departureAirport()"
-                  (ngModelChange)="departureAirport.set($event)" placeholder="GRU" autocomplete="off" required>
+                <input isumiInput name="departureAirport" maxlength="3" [ngModel]="departureAirport()"
+                  (ngModelChange)="departureAirport.set($event.slice(0, 3).toUpperCase())" placeholder="GRU" autocomplete="off" required>
               </label>
+              <span class="grid h-10 w-10 place-items-center self-end rounded-sm bg-secondary text-muted-foreground max-sm:hidden" aria-hidden="true">
+                <svg lucideMoveRight class="size-4"></svg>
+              </span>
               <label class="grid gap-2">
                 <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
                   <svg lucidePlaneLanding class="size-4" aria-hidden="true"></svg>
                   Destino
                 </span>
-                <input isumiInput name="arrivalAirport" maxlength="12" [ngModel]="arrivalAirport()"
-                  (ngModelChange)="arrivalAirport.set($event)" placeholder="EZE" autocomplete="off" required>
+                <input isumiInput name="arrivalAirport" maxlength="3" [ngModel]="arrivalAirport()"
+                  (ngModelChange)="arrivalAirport.set($event.slice(0, 3).toUpperCase())" placeholder="EZE" autocomplete="off" required>
               </label>
             </div>
+          </section>
+          }
+          @case ("schedule") {
+          <section class="grid min-w-0 gap-4 rounded-lg bg-secondary/55 p-4" aria-labelledby="flight-schedule-step-title">
+            <div>
+              <h3 id="flight-schedule-step-title" class="m-0 text-base font-black">Quando acontece?</h3>
+              <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">
+                Informe os horários locais que aparecem na passagem.
+              </p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+              <label class="grid gap-2">
+                <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                  <svg lucideClock3 class="size-4" aria-hidden="true"></svg>
+                  Saída
+                </span>
+                <input isumiInput type="datetime-local" name="departureAt" [ngModel]="departureAt()"
+                  (ngModelChange)="departureAt.set($event)" required>
+              </label>
+              <label class="grid gap-2">
+                <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                  <svg lucideClock3 class="size-4" aria-hidden="true"></svg>
+                  Chegada
+                </span>
+                <input isumiInput type="datetime-local" name="arrivalAt" [ngModel]="arrivalAt()"
+                  (ngModelChange)="arrivalAt.set($event)" required>
+              </label>
+            </div>
+          </section>
+          }
+          @case ("details") {
+          <section class="grid min-w-0 gap-4 rounded-lg bg-secondary/55 p-4" aria-labelledby="flight-details-step-title">
+            <div>
+              <h3 id="flight-details-step-title" class="m-0 text-base font-black">Identificação e conexão</h3>
+              <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">
+                Companhia e número ajudam a encontrar o voo depois. A conexão fica agrupada aqui.
+              </p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+              <label class="grid gap-2">
+                <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                  <svg lucidePlane class="size-4" aria-hidden="true"></svg>
+                  Companhia aérea
+                </span>
+                <input isumiInput name="airline" [ngModel]="airline()" (ngModelChange)="airline.set($event)"
+                  placeholder="LATAM, Azul, Gol..." autocomplete="off">
+              </label>
+              <label class="grid gap-2">
+                <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                  <svg lucideTicket class="size-4" aria-hidden="true"></svg>
+                  Número do voo
+                </span>
+                <input isumiInput name="flightNumber" [ngModel]="flightNumber()"
+                  (ngModelChange)="flightNumber.set($event)" placeholder="LA1234" autocomplete="off">
+              </label>
+            </div>
+
+            <section class="grid min-w-0 gap-3 rounded-md bg-background/55 p-3" aria-label="Conexão do voo">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <strong class="block text-sm">Conexão</strong>
+                  <span class="block text-xs leading-5 text-muted-foreground">Use apenas quando houver outro trecho antes do destino final.</span>
+                </div>
+                <div class="flex min-h-10 items-center">
+                  <isumi-checkbox [checked]="hasFlightConnection()" (checkedChange)="hasFlightConnection.set($event)">
+                    Adicionar conexão
+                  </isumi-checkbox>
+                </div>
+              </div>
+
+              @if (hasFlightConnection()) {
+              <div class="grid gap-3 border-t border-border pt-3">
+                <div class="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+                  <label class="grid gap-2">
+                    <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                      <svg lucidePlaneTakeoff class="size-4" aria-hidden="true"></svg>
+                      Origem da conexão
+                    </span>
+                    <input isumiInput name="connectionDepartureAirport" maxlength="3"
+                      [ngModel]="connectionDepartureAirport()"
+                      (ngModelChange)="connectionDepartureAirport.set($event.slice(0, 3).toUpperCase())" placeholder="EZE" autocomplete="off"
+                      required>
+                  </label>
+                  <label class="grid gap-2">
+                    <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                      <svg lucidePlaneLanding class="size-4" aria-hidden="true"></svg>
+                      Destino da conexão
+                    </span>
+                    <input isumiInput name="connectionArrivalAirport" maxlength="3"
+                      [ngModel]="connectionArrivalAirport()"
+                      (ngModelChange)="connectionArrivalAirport.set($event.slice(0, 3).toUpperCase())" placeholder="AEP" autocomplete="off"
+                      required>
+                  </label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+                  <label class="grid gap-2">
+                    <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                      <svg lucideClock3 class="size-4" aria-hidden="true"></svg>
+                      Saída da conexão
+                    </span>
+                    <input isumiInput type="datetime-local" name="connectionDepartureAt"
+                      [ngModel]="connectionDepartureAt()" (ngModelChange)="connectionDepartureAt.set($event)" required>
+                  </label>
+                  <label class="grid gap-2">
+                    <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                      <svg lucideClock3 class="size-4" aria-hidden="true"></svg>
+                      Chegada da conexão
+                    </span>
+                    <input isumiInput type="datetime-local" name="connectionArrivalAt"
+                      [ngModel]="connectionArrivalAt()" (ngModelChange)="connectionArrivalAt.set($event)" required>
+                  </label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+                  <label class="grid gap-2">
+                    <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                      <svg lucidePlane class="size-4" aria-hidden="true"></svg>
+                      Companhia da conexão
+                    </span>
+                    <input isumiInput name="connectionAirline" [ngModel]="connectionAirline()"
+                      (ngModelChange)="connectionAirline.set($event)" placeholder="LATAM, Azul, Gol..."
+                      autocomplete="off">
+                  </label>
+                  <label class="grid gap-2">
+                    <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                      <svg lucideTicket class="size-4" aria-hidden="true"></svg>
+                      Número da conexão
+                    </span>
+                    <input isumiInput name="connectionFlightNumber" [ngModel]="connectionFlightNumber()"
+                      (ngModelChange)="connectionFlightNumber.set($event)" placeholder="LA1234" autocomplete="off">
+                  </label>
+                </div>
+
+                <label class="grid gap-2">
+                  <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
+                    <svg lucideClock3 class="size-4" aria-hidden="true"></svg>
+                    Layover em minutos
+                  </span>
+                  <input isumiInput type="number" min="0" max="2880" name="connectionLayoverMinutes"
+                    [ngModel]="connectionLayoverMinutes()"
+                    (ngModelChange)="connectionLayoverMinutes.set($event)" placeholder="150" required>
+                </label>
+              </div>
+              }
+            </section>
+          </section>
+          }
+          @case ("review") {
+          <section class="grid min-w-0 gap-3 rounded-lg bg-secondary/55 p-4" aria-labelledby="flight-review-step-title">
+            <div>
+              <h3 id="flight-review-step-title" class="m-0 text-base font-black">Conferir antes de salvar</h3>
+              <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">
+                Revise o resumo. Para corrigir algo, volte para a etapa correspondente.
+              </p>
+            </div>
+
+            <dl class="grid gap-2 text-sm">
+              <div class="grid gap-2 rounded-md bg-background/55 p-3">
+                <dt class="inline-flex items-center gap-2 text-xs font-extrabold text-muted-foreground">
+                  <svg lucideRoute class="size-3.5" aria-hidden="true"></svg>
+                  Trecho
+                </dt>
+                <dd class="m-0 grid min-w-0 grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] items-center gap-2">
+                  <span class="truncate font-mono text-lg font-black text-foreground">{{ departureAirport().trim().toUpperCase() || "Origem" }}</span>
+                  <span class="grid size-8 place-items-center justify-self-center rounded-sm bg-secondary text-muted-foreground" aria-hidden="true">
+                    <svg lucideMoveRight class="size-4"></svg>
+                  </span>
+                  <span class="truncate text-right font-mono text-lg font-black text-foreground">{{ arrivalAirport().trim().toUpperCase() || "Destino" }}</span>
+                </dd>
+              </div>
+              <div class="grid gap-2 rounded-md bg-background/55 p-3">
+                <dt class="inline-flex items-center gap-2 text-xs font-extrabold text-muted-foreground">
+                  <svg lucideClock3 class="size-3.5" aria-hidden="true"></svg>
+                  Horários
+                </dt>
+                <dd class="m-0 grid gap-2 text-foreground sm:grid-cols-2">
+                  <span class="grid gap-0.5">
+                    <span class="text-xs text-muted-foreground">Saída</span>
+                    <strong>{{ departureAt() ? formatDateTimeForSummary(departureAt()) : "Não informada" }}</strong>
+                  </span>
+                  <span class="grid gap-0.5 sm:text-right">
+                    <span class="text-xs text-muted-foreground">Chegada</span>
+                    <strong>{{ arrivalAt() ? formatDateTimeForSummary(arrivalAt()) : "Não informada" }}</strong>
+                  </span>
+                </dd>
+              </div>
+              <div class="grid gap-1 rounded-md bg-background/55 p-3">
+                <dt class="inline-flex items-center gap-2 text-xs font-extrabold text-muted-foreground">
+                  <svg lucideTicket class="size-3.5" aria-hidden="true"></svg>
+                  Identificação
+                </dt>
+                <dd class="m-0 text-foreground">{{ airline() || "Companhia não informada" }} · {{ flightNumber() || "Número não informado" }}</dd>
+              </div>
+              <div class="grid gap-2 rounded-md bg-background/55 p-3">
+                <dt class="inline-flex items-center gap-2 text-xs font-extrabold text-muted-foreground">
+                  <svg lucidePlane class="size-3.5" aria-hidden="true"></svg>
+                  Conexão
+                </dt>
+                @if (hasFlightConnection()) {
+                <dd class="m-0 grid min-w-0 grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] items-center gap-2">
+                  <span class="truncate font-mono text-lg font-black text-foreground">{{ connectionDepartureAirport().trim().toUpperCase() || "Origem" }}</span>
+                  <span class="grid size-8 place-items-center justify-self-center rounded-sm bg-secondary text-muted-foreground" aria-hidden="true">
+                    <svg lucideMoveRight class="size-4"></svg>
+                  </span>
+                  <span class="truncate text-right font-mono text-lg font-black text-foreground">{{ connectionArrivalAirport().trim().toUpperCase() || "Destino" }}</span>
+                </dd>
+                } @else {
+                <dd class="m-0 text-foreground">Voo direto</dd>
+                }
+              </div>
+            </dl>
+          </section>
+          }
+          }
           </div>
 
-          <div class="grid grid-cols-2 gap-3 rounded-lg bg-secondary/55 p-3.5 max-sm:grid-cols-1">
-            <label class="grid gap-2">
-              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-                <svg lucideClock3 class="size-4" aria-hidden="true"></svg>
-                Saída
-              </span>
-              <input isumiInput type="datetime-local" name="departureAt" [ngModel]="departureAt()"
-                (ngModelChange)="departureAt.set($event)" required>
-            </label>
-            <label class="grid gap-2">
-              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-                <svg lucideClock3 class="size-4" aria-hidden="true"></svg>
-                Chegada
-              </span>
-              <input isumiInput type="datetime-local" name="arrivalAt" [ngModel]="arrivalAt()"
-                (ngModelChange)="arrivalAt.set($event)" required>
-            </label>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3 rounded-lg bg-secondary/55 p-3.5 max-sm:grid-cols-1">
-            <label class="grid gap-2">
-              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-                <svg lucidePlane class="size-4" aria-hidden="true"></svg>
-                Companhia aérea
-              </span>
-              <input isumiInput name="airline" [ngModel]="airline()" (ngModelChange)="airline.set($event)"
-                placeholder="LATAM, Azul, Gol..." autocomplete="off">
-            </label>
-            <label class="grid gap-2">
-              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-                <svg lucideTicket class="size-4" aria-hidden="true"></svg>
-                Número do voo
-              </span>
-              <input isumiInput name="flightNumber" [ngModel]="flightNumber()"
-                (ngModelChange)="flightNumber.set($event)" placeholder="LA1234" autocomplete="off">
-            </label>
-          </div>
-
-          <footer class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
-            <isumi-button mobileFull variant="secondary" type="button" [disabled]="savingPanel()" (click)="closePanel()">Cancelar</isumi-button>
-            <isumi-button mobileFull type="submit" [loading]="savingPanel()">
-              <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
-              {{ selectedFlight() ? "Salvar voo" : "Adicionar voo" }}
-            </isumi-button>
+          <footer class="flex min-w-0 justify-end gap-2 border-t border-border bg-popover/95 pt-3 max-sm:grid max-sm:grid-cols-1">
+            <div class="flex justify-end gap-2 max-sm:grid max-sm:grid-cols-1">
+              @if (flightStepIndex() > 0) {
+              <isumi-button mobileFull variant="secondary" type="button" [disabled]="savingPanel()" (click)="goToPreviousFlightStep()">
+                <svg icon lucideChevronLeft class="size-4" aria-hidden="true"></svg>
+                Voltar
+              </isumi-button>
+              }
+              @if (flightEditorStep() === "review") {
+              <isumi-button mobileFull type="submit" [disabled]="!flightCanGoNext()" [loading]="savingPanel()">
+                <svg icon lucideSave class="size-4" aria-hidden="true"></svg>
+                {{ selectedFlight() ? "Salvar voo" : "Adicionar voo" }}
+              </isumi-button>
+              } @else {
+              <isumi-button mobileFull type="button" [disabled]="!flightCanGoNext() || savingPanel()" (click)="goToNextFlightStep()">
+                Próximo
+                <svg icon lucideChevronRight class="size-4" aria-hidden="true"></svg>
+              </isumi-button>
+              }
+            </div>
           </footer>
         </form>
         }
