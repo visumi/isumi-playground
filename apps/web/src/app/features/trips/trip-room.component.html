@@ -194,7 +194,7 @@
 
         @if (snapshot.flights.length > 0) {
         <div
-          class="snap-x gap-2.5 overflow-x-auto px-0.5 pb-2 pt-0.5"
+          class="snap-x gap-2.5 overflow-x-auto pt-0.5"
           [ngClass]="snapshot.flights.length <= 2 ? 'grid grid-cols-[repeat(auto-fit,minmax(min(32.5rem,100%),1fr))]' : 'flex'">
           @for (flight of snapshot.flights; track flight.id) {
           <article
