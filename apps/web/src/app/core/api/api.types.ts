@@ -333,19 +333,19 @@ export interface TripFlightConnection {
   airline: string | null;
   flightNumber: string | null;
   layoverMinutes: number;
+  position: number;
   version: number;
 }
 
 export interface TripFlightSegment {
   id: string;
-  direction: "outbound" | "return";
   departureAirport: string;
   arrivalAirport: string;
   departureAt: string;
   arrivalAt: string;
   airline: string | null;
   flightNumber: string | null;
-  connection: TripFlightConnection | null;
+  connections: TripFlightConnection[];
   position: number;
   version: number;
 }
@@ -412,14 +412,13 @@ export interface UpsertTripRouteRequest {
 }
 
 export interface CreateTripFlightRequest {
-  direction: "outbound" | "return";
   departureAirport: string;
   arrivalAirport: string;
   departureAt: string;
   arrivalAt: string;
   airline?: string | null;
   flightNumber?: string | null;
-  connection?: {
+  connections?: Array<{
     departureAirport: string;
     arrivalAirport: string;
     departureAt: string;
@@ -427,7 +426,7 @@ export interface CreateTripFlightRequest {
     airline?: string | null;
     flightNumber?: string | null;
     layoverMinutes: number;
-  } | null;
+  }> | null;
 }
 
 export interface UpdateTripFlightRequest extends CreateTripFlightRequest {

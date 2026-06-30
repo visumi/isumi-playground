@@ -67,7 +67,7 @@ describe("trip planner validation", () => {
     })).rejects.toThrowError("invalid_route_duration");
   });
 
-  it("creates a flight with an optional connection and manual layover", async () => {
+  it("creates a flight with multiple optional connections and manual layovers", async () => {
     let statements: Array<{ sql: string; args: unknown[] }> = [];
     const db = {
       execute: vi.fn().mockResolvedValueOnce({ rows: [{ role: "member" }] }),
@@ -78,14 +78,13 @@ describe("trip planner validation", () => {
     } as unknown as Client;
 
     await expect(createTripFlight(db, "user-1", "room-1", {
-      direction: "outbound",
       departureAirport: "GRU",
       arrivalAirport: "EZE",
       departureAt: "2026-10-12T08:00",
       arrivalAt: "2026-10-12T11:00",
       airline: "LATAM",
       flightNumber: "LA8000",
-      connection: {
+      connections: [{
         departureAirport: "EZE",
         arrivalAirport: "AEP",
         departureAt: "2026-10-12T13:30",
@@ -93,44 +92,39 @@ describe("trip planner validation", () => {
         airline: "Aerolineas",
         flightNumber: "AR100",
         layoverMinutes: 150
-      }
+      }, {
+        departureAirport: "AEP",
+        arrivalAirport: "MDZ",
+        departureAt: "2026-10-12T16:00",
+        arrivalAt: "2026-10-12T18:00",
+        layoverMinutes: 110
+      }]
     })).rejects.toThrowError("stop_after_flight_batch");
 
     expect(statements[0]?.sql).toContain("INSERT INTO trip_flight_segments");
     expect(statements[1]?.sql).toContain("INSERT INTO trip_flight_connections");
     expect(statements[1]?.args).toEqual(expect.arrayContaining(["EZE", "AEP", 150]));
+    expect(statements[2]?.sql).toContain("INSERT INTO trip_flight_connections");
+    expect(statements[2]?.args).toEqual(expect.arrayContaining(["AEP", "MDZ", 110, 1]));
   });
 
-  it("rejects invalid flight direction and connection layover", async () => {
-    const directionDb = {
-      execute: vi.fn().mockResolvedValueOnce({ rows: [{ role: "member" }] })
-    } as unknown as Client;
-
-    await expect(createTripFlight(directionDb, "user-1", "room-1", {
-      direction: "other" as never,
-      departureAirport: "GRU",
-      arrivalAirport: "EZE",
-      departureAt: "2026-10-12T08:00",
-      arrivalAt: "2026-10-12T11:00"
-    })).rejects.toThrowError("invalid_flight_direction");
-
+  it("rejects invalid connection layover", async () => {
     const layoverDb = {
       execute: vi.fn().mockResolvedValueOnce({ rows: [{ role: "member" }] })
     } as unknown as Client;
 
     await expect(createTripFlight(layoverDb, "user-1", "room-1", {
-      direction: "outbound",
       departureAirport: "GRU",
       arrivalAirport: "EZE",
       departureAt: "2026-10-12T08:00",
       arrivalAt: "2026-10-12T11:00",
-      connection: {
+      connections: [{
         departureAirport: "EZE",
         arrivalAirport: "AEP",
         departureAt: "2026-10-12T13:30",
         arrivalAt: "2026-10-12T14:10",
         layoverMinutes: 3000
-      }
+      }]
     })).rejects.toThrowError("invalid_connection_layover");
   });
 
@@ -147,19 +141,18 @@ describe("trip planner validation", () => {
     } as unknown as Client;
 
     await expect(updateTripFlight(db, "user-1", "room-1", "flight-1", {
-      direction: "return",
       departureAirport: "AEP",
       arrivalAirport: "EZE",
       departureAt: "2026-10-16T15:00",
       arrivalAt: "2026-10-16T16:00",
       version: 2,
-      connection: {
+      connections: [{
         departureAirport: "EZE",
         arrivalAirport: "GRU",
         departureAt: "2026-10-16T18:30",
         arrivalAt: "2026-10-16T21:10",
         layoverMinutes: 150
-      }
+      }]
     })).rejects.toThrowError("stop_after_update_connection_batch");
 
     expect(statements[0]?.sql).toContain("DELETE FROM trip_flight_connections");
@@ -180,13 +173,12 @@ describe("trip planner validation", () => {
     } as unknown as Client;
 
     await expect(updateTripFlight(db, "user-1", "room-1", "flight-1", {
-      direction: "outbound",
       departureAirport: "GRU",
       arrivalAirport: "EZE",
       departureAt: "2026-10-12T08:00",
       arrivalAt: "2026-10-12T11:00",
       version: 3,
-      connection: null
+      connections: []
     })).rejects.toThrowError("stop_after_remove_connection_batch");
 
     expect(statements[0]?.sql).toContain("DELETE FROM trip_flight_connections");

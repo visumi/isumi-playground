@@ -84,14 +84,13 @@ describe("TripsService", () => {
 
   it("updates a flight with optimistic concurrency", () => {
     service.updateFlight("trip-1", "flight-1", {
-      direction: "return",
       departureAirport: "EZE",
       arrivalAirport: "GRU",
       departureAt: "2026-10-16T18:00",
       arrivalAt: "2026-10-16T20:40",
       airline: "LATAM",
       flightNumber: "LA8001",
-      connection: {
+      connections: [{
         departureAirport: "GRU",
         arrivalAirport: "VCP",
         departureAt: "2026-10-16T22:00",
@@ -99,14 +98,14 @@ describe("TripsService", () => {
         airline: "Azul",
         flightNumber: "AD4000",
         layoverMinutes: 80
-      },
+      }],
       version: 2
     }).subscribe();
 
     const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/flights/flight-1");
     expect(request.request.method).toBe("PATCH");
     expect(request.request.body.version).toBe(2);
-    expect(request.request.body.connection.layoverMinutes).toBe(80);
+    expect(request.request.body.connections[0].layoverMinutes).toBe(80);
     request.flush({});
   });
 

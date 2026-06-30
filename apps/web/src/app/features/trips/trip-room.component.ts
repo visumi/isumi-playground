@@ -63,6 +63,7 @@ import {
   LucideShuffle,
   LucideTicket,
   LucideTicketsPlane,
+  LucideTriangleAlert,
   LucideTrash2,
   LucideTrees,
   LucideUtensils,
@@ -87,7 +88,6 @@ import {
   IsumiAvatarGroupComponent,
   IsumiBreadcrumbComponent,
   IsumiButtonComponent,
-  IsumiCheckboxComponent,
   IsumiEmptyStateComponent,
   IsumiInputDirective,
   IsumiModalRef,
@@ -107,6 +107,16 @@ import { TripRoomStore } from "./trip-room.store";
 type TrayDragData = { kind: "place"; place: TripPlace };
 type ItemDragData = { kind: "item"; item: TripDayItem };
 type FlightEditorStep = "route" | "schedule" | "details" | "review";
+type FlightConnectionForm = {
+  id: string;
+  departureAirport: string;
+  arrivalAirport: string;
+  departureAt: string;
+  arrivalAt: string;
+  airline: string;
+  flightNumber: string;
+  layoverMinutes: number | null;
+};
 export interface ObservationTextSegment {
   text: string;
   href?: string;
@@ -360,16 +370,18 @@ export class DeleteTripFlightModalComponent {
     LucideX
   ],
   template: `
-    <div class="grid max-h-[min(36rem,calc(100dvh-6rem))] min-h-0 gap-5 overflow-hidden">
-      <header class="flex items-start justify-between gap-4">
+    <div class="grid max-h-[min(36rem,calc(100dvh-6rem))] min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
+      <header class="flex items-start justify-between gap-4 border-b border-border bg-popover/95 pb-4">
         <div class="min-w-0">
-          <div class="mb-3 grid size-10 place-items-center rounded-sm bg-primary/15 text-primary">
-            <svg lucideTicketsPlane class="size-5" aria-hidden="true"></svg>
+          <div class="flex min-w-0 items-center gap-3">
+            <span class="grid size-10 shrink-0 place-items-center rounded-sm bg-primary/15 text-primary">
+              <svg lucideTicketsPlane class="size-5" aria-hidden="true"></svg>
+            </span>
+            <h2 class="m-0 text-[1.2rem] font-black">Detalhes do voo</h2>
           </div>
-          <h2 class="m-0 text-[1.2rem] font-black">Detalhes do voo</h2>
           <p class="m-0 mt-2 max-w-[52ch] text-sm leading-6 text-muted-foreground">
             {{ data?.flight?.departureAirport || "Origem" }} para {{ data?.flight?.arrivalAirport || "destino" }}
-            com {{ data?.flight?.connection ? "1 parada" : "voo direto" }}.
+            com {{ connectionSummary(data?.flight) }}.
           </p>
         </div>
         <isumi-button class="max-sm:hidden" variant="ghost" size="sm" iconOnly ariaLabel="Fechar detalhes do voo" (click)="modalRef.close()">
@@ -379,11 +391,13 @@ export class DeleteTripFlightModalComponent {
       </header>
 
       @if (data?.flight; as flight) {
-      <div class="min-h-0 overflow-y-auto overscroll-contain pr-1">
+      <div class="min-h-0 overflow-y-auto overscroll-contain pt-5 pr-1">
         <section class="grid gap-4 rounded-lg bg-secondary/55 p-4" aria-label="Itinerário do voo">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <span class="inline-flex items-center gap-2 text-sm font-black">
-              <svg lucidePlane class="size-4 text-primary" aria-hidden="true"></svg>
+              <span class="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary" aria-hidden="true">
+                <svg lucidePlane class="size-4"></svg>
+              </span>
               Itinerário
             </span>
             <span class="inline-flex items-center gap-1.5 text-xs font-extrabold text-muted-foreground">
@@ -424,7 +438,8 @@ export class DeleteTripFlightModalComponent {
               </div>
             </article>
 
-            @if (flight.connection; as connection) {
+            @if (flight.connections.length) {
+            @for (connection of flight.connections; track connection.id; let index = $index) {
             <div class="inline-flex w-fit items-center gap-1.5 rounded-sm bg-background/55 px-2.5 py-2 text-xs font-extrabold text-muted-foreground">
               <svg lucideClock3 class="size-3.5" aria-hidden="true"></svg>
               Parada de {{ layoverDuration(connection.layoverMinutes) }}
@@ -460,6 +475,7 @@ export class DeleteTripFlightModalComponent {
                 <span>{{ connectionDuration(connection) }} de viagem</span>
               </div>
             </article>
+            }
             } @else {
             <div class="inline-flex w-fit items-center gap-1.5 rounded-sm bg-background/55 px-2.5 py-2 text-xs font-extrabold text-muted-foreground">
               <svg lucideInfo class="size-3.5" aria-hidden="true"></svg>
@@ -484,7 +500,7 @@ export class TripFlightDetailsModalComponent {
     );
   }
 
-  connectionDuration(connection: NonNullable<TripFlightSegment["connection"]>): string {
+  connectionDuration(connection: TripFlightSegment["connections"][number]): string {
     return durationLabelForMinutes(
       Math.max(0, Math.round((new Date(connection.arrivalAt).getTime() - new Date(connection.departureAt).getTime()) / 60_000))
     );
@@ -492,6 +508,12 @@ export class TripFlightDetailsModalComponent {
 
   layoverDuration(minutes: number): string {
     return durationLabelForMinutes(minutes);
+  }
+
+  connectionSummary(flight: TripFlightSegment | null | undefined): string {
+    const count = flight?.connections.length || 0;
+    if (count === 0) return "voo direto";
+    return count === 1 ? "1 conexão" : `${count} conexões`;
   }
 }
 
@@ -554,7 +576,6 @@ export class DeleteTripPlaceModalComponent {
     IsumiAvatarGroupComponent,
     IsumiBreadcrumbComponent,
     IsumiButtonComponent,
-    IsumiCheckboxComponent,
     IsumiEmptyStateComponent,
     IsumiInputDirective,
     IsumiSelectDirective,
@@ -594,6 +615,7 @@ export class DeleteTripPlaceModalComponent {
     LucideSave,
     LucideShuffle,
     LucideTicket,
+    LucideTriangleAlert,
     LucideTrash2,
     LucideUsers,
     LucideWifiOff,
@@ -655,21 +677,13 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly placeCoordinates = signal("");
   readonly placeNotes = signal("");
   readonly flightEditorStep = signal<FlightEditorStep>("route");
-  readonly flightDirection = signal<CreateTripFlightRequest["direction"]>("outbound");
   readonly departureAirport = signal("");
   readonly arrivalAirport = signal("");
   readonly departureAt = signal("");
   readonly arrivalAt = signal("");
   readonly airline = signal("");
   readonly flightNumber = signal("");
-  readonly hasFlightConnection = signal(false);
-  readonly connectionDepartureAirport = signal("");
-  readonly connectionArrivalAirport = signal("");
-  readonly connectionDepartureAt = signal("");
-  readonly connectionArrivalAt = signal("");
-  readonly connectionAirline = signal("");
-  readonly connectionFlightNumber = signal("");
-  readonly connectionLayoverMinutes = signal<number | null>(null);
+  readonly flightConnections = signal<FlightConnectionForm[]>([]);
   readonly lodgingName = signal("");
   readonly lodgingAddress = signal("");
   readonly lodgingCoordinates = signal("");
@@ -741,18 +755,13 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       case "schedule":
         return Boolean(this.departureAt() && this.arrivalAt());
       case "details":
-        return !this.hasFlightConnection() || Boolean(
-          this.connectionDepartureAirport().trim()
-          && this.connectionArrivalAirport().trim()
-          && this.connectionDepartureAt()
-          && this.connectionArrivalAt()
-        );
+        return this.flightConnections().every((connection) => this.flightConnectionComplete(connection));
       case "review":
         return true;
     }
   });
   readonly flightEditorSteps: Array<{ id: FlightEditorStep; label: string; description: string }> = [
-    { id: "route", label: "Trecho", description: "Ida, origem e destino" },
+    { id: "route", label: "Trecho", description: "Origem e destino" },
     { id: "schedule", label: "Horários", description: "Saída e chegada" },
     { id: "details", label: "Detalhes", description: "Companhia e conexão" },
     { id: "review", label: "Revisão", description: "Conferir e salvar" }
@@ -857,6 +866,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     const hasAnotherAssociation = (this.store.snapshot()?.items || []).some(
       (item) => item.id !== data.item.id && item.placeId === data.item.placeId
     );
+    const rollbackSnapshot = this.store.removeItemOptimistically(data.item.id);
 
     try {
       await firstValueFrom(this.trips.deleteItem(this.roomId(), data.item.id));
@@ -864,6 +874,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       if (!hasAnotherAssociation) this.placeTab.set("unscheduled");
       this.toast.success("Lugar devolvido à biblioteca.");
     } catch {
+      this.store.restoreSnapshot(rollbackSnapshot);
       this.toast.error("Não foi possível devolver o lugar à biblioteca.");
     }
   }
@@ -990,15 +1001,18 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   async addPlaceToDay(place: TripPlace, dayId: string): Promise<void> {
+    const rollbackSnapshot = this.store.addItemOptimistically(dayId, place.id);
+    this.focusDay(dayId);
+    this.showDropFeedback(dayId);
+
     try {
       const snapshot = await firstValueFrom(this.trips.createItem(this.roomId(), {
         dayId,
         placeId: place.id
       }));
       this.store.setSnapshot(snapshot);
-      this.focusDay(dayId);
-      this.showDropFeedback(dayId);
     } catch {
+      this.store.restoreSnapshot(rollbackSnapshot);
       this.toast.error("Não foi possível adicionar o lugar ao dia.");
     }
   }
@@ -1068,28 +1082,49 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
     this.dayAnimating.set(true);
     try {
-      await panel.animate(
+      await this.waitForDayAnimation(panel.animate(
         [
           { opacity: 1, transform: "translateX(0) scale(1)", filter: "blur(0)" },
           { opacity: 0, transform: `translateX(${-18 * direction}px) scale(0.99)`, filter: "blur(1.5px)" }
         ],
         { duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" }
-      ).finished;
+      ), 180);
 
       this.focusedDayId.set(targetDay.id);
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 
-      await panel.animate(
+      await this.waitForDayAnimation(panel.animate(
         [
           { opacity: 0, transform: `translateX(${26 * direction}px) scale(0.99)`, filter: "blur(1.5px)" },
           { opacity: 1, transform: "translateX(0) scale(1)", filter: "blur(0)" }
         ],
         { duration: 240, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "both" }
-      ).finished;
+      ), 320);
     } finally {
-      panel.getAnimations().forEach((animation) => animation.cancel());
+      this.resetDayPanelAnimations(panel);
       this.dayAnimating.set(false);
     }
+  }
+
+  private async waitForDayAnimation(animation: Animation, timeoutMs: number): Promise<void> {
+    let timeoutId: number | null = null;
+    try {
+      await Promise.race([
+        animation.finished.catch(() => undefined),
+        new Promise<void>((resolve) => {
+          timeoutId = window.setTimeout(resolve, timeoutMs);
+        })
+      ]);
+    } finally {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    }
+  }
+
+  private resetDayPanelAnimations(panel: HTMLElement): void {
+    panel.getAnimations().forEach((animation) => animation.cancel());
+    panel.style.opacity = "";
+    panel.style.transform = "";
+    panel.style.filter = "";
   }
 
   openCreatePlace(): void {
@@ -1283,40 +1318,54 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   openCreateFlight(): void {
     this.selectedFlight.set(null);
     this.flightEditorStep.set("route");
-    this.flightDirection.set("outbound");
     this.departureAirport.set("");
     this.arrivalAirport.set("");
     this.departureAt.set("");
     this.arrivalAt.set("");
     this.airline.set("");
     this.flightNumber.set("");
-    this.resetFlightConnectionForm();
+    this.resetFlightConnectionsForm();
     this.openEditorModal("flight");
   }
 
   openEditFlight(flight: TripFlightSegment): void {
     this.selectedFlight.set(flight);
     this.flightEditorStep.set("route");
-    this.flightDirection.set(flight.direction);
     this.departureAirport.set(flight.departureAirport);
     this.arrivalAirport.set(flight.arrivalAirport);
     this.departureAt.set(flight.departureAt.slice(0, 16));
     this.arrivalAt.set(flight.arrivalAt.slice(0, 16));
     this.airline.set(flight.airline || "");
     this.flightNumber.set(flight.flightNumber || "");
-    if (flight.connection) {
-      this.hasFlightConnection.set(true);
-      this.connectionDepartureAirport.set(flight.connection.departureAirport);
-      this.connectionArrivalAirport.set(flight.connection.arrivalAirport);
-      this.connectionDepartureAt.set(flight.connection.departureAt.slice(0, 16));
-      this.connectionArrivalAt.set(flight.connection.arrivalAt.slice(0, 16));
-      this.connectionAirline.set(flight.connection.airline || "");
-      this.connectionFlightNumber.set(flight.connection.flightNumber || "");
-      this.connectionLayoverMinutes.set(flight.connection.layoverMinutes);
-    } else {
-      this.resetFlightConnectionForm();
-    }
+    this.flightConnections.set(flight.connections.map((connection) => ({
+      id: connection.id,
+      departureAirport: connection.departureAirport,
+      arrivalAirport: connection.arrivalAirport,
+      departureAt: connection.departureAt.slice(0, 16),
+      arrivalAt: connection.arrivalAt.slice(0, 16),
+      airline: connection.airline || "",
+      flightNumber: connection.flightNumber || "",
+      layoverMinutes: connection.layoverMinutes
+    })));
     this.openEditorModal("flight");
+  }
+
+  addFlightConnection(): void {
+    this.flightConnections.update((connections) => [...connections, this.emptyFlightConnection()]);
+  }
+
+  removeFlightConnection(connectionId: string): void {
+    this.flightConnections.update((connections) => connections.filter((connection) => connection.id !== connectionId));
+  }
+
+  updateFlightConnection<K extends keyof FlightConnectionForm>(
+    connectionId: string,
+    key: K,
+    value: FlightConnectionForm[K]
+  ): void {
+    this.flightConnections.update((connections) => connections.map((connection) =>
+      connection.id === connectionId ? { ...connection, [key]: value } : connection
+    ));
   }
 
   submitFlightForm(): void {
@@ -1350,24 +1399,21 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     if (this.savingPanel()) return;
     const selectedFlight = this.selectedFlight();
     const payload: CreateTripFlightRequest = {
-      direction: this.flightDirection(),
       departureAirport: this.departureAirport().trim().slice(0, 3).toUpperCase(),
       arrivalAirport: this.arrivalAirport().trim().slice(0, 3).toUpperCase(),
       departureAt: this.departureAt(),
       arrivalAt: this.arrivalAt(),
       airline: this.airline(),
       flightNumber: this.flightNumber(),
-      connection: this.hasFlightConnection()
-        ? {
-            departureAirport: this.connectionDepartureAirport().trim().slice(0, 3).toUpperCase(),
-            arrivalAirport: this.connectionArrivalAirport().trim().slice(0, 3).toUpperCase(),
-            departureAt: this.connectionDepartureAt(),
-            arrivalAt: this.connectionArrivalAt(),
-            airline: this.connectionAirline(),
-            flightNumber: this.connectionFlightNumber(),
-            layoverMinutes: this.flightConnectionLayoverMinutes()
-          }
-        : null
+      connections: this.flightConnections().map((connection) => ({
+        departureAirport: connection.departureAirport.trim().slice(0, 3).toUpperCase(),
+        arrivalAirport: connection.arrivalAirport.trim().slice(0, 3).toUpperCase(),
+        departureAt: connection.departureAt,
+        arrivalAt: connection.arrivalAt,
+        airline: connection.airline,
+        flightNumber: connection.flightNumber,
+        layoverMinutes: this.flightConnectionLayoverMinutes(connection)
+      }))
     };
 
     this.savingPanel.set(true);
@@ -1433,7 +1479,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     return this.durationLabel(durationMinutes);
   }
 
-  connectionDuration(connection: NonNullable<TripFlightSegment["connection"]>): string {
+  connectionDuration(connection: TripFlightSegment["connections"][number]): string {
     const durationMinutes = Math.max(
       0,
       Math.round((new Date(connection.arrivalAt).getTime() - new Date(connection.departureAt).getTime()) / 60_000)
@@ -1445,8 +1491,8 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     return this.durationLabel(minutes);
   }
 
-  private flightConnectionLayoverMinutes(): number {
-    const minutes = Number(this.connectionLayoverMinutes() || 0);
+  private flightConnectionLayoverMinutes(connection: FlightConnectionForm): number {
+    const minutes = Number(connection.layoverMinutes || 0);
     return Number.isFinite(minutes) ? minutes : 0;
   }
 
@@ -1456,15 +1502,30 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     return hours ? `${hours}h${minutes ? ` ${minutes}min` : ""}` : `${minutes}min`;
   }
 
-  private resetFlightConnectionForm(): void {
-    this.hasFlightConnection.set(false);
-    this.connectionDepartureAirport.set("");
-    this.connectionArrivalAirport.set("");
-    this.connectionDepartureAt.set("");
-    this.connectionArrivalAt.set("");
-    this.connectionAirline.set("");
-    this.connectionFlightNumber.set("");
-    this.connectionLayoverMinutes.set(null);
+  private resetFlightConnectionsForm(): void {
+    this.flightConnections.set([]);
+  }
+
+  private emptyFlightConnection(): FlightConnectionForm {
+    return {
+      id: crypto.randomUUID(),
+      departureAirport: "",
+      arrivalAirport: "",
+      departureAt: "",
+      arrivalAt: "",
+      airline: "",
+      flightNumber: "",
+      layoverMinutes: null
+    };
+  }
+
+  private flightConnectionComplete(connection: FlightConnectionForm): boolean {
+    return Boolean(
+      connection.departureAirport.trim()
+      && connection.arrivalAirport.trim()
+      && connection.departureAt
+      && connection.arrivalAt
+    );
   }
 
   openCreateLodging(): void {

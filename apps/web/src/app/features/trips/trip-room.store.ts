@@ -24,6 +24,7 @@ export class TripRoomStore {
   private closedIntentionally = false;
   private localDragActive = false;
   private queuedSnapshot: TripSnapshot | null = null;
+  private readonly pendingOptimisticSnapshots = new Map<string, TripSnapshot>();
 
   readonly snapshot = this.snapshotState.asReadonly();
   readonly connection = this.connectionState.asReadonly();
@@ -97,15 +98,22 @@ export class TripRoomStore {
     this.editingState.set({});
     this.localDragActive = false;
     this.queuedSnapshot = null;
+    this.pendingOptimisticSnapshots.clear();
   }
 
   moveItem(item: TripDayItem, targetDayId: string, targetPosition: number): void {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    const operationId = crypto.randomUUID();
+    const snapshotBeforeMove = this.snapshotState();
+    if (snapshotBeforeMove) {
+      this.pendingOptimisticSnapshots.set(operationId, snapshotBeforeMove);
+      this.applyOptimisticMove(item.id, targetDayId, targetPosition);
+    }
     this.pendingState.update((count) => count + 1);
     this.socket.send(JSON.stringify({
       type: "move_item",
       operation: {
-        operationId: crypto.randomUUID(),
+        operationId,
         type: "move_item",
         entityVersion: item.version,
         itemId: item.id,
@@ -113,6 +121,50 @@ export class TripRoomStore {
         targetPosition
       }
     }));
+  }
+
+  addItemOptimistically(dayId: string, placeId: string): TripSnapshot | null {
+    const snapshot = this.snapshotState();
+    if (!snapshot || !snapshot.days.some((day) => day.id === dayId)) return null;
+
+    const optimisticItem: TripDayItem = {
+      id: `optimistic-${crypto.randomUUID()}`,
+      dayId,
+      placeId,
+      position: this.orderedItemsForSnapshot(snapshot, dayId).length,
+      version: 0
+    };
+    this.queuedSnapshot = null;
+    this.snapshotState.set({ ...snapshot, items: [...snapshot.items, optimisticItem] });
+    return snapshot;
+  }
+
+  removeItemOptimistically(itemId: string): TripSnapshot | null {
+    const snapshot = this.snapshotState();
+    const removedItem = snapshot?.items.find((item) => item.id === itemId);
+    if (!snapshot || !removedItem) return null;
+
+    const remainingItems = snapshot.items.filter((item) => item.id !== itemId);
+    const sourceOrder = remainingItems
+      .filter((item) => item.dayId === removedItem.dayId)
+      .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
+    const optimisticItems = remainingItems.map((item) => {
+      const sourceIndex = sourceOrder.findIndex((sourceItem) => sourceItem.id === item.id);
+      return sourceIndex >= 0 ? { ...item, position: sourceIndex } : item;
+    });
+    const optimisticRoutes = snapshot.routes.filter((route) =>
+      route.fromItemId !== itemId && route.toItemId !== itemId
+    );
+
+    this.queuedSnapshot = null;
+    this.snapshotState.set({ ...snapshot, items: optimisticItems, routes: optimisticRoutes });
+    return snapshot;
+  }
+
+  restoreSnapshot(snapshot: TripSnapshot | null): void {
+    if (!snapshot) return;
+    this.queuedSnapshot = null;
+    this.snapshotState.set(snapshot);
   }
 
   selectItem(itemId: string | null): void {
@@ -140,11 +192,61 @@ export class TripRoomStore {
     if (event.type === "presence_update" && event.userId) {
       this.editingState.update((state) => ({ ...state, [event.userId as string]: event.selectedItemId || null }));
     }
-    if (event.type === "operation_ack") this.pendingState.update((count) => Math.max(0, count - 1));
+    if (event.type === "operation_ack") {
+      if (event.operationId) this.pendingOptimisticSnapshots.delete(event.operationId);
+      this.pendingState.update((count) => Math.max(0, count - 1));
+    }
     if (event.type === "operation_error") {
       this.pendingState.update((count) => Math.max(0, count - 1));
+      this.rollbackOptimisticMove(event.operationId);
       if (event.status === 409 && this.roomId) void this.load(this.roomId);
     }
+  }
+
+  private applyOptimisticMove(itemId: string, targetDayId: string, targetPosition: number): void {
+    const snapshot = this.snapshotState();
+    const movingItem = snapshot?.items.find((item) => item.id === itemId);
+    if (!snapshot || !movingItem || !snapshot.days.some((day) => day.id === targetDayId)) return;
+
+    const sourceDayId = movingItem.dayId;
+    const sourceOrder = this.orderedItemsForSnapshot(snapshot, sourceDayId)
+      .filter((item) => item.id !== itemId);
+    const targetOrder = sourceDayId === targetDayId
+      ? sourceOrder
+      : this.orderedItemsForSnapshot(snapshot, targetDayId).filter((item) => item.id !== itemId);
+    const normalizedPosition = Math.min(targetOrder.length, Math.max(0, Math.trunc(targetPosition)));
+    targetOrder.splice(normalizedPosition, 0, { ...movingItem, dayId: targetDayId, position: normalizedPosition });
+
+    const optimisticItems = snapshot.items.map((item) => {
+      const sourceIndex = sourceOrder.findIndex((sourceItem) => sourceItem.id === item.id);
+      if (sourceIndex >= 0) return { ...item, position: sourceIndex };
+
+      const targetIndex = targetOrder.findIndex((targetItem) => targetItem.id === item.id);
+      if (targetIndex >= 0) return { ...item, dayId: targetDayId, position: targetIndex };
+
+      return item;
+    });
+
+    this.queuedSnapshot = null;
+    this.snapshotState.set({ ...snapshot, items: optimisticItems });
+  }
+
+  private orderedItemsForSnapshot(snapshot: TripSnapshot, dayId: string): TripDayItem[] {
+    return snapshot.items
+      .filter((item) => item.dayId === dayId)
+      .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
+  }
+
+  private rollbackOptimisticMove(operationId: string | undefined): void {
+    const snapshot = operationId ? this.pendingOptimisticSnapshots.get(operationId) : null;
+    if (operationId) this.pendingOptimisticSnapshots.delete(operationId);
+    if (snapshot) {
+      this.snapshotState.set(snapshot);
+      return;
+    }
+    const firstSnapshot = this.pendingOptimisticSnapshots.values().next().value;
+    this.pendingOptimisticSnapshots.clear();
+    if (firstSnapshot) this.snapshotState.set(firstSnapshot);
   }
 
   private handleClose(): void {
