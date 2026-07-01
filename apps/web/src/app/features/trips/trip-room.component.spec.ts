@@ -1,4 +1,8 @@
 import {
+  TestBed
+} from "@angular/core/testing";
+import { signal } from "@angular/core";
+import {
   LucideLandmark,
   LucideMapPin,
   LucideMoonStar,
@@ -9,14 +13,25 @@ import {
 import {
   PLACE_CATEGORY_VISUALS,
   arrivalLodgingForDate,
+  buildTripGeneralMapPoints,
+  connectionLayoverMinutes,
   departureLodgingForDate,
+  flightConnectionSummary,
+  flightFinalDestination,
+  flightLegs,
+  flightOrigin,
+  flightTotalDurationMinutes,
+  flightViaAirports,
   googleMapsUrlForAddress,
   haversineDistanceInMeters,
   linkifyObservationText,
   parseCoordinatePair,
-  suggestedLodgingDates
+  suggestedLodgingDates,
+  tripDayMapMarkerClass
 } from "./trip-room.component";
-import { TripLodging, TripRoom } from "../../core/api/api.types";
+import { TripGeneralMapModalComponent, TripGeneralMapModalData } from "./trip-general-map-modal.component";
+import { ISUMI_MODAL_DATA, ISUMI_MODAL_REF, IsumiModalRef } from "../../shared/ui";
+import { TripDay, TripDayItem, TripFlightSegment, TripLodging, TripPlace, TripRoom } from "../../core/api/api.types";
 
 describe("PLACE_CATEGORY_VISUALS", () => {
   it("assigns a unique icon and color treatment to every category", () => {
@@ -80,6 +95,181 @@ describe("haversineDistanceInMeters", () => {
 
     expect(haversineDistanceInMeters(lodging, nearby))
       .toBeLessThan(haversineDistanceInMeters(lodging, far));
+  });
+});
+
+describe("trip general map helpers", () => {
+  const days: TripDay[] = [
+    { id: "day-1", date: "2026-10-10", position: 0 },
+    { id: "day-2", date: "2026-10-11", position: 1 }
+  ];
+  const places: TripPlace[] = [
+    createPlace("place-1", "Museu", -23.55, -46.63),
+    createPlace("place-2", "Cafe", -23.56, -46.64),
+    createPlace("place-3", "Sem coordenada", null, null)
+  ];
+  const items: TripDayItem[] = [
+    { id: "item-1", dayId: "day-2", placeId: "place-1", position: 0, version: 1 }
+  ];
+  const lodgings: TripLodging[] = [
+    {
+      id: "lodging-1",
+      name: "Hotel",
+      address: "Rua A",
+      checkInDate: "2026-10-10",
+      checkOutDate: "2026-10-12",
+      notes: null,
+      latitude: -23.57,
+      longitude: -46.65,
+      version: 1
+    }
+  ];
+
+  it("builds scheduled, unscheduled and lodging points for the general map", () => {
+    const points = buildTripGeneralMapPoints(days, places, items, lodgings);
+
+    expect(points.map((point) => `${point.id}:${point.status}`))
+      .toEqual(["lodging-lodging-1:lodging", "item-1:scheduled", "place-place-2:unscheduled"]);
+    expect(points[1]).toEqual(jasmine.objectContaining({
+      dayNumber: 2,
+      markerClass: tripDayMapMarkerClass(2),
+      markerLabel: "2",
+      subtitle: "Dia 2 · Parada 1"
+    }));
+    expect(points[2]).toEqual(jasmine.objectContaining({
+      placeId: "place-2",
+      markerClass: "trip-map-marker--unscheduled",
+      subtitle: "Pendente"
+    }));
+  });
+
+  it("lets the general map modal allocate selected pending places and clears the selection", async () => {
+    const allocate = jasmine.createSpy("allocate").and.resolveTo();
+    const data: TripGeneralMapModalData = {
+      points: signal(buildTripGeneralMapPoints(days, places, items, lodgings)),
+      days,
+      allocate
+    };
+    TestBed.configureTestingModule({
+      imports: [TripGeneralMapModalComponent],
+      providers: [
+        { provide: ISUMI_MODAL_DATA, useValue: data },
+        { provide: ISUMI_MODAL_REF, useValue: new IsumiModalRef<TripGeneralMapModalData, void>(data) }
+      ]
+    });
+    const fixture = TestBed.createComponent(TripGeneralMapModalComponent);
+    const component = fixture.componentInstance;
+
+    component.togglePlace("place-2", true);
+    await component.submitAllocation(new Event("submit"));
+
+    expect(allocate).toHaveBeenCalledOnceWith({ dayId: "day-1", placeIds: ["place-2"] });
+    expect(component.selectedPlaceIds()).toEqual([]);
+  });
+
+  function createPlace(id: string, name: string, latitude: number | null, longitude: number | null): TripPlace {
+    return {
+      id,
+      name,
+      category: "culture",
+      address: `${name} address`,
+      notes: null,
+      latitude,
+      longitude,
+      geocodedAddress: null,
+      geocodedAt: null,
+      geocodingStatus: null,
+      createdByUserId: "user-1",
+      version: 1,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z"
+    };
+  }
+});
+
+describe("flight itinerary helpers", () => {
+  const directFlight: TripFlightSegment = {
+    id: "flight-1",
+    departureAirport: "GRU",
+    arrivalAirport: "DOH",
+    departureAt: "2026-10-12T08:00",
+    arrivalAt: "2026-10-12T20:00",
+    airline: "Qatar",
+    flightNumber: "QR780",
+    connections: [],
+    position: 1,
+    version: 1
+  };
+
+  const connectedFlight: TripFlightSegment = {
+    ...directFlight,
+    arrivalAirport: "DOH",
+    arrivalAt: "2026-10-12T20:00",
+    connections: [
+      {
+        id: "connection-2",
+        departureAirport: "SIN",
+        arrivalAirport: "HND",
+        departureAt: "2026-10-13T08:00",
+        arrivalAt: "2026-10-13T14:00",
+        airline: "JAL",
+        flightNumber: "JL36",
+        layoverMinutes: 120,
+        position: 1,
+        version: 1
+      },
+      {
+        id: "connection-1",
+        departureAirport: "DOH",
+        arrivalAirport: "SIN",
+        departureAt: "2026-10-12T22:00",
+        arrivalAt: "2026-10-13T06:00",
+        airline: "Qatar",
+        flightNumber: "QR942",
+        layoverMinutes: 120,
+        position: 0,
+        version: 1
+      }
+    ]
+  };
+
+  it("keeps direct flights as a single leg", () => {
+    expect(flightLegs(directFlight).map((leg) => `${leg.departureAirport}-${leg.arrivalAirport}`))
+      .toEqual(["GRU-DOH"]);
+    expect(flightOrigin(directFlight)).toBe("GRU");
+    expect(flightFinalDestination(directFlight)).toBe("DOH");
+    expect(flightConnectionSummary(directFlight)).toBe("Direto");
+  });
+
+  it("uses the final connection as the itinerary destination", () => {
+    expect(flightLegs(connectedFlight).map((leg) => leg.arrivalAirport)).toEqual(["DOH", "SIN", "HND"]);
+    expect(flightFinalDestination(connectedFlight)).toBe("HND");
+    expect(flightViaAirports(connectedFlight)).toEqual(["DOH", "SIN"]);
+    expect(flightConnectionSummary(connectedFlight)).toBe("2 conexões via DOH, SIN");
+  });
+
+  it("calculates total duration from first departure to final arrival", () => {
+    expect(flightTotalDurationMinutes(connectedFlight)).toBe(1800);
+  });
+
+  it("calculates layover from previous arrival to next departure", () => {
+    const legs = flightLegs(connectedFlight);
+
+    expect(connectionLayoverMinutes(legs[0], legs[1])).toBe(120);
+  });
+
+  it("rolls overnight connection departures forward when the filled date is still the previous day", () => {
+    expect(connectionLayoverMinutes(
+      { ...flightLegs(directFlight)[0], arrivalAt: "2026-06-26T23:03" },
+      { ...flightLegs(directFlight)[0], departureAt: "2026-06-26T00:05" }
+    )).toBe(62);
+  });
+
+  it("returns zero for invalid layover values", () => {
+    expect(connectionLayoverMinutes(
+      { ...flightLegs(directFlight)[0], arrivalAt: "invalid" },
+      { ...flightLegs(directFlight)[0], departureAt: "2026-10-12T22:00" }
+    )).toBe(0);
   });
 });
 

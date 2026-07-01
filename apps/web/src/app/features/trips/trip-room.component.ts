@@ -61,6 +61,7 @@ import {
   LucidePin,
   LucidePlus,
   LucideRoute,
+  LucideRulerDimensionLine,
   LucideSave,
   LucideShoppingBag,
   LucideShuffle,
@@ -105,8 +106,13 @@ import {
   injectIsumiModalData,
   injectIsumiModalRef
 } from "../../shared/ui";
+import {
+  TripGeneralMapAllocation,
+  TripGeneralMapModalComponent,
+  TripGeneralMapModalData
+} from "./trip-general-map-modal.component";
 import { TripDayMapModalComponent, TripDayMapModalData } from "./trip-day-map-modal.component";
-import { TripDayMapPoint } from "./trip-day-map.component";
+import { TripDayMapPoint, TripMapPoint } from "./trip-day-map.component";
 import { TripRoomStore } from "./trip-room.store";
 
 type TrayDragData = { kind: "place"; place: TripPlace };
@@ -236,6 +242,111 @@ function durationLabelForMinutes(durationMinutes: number): string {
   return hours ? `${hours}h${minutes ? ` ${minutes}min` : ""}` : `${minutes}min`;
 }
 
+export interface TripFlightLeg {
+  id: string;
+  departureAirport: string;
+  arrivalAirport: string;
+  departureAt: string;
+  arrivalAt: string;
+  airline: string | null;
+  flightNumber: string | null;
+}
+
+function minutesBetween(start: string, end: string): number {
+  const startTime = new Date(start).getTime();
+  const endTime = new Date(end).getTime();
+  if (Number.isNaN(startTime) || Number.isNaN(endTime)) return 0;
+  return Math.max(0, Math.round((endTime - startTime) / 60_000));
+}
+
+function rollForwardAfter(reference: string, value: string): string {
+  const referenceTime = new Date(reference).getTime();
+  const valueDate = new Date(value);
+  if (Number.isNaN(referenceTime) || Number.isNaN(valueDate.getTime())) return value;
+
+  while (valueDate.getTime() <= referenceTime) {
+    valueDate.setDate(valueDate.getDate() + 1);
+  }
+
+  return formatDateTimeLocalValue(valueDate);
+}
+
+function formatDateTimeLocalValue(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate())
+  ].join("-") + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+export function flightLegs(flight: TripFlightSegment): TripFlightLeg[] {
+  const legs: TripFlightLeg[] = [{
+    id: flight.id,
+    departureAirport: flight.departureAirport,
+    arrivalAirport: flight.arrivalAirport,
+    departureAt: flight.departureAt,
+    arrivalAt: flight.arrivalAt,
+    airline: flight.airline,
+    flightNumber: flight.flightNumber
+  }];
+  let previousArrivalAt = flight.arrivalAt;
+
+  for (const connection of [...flight.connections].sort((first, second) => first.position - second.position)) {
+    const departureAt = rollForwardAfter(previousArrivalAt, connection.departureAt);
+    const arrivalAt = rollForwardAfter(departureAt, connection.arrivalAt);
+    legs.push({
+      id: connection.id,
+      departureAirport: connection.departureAirport,
+      arrivalAirport: connection.arrivalAirport,
+      departureAt,
+      arrivalAt,
+      airline: connection.airline,
+      flightNumber: connection.flightNumber
+    });
+    previousArrivalAt = arrivalAt;
+  }
+
+  return legs;
+}
+
+export function flightOrigin(flight: TripFlightSegment): string {
+  return flightLegs(flight)[0]?.departureAirport || flight.departureAirport;
+}
+
+export function flightFinalDestination(flight: TripFlightSegment): string {
+  const legs = flightLegs(flight);
+  return legs[legs.length - 1]?.arrivalAirport || flight.arrivalAirport;
+}
+
+export function flightFinalArrivalAt(flight: TripFlightSegment): string {
+  const legs = flightLegs(flight);
+  return legs[legs.length - 1]?.arrivalAt || flight.arrivalAt;
+}
+
+export function flightTotalDurationMinutes(flight: TripFlightSegment): number {
+  const legs = flightLegs(flight);
+  const firstLeg = legs[0];
+  const lastLeg = legs[legs.length - 1];
+  if (!firstLeg || !lastLeg) return 0;
+  return minutesBetween(firstLeg.departureAt, lastLeg.arrivalAt);
+}
+
+export function flightViaAirports(flight: TripFlightSegment): string[] {
+  return flightLegs(flight).slice(0, -1).map((leg) => leg.arrivalAirport).filter(Boolean);
+}
+
+export function connectionLayoverMinutes(previousLeg: TripFlightLeg, nextLeg: TripFlightLeg): number {
+  return minutesBetween(previousLeg.arrivalAt, rollForwardAfter(previousLeg.arrivalAt, nextLeg.departureAt));
+}
+
+export function flightConnectionSummary(flight: TripFlightSegment): string {
+  const viaAirports = flightViaAirports(flight);
+  if (!viaAirports.length) return "Direto";
+  const viaLabel = ` via ${viaAirports.join(", ")}`;
+  return viaAirports.length === 1 ? `1 conexão${viaLabel}` : `${viaAirports.length} conexões${viaLabel}`;
+}
+
 function dateOnlyValue(date: string): Date {
   return new Date(`${date.slice(0, 10)}T12:00:00Z`);
 }
@@ -259,6 +370,93 @@ export function suggestedLodgingDates(room: TripRoom, lodgings: TripLodging[]): 
     checkInDate: lastCheckOutDate || room.startDate,
     checkOutDate: room.endDate
   };
+}
+
+export function tripDayMapMarkerClass(dayNumber: number): string {
+  const classNames = [
+    "trip-map-marker--day-1",
+    "trip-map-marker--day-2",
+    "trip-map-marker--day-3",
+    "trip-map-marker--day-4",
+    "trip-map-marker--day-5",
+    "trip-map-marker--day-6"
+  ];
+  return classNames[(dayNumber - 1) % classNames.length];
+}
+
+export function buildTripGeneralMapPoints(
+  days: TripDay[],
+  places: TripPlace[],
+  items: TripDayItem[],
+  lodgings: TripLodging[]
+): TripMapPoint[] {
+  const daysById = new Map(days.map((day) => [day.id, day]));
+  const placesById = new Map(places.map((place) => [place.id, place]));
+  const scheduledPlaceIds = new Set(items.map((item) => item.placeId));
+  const scheduledPoints = [...items]
+    .sort((first, second) => {
+      const firstDay = daysById.get(first.dayId);
+      const secondDay = daysById.get(second.dayId);
+      return (firstDay?.position ?? 0) - (secondDay?.position ?? 0)
+        || first.position - second.position;
+    })
+    .map((item): TripMapPoint | null => {
+      const day = daysById.get(item.dayId);
+      const place = placesById.get(item.placeId);
+      if (!day || !place || !hasValidCoordinates(place)) return null;
+      const dayNumber = day.position + 1;
+      return {
+        kind: "place",
+        status: "scheduled",
+        id: item.id,
+        placeId: place.id,
+        dayId: day.id,
+        dayNumber,
+        markerClass: tripDayMapMarkerClass(dayNumber),
+        markerLabel: String(dayNumber),
+        subtitle: `Dia ${dayNumber} · Parada ${item.position + 1}`,
+        name: place.name,
+        address: place.address || "Endereço não informado",
+        category: place.category,
+        position: item.position + 1,
+        latitude: place.latitude,
+        longitude: place.longitude
+      };
+    })
+    .filter((point): point is TripMapPoint => point !== null);
+  const unscheduledPoints = places
+    .map((place): TripMapPoint | null => {
+      if (scheduledPlaceIds.has(place.id) || !hasValidCoordinates(place)) return null;
+      return {
+        kind: "place",
+        status: "unscheduled",
+        id: `place-${place.id}`,
+        placeId: place.id,
+        markerClass: "trip-map-marker--unscheduled",
+        markerLabel: "",
+        subtitle: "Pendente",
+        name: place.name,
+        address: place.address || "Endereço não informado",
+        category: place.category,
+        latitude: place.latitude,
+        longitude: place.longitude
+      };
+    })
+    .filter((point): point is TripMapPoint => point !== null);
+  const lodgingPoints = lodgings
+    .filter(hasValidCoordinates)
+    .map((lodging): TripMapPoint => ({
+      kind: "lodging",
+      status: "lodging",
+      id: `lodging-${lodging.id}`,
+      subtitle: "Hospedagem",
+      name: lodging.name,
+      address: lodging.address || "Endereço não informado",
+      latitude: lodging.latitude,
+      longitude: lodging.longitude
+    }));
+
+  return [...lodgingPoints, ...scheduledPoints, ...unscheduledPoints];
 }
 
 export const PLACE_CATEGORY_VISUALS: Record<TripPlaceCategory, {
@@ -407,7 +605,7 @@ export class DeleteTripFlightModalComponent {
             <h2 class="m-0 text-[1.2rem] font-black">Detalhes do voo</h2>
           </div>
           <p class="m-0 mt-2 max-w-[52ch] text-sm leading-6 text-muted-foreground">
-            {{ data?.flight?.departureAirport || "Origem" }} para {{ data?.flight?.arrivalAirport || "destino" }}
+            {{ flightOrigin(data?.flight) }} para {{ flightFinalDestination(data?.flight) }}
             com {{ connectionSummary(data?.flight) }}.
           </p>
         </div>
@@ -434,76 +632,51 @@ export class DeleteTripFlightModalComponent {
           </div>
 
           <div class="grid gap-3">
-            <article class="grid gap-3 rounded-md bg-background/55 p-3">
-              <div class="flex items-center justify-between gap-3">
-                <span class="inline-flex items-center gap-1.5 text-xs font-black text-muted-foreground">
-                  <svg lucidePlaneTakeoff class="size-3.5" aria-hidden="true"></svg>
-                  Trecho principal
-                </span>
-                <span class="font-mono text-xs font-black text-primary">{{ flight.flightNumber || "—" }}</span>
-              </div>
-              <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] items-center gap-2">
-                <div class="min-w-0">
-                  <strong class="block truncate font-mono text-lg font-black text-foreground">{{ flight.departureAirport }}</strong>
-                  <time class="mt-1 block text-xs font-bold text-muted-foreground" [attr.datetime]="flight.departureAt">
-                    {{ flight.departureAt | date:"dd/MM · HH:mm" }}
-                  </time>
-                </div>
-                <span class="grid size-8 place-items-center justify-self-center rounded-sm bg-secondary text-muted-foreground" aria-hidden="true">
-                  <svg lucideMoveRight class="size-4"></svg>
-                </span>
-                <div class="min-w-0 text-right">
-                  <strong class="block truncate font-mono text-lg font-black text-foreground">{{ flight.arrivalAirport }}</strong>
-                  <time class="mt-1 block text-xs font-bold text-muted-foreground" [attr.datetime]="flight.arrivalAt">
-                    {{ flight.arrivalAt | date:"dd/MM · HH:mm" }}
-                  </time>
-                </div>
-              </div>
-              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span class="font-bold text-foreground">{{ flight.airline || "Companhia não informada" }}</span>
-                <span>{{ flightDuration(flight) }} de viagem</span>
-              </div>
-            </article>
-
-            @if (flight.connections.length) {
-            @for (connection of flight.connections; track connection.id; let index = $index) {
+            @for (leg of flightLegs(flight); track leg.id; let index = $index) {
+            @if (index > 0) {
             <div class="inline-flex w-fit items-center gap-1.5 rounded-sm bg-background/55 px-2.5 py-2 text-xs font-extrabold text-muted-foreground">
               <svg lucideClock3 class="size-3.5" aria-hidden="true"></svg>
-              Parada de {{ layoverDuration(connection.layoverMinutes) }}
+              Parada de {{ layoverDuration(flightLegs(flight)[index - 1], leg) }}
             </div>
+            }
 
             <article class="grid gap-3 rounded-md bg-background/55 p-3">
               <div class="flex items-center justify-between gap-3">
                 <span class="inline-flex items-center gap-1.5 text-xs font-black text-muted-foreground">
+                  @if (index === 0) {
+                  <svg lucidePlaneTakeoff class="size-3.5" aria-hidden="true"></svg>
+                  Primeiro trecho
+                  } @else {
                   <svg lucidePlaneLanding class="size-3.5" aria-hidden="true"></svg>
-                  Voo da conexão
+                  Trecho {{ index + 1 }}
+                  }
                 </span>
-                <span class="font-mono text-xs font-black text-primary">{{ connection.flightNumber || "—" }}</span>
+                <span class="font-mono text-xs font-black text-primary">{{ leg.flightNumber || "—" }}</span>
               </div>
               <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] items-center gap-2">
                 <div class="min-w-0">
-                  <strong class="block truncate font-mono text-lg font-black text-foreground">{{ connection.departureAirport }}</strong>
-                  <time class="mt-1 block text-xs font-bold text-muted-foreground" [attr.datetime]="connection.departureAt">
-                    {{ connection.departureAt | date:"dd/MM · HH:mm" }}
+                  <strong class="block truncate font-mono text-lg font-black text-foreground">{{ leg.departureAirport }}</strong>
+                  <time class="mt-1 block text-xs font-bold text-muted-foreground" [attr.datetime]="leg.departureAt">
+                    {{ leg.departureAt | date:"dd/MM · HH:mm" }}
                   </time>
                 </div>
                 <span class="grid size-8 place-items-center justify-self-center rounded-sm bg-secondary text-muted-foreground" aria-hidden="true">
                   <svg lucideMoveRight class="size-4"></svg>
                 </span>
                 <div class="min-w-0 text-right">
-                  <strong class="block truncate font-mono text-lg font-black text-foreground">{{ connection.arrivalAirport }}</strong>
-                  <time class="mt-1 block text-xs font-bold text-muted-foreground" [attr.datetime]="connection.arrivalAt">
-                    {{ connection.arrivalAt | date:"dd/MM · HH:mm" }}
+                  <strong class="block truncate font-mono text-lg font-black text-foreground">{{ leg.arrivalAirport }}</strong>
+                  <time class="mt-1 block text-xs font-bold text-muted-foreground" [attr.datetime]="leg.arrivalAt">
+                    {{ leg.arrivalAt | date:"dd/MM · HH:mm" }}
                   </time>
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span class="font-bold text-foreground">{{ connection.airline || "Companhia não informada" }}</span>
-                <span>{{ connectionDuration(connection) }} de viagem</span>
+                <span class="font-bold text-foreground">{{ leg.airline || "Companhia não informada" }}</span>
+                <span>{{ legDuration(leg) }} de viagem</span>
               </div>
             </article>
             }
-            } @else {
+            @if (!flight.connections.length) {
             <div class="inline-flex w-fit items-center gap-1.5 rounded-sm bg-background/55 px-2.5 py-2 text-xs font-extrabold text-muted-foreground">
               <svg lucideInfo class="size-3.5" aria-hidden="true"></svg>
               Voo direto
@@ -521,26 +694,32 @@ export class TripFlightDetailsModalComponent {
   readonly data = injectIsumiModalData<TripFlightDetailsModalData>();
   readonly modalRef = injectIsumiModalRef<TripFlightDetailsModalData, void>();
 
+  flightLegs(flight: TripFlightSegment): TripFlightLeg[] {
+    return flightLegs(flight);
+  }
+
+  flightOrigin(flight: TripFlightSegment | null | undefined): string {
+    return flight ? flightOrigin(flight) : "Origem";
+  }
+
+  flightFinalDestination(flight: TripFlightSegment | null | undefined): string {
+    return flight ? flightFinalDestination(flight) : "destino";
+  }
+
   flightDuration(flight: TripFlightSegment): string {
-    return durationLabelForMinutes(
-      Math.max(0, Math.round((new Date(flight.arrivalAt).getTime() - new Date(flight.departureAt).getTime()) / 60_000))
-    );
+    return durationLabelForMinutes(flightTotalDurationMinutes(flight));
   }
 
-  connectionDuration(connection: TripFlightSegment["connections"][number]): string {
-    return durationLabelForMinutes(
-      Math.max(0, Math.round((new Date(connection.arrivalAt).getTime() - new Date(connection.departureAt).getTime()) / 60_000))
-    );
+  legDuration(leg: TripFlightLeg): string {
+    return durationLabelForMinutes(minutesBetween(leg.departureAt, leg.arrivalAt));
   }
 
-  layoverDuration(minutes: number): string {
-    return durationLabelForMinutes(minutes);
+  layoverDuration(previousLeg: TripFlightLeg, nextLeg: TripFlightLeg): string {
+    return durationLabelForMinutes(connectionLayoverMinutes(previousLeg, nextLeg));
   }
 
   connectionSummary(flight: TripFlightSegment | null | undefined): string {
-    const count = flight?.connections.length || 0;
-    if (count === 0) return "voo direto";
-    return count === 1 ? "1 conexão" : `${count} conexões`;
+    return flight ? flightConnectionSummary(flight).toLowerCase() : "voo direto";
   }
 }
 
@@ -641,6 +820,7 @@ export class DeleteTripPlaceModalComponent {
     LucidePin,
     LucidePlus,
     LucideRoute,
+    LucideRulerDimensionLine,
     LucideSave,
     LucideShuffle,
     LucideTicket,
@@ -696,6 +876,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly deletingLodgingId = signal<string | null>(null);
   readonly savingPanel = signal(false);
   readonly focusedDayId = signal<string | null>(null);
+  readonly dayTimelineExpanded = signal(false);
   readonly dayAnimating = signal(false);
   readonly placeTab = signal<"unscheduled" | "scheduled">("unscheduled");
   readonly panel = signal<"place" | "route" | "flight" | "lodging" | null>(null);
@@ -780,6 +961,13 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     const day = this.focusedDay();
     return day ? this.mapAddressCountForDay(day) : 0;
   });
+  readonly generalMapPoints = computed(() => buildTripGeneralMapPoints(
+    this.store.days(),
+    this.store.places(),
+    this.store.snapshot()?.items || [],
+    this.store.lodgings()
+  ));
+  readonly generalMapAddressCount = computed(() => this.generalMapPoints().length);
   readonly canShowPreviousDays = computed(() => this.focusedDayIndex() > 0);
   readonly canShowNextDays = computed(() =>
     this.focusedDayIndex() >= 0 && this.focusedDayIndex() < this.store.days().length - 1
@@ -831,7 +1019,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly flightEditorSteps: Array<{ id: FlightEditorStep; label: string; description: string }> = [
     { id: "route", label: "Trecho", description: "Origem e destino" },
     { id: "schedule", label: "Horários", description: "Saída e chegada" },
-    { id: "details", label: "Detalhes", description: "Companhia e conexão" },
+    { id: "details", label: "Trechos", description: "Companhia e conexões" },
     { id: "review", label: "Revisão", description: "Conferir e salvar" }
   ];
 
@@ -868,6 +1056,25 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   dayNumber(day: TripDay): number {
     return day.position + 1;
+  }
+
+  dayTimelineGridTemplate(): string {
+    return `repeat(${Math.max(this.store.days().length, 1)}, minmax(7rem, 1fr))`;
+  }
+
+  dayTimelineMinWidth(): string {
+    return `max(100%, calc(${Math.max(this.store.days().length, 1)} * 7rem))`;
+  }
+
+  toggleDayTimeline(): void {
+    this.dayTimelineExpanded.update((expanded) => !expanded);
+  }
+
+  blurTimelineToggle(event: MouseEvent): void {
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.querySelector("button");
+    button?.blur();
   }
 
   placeDays(placeId: string): TripDay[] {
@@ -1087,7 +1294,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       );
   }
 
-  async addPlaceToDay(place: TripPlace, dayId: string): Promise<void> {
+  async addPlaceToDay(place: TripPlace, dayId: string, showErrorToast = true): Promise<boolean> {
     const rollbackSnapshot = this.store.addItemOptimistically(dayId, place.id);
     this.focusDay(dayId);
     this.showDropFeedback(dayId);
@@ -1098,9 +1305,11 @@ export class TripRoomComponent implements OnInit, OnDestroy {
         placeId: place.id
       }));
       this.store.setSnapshot(snapshot);
+      return true;
     } catch {
       this.store.restoreSnapshot(rollbackSnapshot);
-      this.toast.error("Não foi possível adicionar o lugar ao dia.");
+      if (showErrorToast) this.toast.error("Não foi possível adicionar o lugar ao dia.");
+      return false;
     }
   }
 
@@ -1527,7 +1736,10 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   addFlightConnection(): void {
-    this.flightConnections.update((connections) => [...connections, this.emptyFlightConnection()]);
+    this.flightConnections.update((connections) => {
+      const previousArrivalAirport = connections[connections.length - 1]?.arrivalAirport || this.arrivalAirport();
+      return [...connections, this.emptyFlightConnection(previousArrivalAirport)];
+    });
   }
 
   removeFlightConnection(connectionId: string): void {
@@ -1574,6 +1786,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   async saveFlight(): Promise<void> {
     if (this.savingPanel()) return;
     const selectedFlight = this.selectedFlight();
+    const normalizedConnections = this.normalizedFlightConnections();
     const payload: CreateTripFlightRequest = {
       departureAirport: this.departureAirport().trim().slice(0, 3).toUpperCase(),
       arrivalAirport: this.arrivalAirport().trim().slice(0, 3).toUpperCase(),
@@ -1581,14 +1794,14 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       arrivalAt: this.arrivalAt(),
       airline: this.airline(),
       flightNumber: this.flightNumber(),
-      connections: this.flightConnections().map((connection) => ({
+      connections: normalizedConnections.map((connection, index) => ({
         departureAirport: connection.departureAirport.trim().slice(0, 3).toUpperCase(),
         arrivalAirport: connection.arrivalAirport.trim().slice(0, 3).toUpperCase(),
         departureAt: connection.departureAt,
         arrivalAt: connection.arrivalAt,
         airline: connection.airline,
         flightNumber: connection.flightNumber,
-        layoverMinutes: this.flightConnectionLayoverMinutes(connection)
+        layoverMinutes: this.flightConnectionLayoverMinutes(index, connection)
       }))
     };
 
@@ -1617,7 +1830,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.modal.open<DeleteTripFlightModalComponent, DeleteTripFlightModalData, boolean>(
       DeleteTripFlightModalComponent,
       {
-        data: { route: `${flight.departureAirport} → ${flight.arrivalAirport}` },
+        data: { route: `${flightOrigin(flight)} → ${flightFinalDestination(flight)}` },
         ariaLabel: "Confirmar exclusão do voo",
         closeOnBackdrop: false,
         onSubmit: async () => {
@@ -1642,34 +1855,74 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       TripFlightDetailsModalComponent,
       {
         data: { flight },
-        ariaLabel: `Detalhes do voo ${flight.departureAirport} para ${flight.arrivalAirport}`
+        ariaLabel: `Detalhes do voo ${flightOrigin(flight)} para ${flightFinalDestination(flight)}`
       }
     );
   }
 
+  flightOrigin(flight: TripFlightSegment): string {
+    return flightOrigin(flight);
+  }
+
+  flightFinalDestination(flight: TripFlightSegment): string {
+    return flightFinalDestination(flight);
+  }
+
+  flightFinalArrivalAt(flight: TripFlightSegment): string {
+    return flightFinalArrivalAt(flight);
+  }
+
+  flightConnectionSummary(flight: TripFlightSegment): string {
+    return flightConnectionSummary(flight);
+  }
+
   flightDuration(flight: TripFlightSegment): string {
-    const durationMinutes = Math.max(
-      0,
-      Math.round((new Date(flight.arrivalAt).getTime() - new Date(flight.departureAt).getTime()) / 60_000)
-    );
-    return this.durationLabel(durationMinutes);
+    return this.durationLabel(flightTotalDurationMinutes(flight));
   }
 
-  connectionDuration(connection: TripFlightSegment["connections"][number]): string {
-    const durationMinutes = Math.max(
-      0,
-      Math.round((new Date(connection.arrivalAt).getTime() - new Date(connection.departureAt).getTime()) / 60_000)
-    );
-    return this.durationLabel(durationMinutes);
+  flightFormRouteLabel(): string {
+    const airports = [
+      this.departureAirport().trim().toUpperCase(),
+      this.arrivalAirport().trim().toUpperCase(),
+      ...this.flightConnections().map((connection) => connection.arrivalAirport.trim().toUpperCase())
+    ].filter(Boolean);
+    return airports.length ? airports.join(" → ") : "Origem → destino";
   }
 
-  layoverDuration(minutes: number): string {
-    return this.durationLabel(minutes);
+  flightFormTotalDuration(): string {
+    const departureAt = this.departureAt();
+    const finalArrivalAt = this.normalizedFlightConnections().at(-1)?.arrivalAt || this.arrivalAt();
+    return this.durationLabel(minutesBetween(departureAt, finalArrivalAt));
   }
 
-  private flightConnectionLayoverMinutes(connection: FlightConnectionForm): number {
-    const minutes = Number(connection.layoverMinutes || 0);
-    return Number.isFinite(minutes) ? minutes : 0;
+  flightFormConnectionLayoverLabel(index: number, connection: FlightConnectionForm): string {
+    return this.durationLabel(this.flightConnectionLayoverMinutes(index, connection));
+  }
+
+  private flightConnectionLayoverMinutes(index: number, connection: FlightConnectionForm): number {
+    const normalizedConnections = this.normalizedFlightConnections();
+    const previousArrivalAt = index === 0
+      ? this.arrivalAt()
+      : normalizedConnections[index - 1]?.arrivalAt || "";
+    return minutesBetween(previousArrivalAt, normalizedConnections[index]?.departureAt || connection.departureAt);
+  }
+
+  private normalizedFlightConnections(): FlightConnectionForm[] {
+    let previousArrivalAt = this.arrivalAt();
+    return this.flightConnections().map((connection) => {
+      const departureAt = previousArrivalAt
+        ? rollForwardAfter(previousArrivalAt, connection.departureAt)
+        : connection.departureAt;
+      const arrivalAt = departureAt
+        ? rollForwardAfter(departureAt, connection.arrivalAt)
+        : connection.arrivalAt;
+      previousArrivalAt = arrivalAt;
+      return {
+        ...connection,
+        departureAt,
+        arrivalAt
+      };
+    });
   }
 
   private durationLabel(durationMinutes: number): string {
@@ -1682,10 +1935,10 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.flightConnections.set([]);
   }
 
-  private emptyFlightConnection(): FlightConnectionForm {
+  private emptyFlightConnection(departureAirport = ""): FlightConnectionForm {
     return {
       id: crypto.randomUUID(),
-      departureAirport: "",
+      departureAirport: departureAirport.trim().slice(0, 3).toUpperCase(),
       arrivalAirport: "",
       departureAt: "",
       arrivalAt: "",
@@ -1921,6 +2174,44 @@ export class TripRoomComponent implements OnInit, OnDestroy {
         panelClass: "sm:!w-[min(calc(100vw-2rem),76rem)]"
       }
     );
+  }
+
+  openGeneralMap(): void {
+    this.modal.open<TripGeneralMapModalComponent, TripGeneralMapModalData, void>(
+      TripGeneralMapModalComponent,
+      {
+        data: {
+          points: this.generalMapPoints,
+          days: this.store.days(),
+          allocate: (allocation) => this.allocateGeneralMapPlaces(allocation)
+        },
+        ariaLabel: "Mapa geral da viagem",
+        panelClass: "sm:!w-[min(calc(100vw-2rem),82rem)]"
+      }
+    );
+  }
+
+  private async allocateGeneralMapPlaces(allocation: TripGeneralMapAllocation): Promise<void> {
+    const pendingPlaces = new Map(this.unscheduledPlaces().map((place) => [place.id, place]));
+    const places = allocation.placeIds
+      .map((placeId) => pendingPlaces.get(placeId))
+      .filter((place): place is TripPlace => !!place);
+    if (places.length === 0) return;
+
+    let successCount = 0;
+    for (const place of places) {
+      if (await this.addPlaceToDay(place, allocation.dayId, false)) successCount += 1;
+    }
+
+    if (successCount === places.length) {
+      this.toast.success(successCount === 1 ? "Lugar alocado no dia." : "Lugares alocados no dia.");
+      return;
+    }
+    if (successCount > 0) {
+      this.toast.error("Alguns lugares não foram alocados.");
+      return;
+    }
+    this.toast.error("Não foi possível alocar os lugares.");
   }
 
   mapAddressCountForDay(day: TripDay): number {

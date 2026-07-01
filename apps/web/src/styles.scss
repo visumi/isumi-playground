@@ -297,6 +297,7 @@ body {
   border: 2px solid rgb(244 244 245 / 0.95);
   border-radius: 999px 999px 999px 0.25rem;
   box-shadow: 0 6px 8px rgb(0 0 0 / 0.28);
+  background: var(--trip-map-marker-bg, rgb(6 182 212));
   color: rgb(250 250 250);
   font-size: 0.75rem;
   font-weight: 900;
@@ -360,6 +361,73 @@ body {
   font-size: 0.8rem;
 }
 
+.trip-map-marker--unscheduled {
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  border-color: var(--color-border);
+  border-style: dashed;
+  border-radius: 999px;
+  transform: none;
+}
+
+.trip-map-marker--unscheduled::before {
+  inset: 0.48rem;
+  background: rgb(255 255 255 / 0.1);
+}
+
+.trip-map-marker--unscheduled > * {
+  transform: none;
+}
+
+.trip-map-marker--day-1 {
+  --trip-map-marker-bg: rgb(16 185 129);
+}
+
+.trip-map-marker--day-2 {
+  --trip-map-marker-bg: rgb(14 165 233);
+}
+
+.trip-map-marker--day-3 {
+  --trip-map-marker-bg: rgb(139 92 246);
+}
+
+.trip-map-marker--day-4 {
+  --trip-map-marker-bg: rgb(245 158 11);
+}
+
+.trip-map-marker--day-5 {
+  --trip-map-marker-bg: rgb(236 72 153);
+}
+
+.trip-map-marker--day-6 {
+  --trip-map-marker-bg: rgb(6 182 212);
+}
+
+.trip-map-marker--selected {
+  animation: trip-map-marker-selected 1.1s ease-in-out infinite;
+  background: color-mix(in oklch, var(--color-primary) 44%, var(--color-background));
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 0 color-mix(in oklch, var(--color-primary) 55%, transparent), 0 7px 12px rgb(0 0 0 / 0.34);
+}
+
+.trip-map-marker--selected::before {
+  background: color-mix(in oklch, var(--color-primary) 62%, transparent);
+}
+
+@keyframes trip-map-marker-selected {
+  0%,
+  100% {
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--color-primary) 58%, transparent), 0 7px 12px rgb(0 0 0 / 0.34);
+  }
+
+  50% {
+    filter: brightness(1.22);
+    box-shadow: 0 0 0 9px color-mix(in oklch, var(--color-primary) 0%, transparent), 0 7px 12px rgb(0 0 0 / 0.34);
+  }
+}
+
 .leaflet-container {
   background: var(--color-background);
   color: var(--color-foreground);
@@ -383,5 +451,9 @@ body {
   .trip-itinerary-drag-item.cdk-drag-animating,
   .trip-drag-preview {
     transition: none;
+  }
+
+  .trip-map-marker--selected {
+    animation: none;
   }
 }

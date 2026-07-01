@@ -251,14 +251,14 @@
                     class="block text-[0.625rem] font-bold uppercase tracking-wider text-muted-foreground">Destino</span>
                   <strong
                     class="mt-1 block truncate whitespace-nowrap font-mono text-2xl font-black leading-none tracking-[0.04em] text-foreground max-sm:text-xl">{{
-                    flight.arrivalAirport }}</strong>
+                    flightFinalDestination(flight) }}</strong>
                   <time
                     class="mt-2 block whitespace-nowrap font-mono text-sm font-extrabold tabular-nums text-foreground max-sm:text-xs"
-                    [attr.datetime]="flight.arrivalAt">
-                    <span class="max-sm:hidden">{{ flight.arrivalAt | date:"dd/MM · HH:mm" }}</span>
+                    [attr.datetime]="flightFinalArrivalAt(flight)">
+                    <span class="max-sm:hidden">{{ flightFinalArrivalAt(flight) | date:"dd/MM · HH:mm" }}</span>
                     <span class="hidden max-sm:grid max-sm:gap-0.5">
-                      <span>{{ flight.arrivalAt | date:"dd/MM" }}</span>
-                      <span class="text-muted-foreground">{{ flight.arrivalAt | date:"HH:mm" }}</span>
+                      <span>{{ flightFinalArrivalAt(flight) | date:"dd/MM" }}</span>
+                      <span class="text-muted-foreground">{{ flightFinalArrivalAt(flight) | date:"HH:mm" }}</span>
                     </span>
                   </time>
                 </div>
@@ -284,7 +284,7 @@
                     @if (flight.connections.length) {
                     <span class="inline-flex items-center gap-1.5 whitespace-nowrap text-amber-200">
                       <svg lucideTriangleAlert class="size-3.5 shrink-0 text-amber-300" aria-hidden="true"></svg>
-                      {{ flight.connections.length === 1 ? "1 conexão" : flight.connections.length + " conexões" }}
+                      {{ flightConnectionSummary(flight) }}
                     </span>
                     } @else {
                     <span class="inline-flex items-center gap-1.5 whitespace-nowrap text-muted-foreground">
@@ -302,24 +302,24 @@
               <div class="flex justify-end gap-1 max-lg:col-start-2 max-lg:row-start-3 max-lg:justify-self-end max-sm:col-start-1 max-sm:-mr-3.5 max-sm:justify-self-end">
                 @if (flight.connections.length) {
                 <isumi-button variant="ghost" size="sm" iconOnly
-                  [attr.title]="'Ver detalhes do voo ' + flight.departureAirport + ' para ' + flight.arrivalAirport"
-                  [ariaLabel]="'Ver detalhes do voo ' + flight.departureAirport + ' para ' + flight.arrivalAirport"
+                  [attr.title]="'Ver detalhes do voo ' + flightOrigin(flight) + ' para ' + flightFinalDestination(flight)"
+                  [ariaLabel]="'Ver detalhes do voo ' + flightOrigin(flight) + ' para ' + flightFinalDestination(flight)"
                   (click)="openFlightDetailsModal(flight)">
                   <svg icon lucideInfo class="size-3.5" aria-hidden="true"></svg>
                   Ver detalhes
                 </isumi-button>
                 }
                 <isumi-button variant="ghost" size="sm" iconOnly
-                  [attr.title]="'Editar voo ' + flight.departureAirport + ' para ' + flight.arrivalAirport"
-                  [ariaLabel]="'Editar voo ' + flight.departureAirport + ' para ' + flight.arrivalAirport"
+                  [attr.title]="'Editar voo ' + flightOrigin(flight) + ' para ' + flightFinalDestination(flight)"
+                  [ariaLabel]="'Editar voo ' + flightOrigin(flight) + ' para ' + flightFinalDestination(flight)"
                   (click)="openEditFlight(flight)">
                   <svg icon lucidePencil class="size-3.5" aria-hidden="true"></svg>
                   Editar voo
                 </isumi-button>
                 <isumi-button variant="ghost-destructive" size="sm" iconOnly
-                  [attr.title]="'Excluir voo ' + flight.departureAirport + ' para ' + flight.arrivalAirport"
+                  [attr.title]="'Excluir voo ' + flightOrigin(flight) + ' para ' + flightFinalDestination(flight)"
                   [loading]="deletingFlightId() === flight.id"
-                  [ariaLabel]="'Excluir voo ' + flight.departureAirport + ' para ' + flight.arrivalAirport"
+                  [ariaLabel]="'Excluir voo ' + flightOrigin(flight) + ' para ' + flightFinalDestination(flight)"
                   (click)="openDeleteFlightModal(flight)">
                   <svg icon lucideTrash2 class="size-3.5" aria-hidden="true"></svg>
                   Excluir voo
@@ -356,7 +356,7 @@
 
     <div class="grid grid-cols-[22rem_minmax(0,1fr)] items-start gap-5 max-xl:grid-cols-1">
       <aside class="grid gap-4 xl:sticky xl:top-6 xl:self-start">
-        <section class="overflow-hidden rounded-lg bg-card" aria-labelledby="places-library-title">
+        <section class="overflow-visible rounded-lg bg-card" aria-labelledby="places-library-title">
           <header class="flex items-start justify-between gap-3 px-4 pb-3 pt-4">
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
@@ -372,7 +372,16 @@
                 Ideias para distribuir pelos dias e transformar em paradas do roteiro.
               </p>
             </div>
-            <div class="shrink-0">
+            <div class="flex shrink-0 gap-1">
+              <isumi-tooltip
+                [label]="generalMapAddressCount() > 0 ? 'Visualizar mapa geral' : 'Adicione coordenadas para ver o mapa geral'">
+                <isumi-button variant="secondary" size="sm" iconOnly ariaLabel="Visualizar mapa geral" type="button"
+                  [disabled]="generalMapAddressCount() === 0"
+                  (click)="openGeneralMap()">
+                  <svg icon lucideMap class="size-4" aria-hidden="true"></svg>
+                  Visualizar mapa geral
+                </isumi-button>
+              </isumi-tooltip>
               <isumi-button variant="secondary" size="sm" iconOnly ariaLabel="Criar novo lugar" type="button"
                 (click)="openCreatePlace()">
                 <svg icon lucidePlus class="size-4"></svg>
@@ -658,7 +667,18 @@
               <strong class="mt-0.5 block text-sm">Dia {{ dayNumber(currentDay) }} de {{ store.days().length }}</strong>
               }
             </div>
-            <div class="flex items-center gap-1">
+            <div class="flex flex-wrap items-center justify-end gap-1">
+              <isumi-tooltip [label]="dayTimelineExpanded() ? 'Ocultar timeline' : 'Exibir timeline'">
+                <isumi-button variant="secondary" size="sm" type="button" iconOnly
+                  [ariaExpanded]="dayTimelineExpanded()"
+                  ariaControls="trip-day-timeline"
+                  [ariaLabel]="dayTimelineExpanded() ? 'Ocultar timeline' : 'Exibir timeline'"
+                  (mouseleave)="blurTimelineToggle($event)"
+                  (click)="toggleDayTimeline()">
+                  <svg icon lucideRulerDimensionLine class="size-4" aria-hidden="true"></svg>
+                  {{ dayTimelineExpanded() ? "Ocultar timeline" : "Exibir timeline" }}
+                </isumi-button>
+              </isumi-tooltip>
               <isumi-button variant="secondary" size="sm" iconOnly ariaLabel="Mostrar dia anterior"
                 [disabled]="!canShowPreviousDays() || dayAnimating()" (click)="showPreviousDays()">
                 <svg icon lucideChevronLeft class="size-4"></svg>
@@ -679,41 +699,57 @@
                 [style.width.%]="dayNumber(currentDay) / store.days().length * 100"></span>
             </div>
 
-            <div class="relative min-w-0 overflow-hidden rounded-md bg-background/45 px-2 py-2.5">
-              <div class="relative flex min-w-0 snap-x gap-1 overflow-x-auto pb-1 pt-0.5" aria-label="Escolha rápida de dia">
-                @for (timelineDay of store.days(); track timelineDay.id) {
-                <button
-                  class="relative grid min-h-[4.75rem] min-w-[5.75rem] cursor-pointer snap-start content-start justify-items-center gap-1 rounded-md px-2 py-1.5 text-center outline-none transition-[background-color,color,box-shadow] duration-200 hover:bg-accent/70 hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/70 disabled:cursor-wait disabled:opacity-70"
-                  type="button"
-                  [class.min-w-[8.75rem]]="isFocusedDay(timelineDay)"
-                  [class.bg-secondary]="isFocusedDay(timelineDay)"
-                  [class.text-foreground]="isFocusedDay(timelineDay)"
-                  [class.text-muted-foreground]="!isFocusedDay(timelineDay)"
-                  [attr.aria-current]="isFocusedDay(timelineDay) ? 'date' : null"
-                  [attr.aria-label]="dayNavigatorLabel(timelineDay)"
-                  [disabled]="dayAnimating()"
-                  (click)="focusDay(timelineDay.id)">
-                  <span class="relative z-10 grid size-8 place-items-center rounded-full border text-xs font-black tabular-nums transition-[background-color,border-color,color] duration-200"
-                    [ngClass]="isFocusedDay(timelineDay) ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-foreground'">
-                    {{ dayNumber(timelineDay) }}
-                  </span>
-                  <span class="mt-1 text-[0.6875rem] font-black leading-none"
-                    [class.text-foreground]="isFocusedDay(timelineDay)">
-                    Dia {{ dayNumber(timelineDay) }}
-                  </span>
-                  <span class="max-w-full truncate text-[0.6875rem] font-bold leading-4 opacity-80">
-                    {{ formatDateOnly(timelineDay.date) }}
-                  </span>
-                  @if (isFocusedDay(timelineDay) || dayStopCount(timelineDay) > 0) {
-                  <span class="max-w-full truncate rounded-full px-2 py-0.5 text-[0.625rem] font-black leading-4"
-                    [ngClass]="isFocusedDay(timelineDay) ? 'bg-primary/15 text-primary' : 'bg-secondary/70 text-muted-foreground'">
-                    {{ dayStopLabel(timelineDay) }}
-                  </span>
-                  }
-                </button>
-                }
+            <div id="trip-day-timeline"
+              class="grid overflow-hidden transition-[grid-template-rows,opacity,transform] duration-200 ease-out motion-reduce:transform-none motion-reduce:transition-none"
+              [class.grid-rows-[1fr]]="dayTimelineExpanded()"
+              [class.grid-rows-[0fr]]="!dayTimelineExpanded()"
+              [class.translate-y-0]="dayTimelineExpanded()"
+              [class.-translate-y-1]="!dayTimelineExpanded()"
+              [class.opacity-100]="dayTimelineExpanded()"
+              [class.opacity-0]="!dayTimelineExpanded()"
+              [attr.aria-hidden]="!dayTimelineExpanded()"
+              [attr.inert]="dayTimelineExpanded() ? null : ''">
+              <div class="min-h-0 overflow-hidden">
+                <div class="relative min-w-0 overflow-hidden rounded-md bg-background/45 px-2 py-2.5">
+                  <div class="min-w-0 overflow-x-auto pb-1 pt-0.5">
+                    <div class="relative grid snap-x gap-1" aria-label="Escolha rápida de dia"
+                      [style.grid-template-columns]="dayTimelineGridTemplate()"
+                      [style.min-width]="dayTimelineMinWidth()">
+                      @for (timelineDay of store.days(); track timelineDay.id) {
+                      <button
+                        class="relative z-10 grid min-h-[4.75rem] cursor-pointer snap-start content-start justify-items-center gap-1 rounded-md px-2 py-1.5 text-center outline-none transition-[background-color,color,box-shadow] duration-200 hover:bg-accent/70 hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/70 disabled:cursor-wait disabled:opacity-70"
+                        type="button"
+                        [class.bg-secondary]="isFocusedDay(timelineDay)"
+                        [class.text-foreground]="isFocusedDay(timelineDay)"
+                        [class.text-muted-foreground]="!isFocusedDay(timelineDay)"
+                        [attr.aria-current]="isFocusedDay(timelineDay) ? 'date' : null"
+                        [attr.aria-label]="dayNavigatorLabel(timelineDay)"
+                        [disabled]="dayAnimating()"
+                        (click)="focusDay(timelineDay.id)">
+                        <span class="relative z-10 grid size-8 place-items-center rounded-full border text-xs font-black tabular-nums transition-[background-color,border-color,color] duration-200"
+                          [ngClass]="isFocusedDay(timelineDay) ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-foreground'">
+                          {{ dayNumber(timelineDay) }}
+                        </span>
+                        <span class="mt-1 text-[0.6875rem] font-black leading-none"
+                          [class.text-foreground]="isFocusedDay(timelineDay)">
+                          Dia {{ dayNumber(timelineDay) }}
+                        </span>
+                        <span class="max-w-full truncate text-[0.6875rem] font-bold leading-4 opacity-80">
+                          {{ formatDateOnly(timelineDay.date) }}
+                        </span>
+                        @if (isFocusedDay(timelineDay) || dayStopCount(timelineDay) > 0) {
+                        <span class="max-w-full truncate rounded-full px-2 py-0.5 text-[0.625rem] font-black leading-4"
+                          [ngClass]="isFocusedDay(timelineDay) ? 'bg-primary/15 text-primary' : 'bg-secondary/70 text-muted-foreground'">
+                          {{ dayStopLabel(timelineDay) }}
+                        </span>
+                        }
+                      </button>
+                      }
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
           </div>
           }
         </div>
@@ -1448,7 +1484,7 @@
             <div>
               <h3 id="flight-route-step-title" class="m-0 text-base font-black">Qual é o trecho?</h3>
               <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">
-                Informe a origem e o destino do voo. Use siglas ou nomes curtos.
+                Informe o primeiro trecho da jornada. Se houver conexão, o destino final aparecerá na revisão.
               </p>
             </div>
 
@@ -1456,7 +1492,7 @@
               <label class="grid gap-2">
                 <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
                   <svg lucidePlaneTakeoff class="size-4" aria-hidden="true"></svg>
-                  Origem
+                  Origem inicial
                 </span>
                 <input isumiInput name="departureAirport" maxlength="3" [ngModel]="departureAirport()"
                   (ngModelChange)="departureAirport.set($event.slice(0, 3).toUpperCase())" placeholder="GRU" autocomplete="off" required>
@@ -1467,7 +1503,7 @@
               <label class="grid gap-2">
                 <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
                   <svg lucidePlaneLanding class="size-4" aria-hidden="true"></svg>
-                  Destino
+                  Primeira chegada
                 </span>
                 <input isumiInput name="arrivalAirport" maxlength="3" [ngModel]="arrivalAirport()"
                   (ngModelChange)="arrivalAirport.set($event.slice(0, 3).toUpperCase())" placeholder="EZE" autocomplete="off" required>
@@ -1507,9 +1543,9 @@
           @case ("details") {
           <section class="grid min-w-0 gap-4 rounded-lg bg-secondary/55 p-4" aria-labelledby="flight-details-step-title">
             <div>
-              <h3 id="flight-details-step-title" class="m-0 text-base font-black">Identificação e conexão</h3>
+              <h3 id="flight-details-step-title" class="m-0 text-base font-black">Trechos da jornada</h3>
               <p class="m-0 mt-1 text-sm leading-6 text-muted-foreground">
-                Companhia e número ajudam a encontrar o voo depois. A conexão fica agrupada aqui.
+                Registre companhia, número do voo e cada trecho depois da primeira chegada.
               </p>
             </div>
 
@@ -1536,7 +1572,7 @@
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <strong class="block text-sm">Conexões</strong>
-                  <span class="block text-xs leading-5 text-muted-foreground">Adicione um trecho para cada parada antes do destino final.</span>
+                  <span class="block text-xs leading-5 text-muted-foreground">Adicione um trecho para cada parada até o destino final. O tempo de conexão é calculado pelos horários.</span>
                 </div>
                 <isumi-button variant="secondary" size="sm" type="button" (click)="addFlightConnection()">
                   <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
@@ -1561,7 +1597,7 @@
                     <label class="grid gap-2">
                       <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
                         <svg lucidePlaneTakeoff class="size-4" aria-hidden="true"></svg>
-                        Origem da conexão
+                        Origem do trecho
                       </span>
                       <input isumiInput [name]="'connectionDepartureAirport' + index" maxlength="3"
                         [ngModel]="connection.departureAirport"
@@ -1571,7 +1607,7 @@
                     <label class="grid gap-2">
                       <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
                         <svg lucidePlaneLanding class="size-4" aria-hidden="true"></svg>
-                        Destino da conexão
+                        Destino do trecho
                       </span>
                       <input isumiInput [name]="'connectionArrivalAirport' + index" maxlength="3"
                         [ngModel]="connection.arrivalAirport"
@@ -1584,7 +1620,7 @@
                     <label class="grid gap-2">
                       <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
                         <svg lucideClock3 class="size-4" aria-hidden="true"></svg>
-                        Saída da conexão
+                        Saída do trecho
                       </span>
                       <input isumiInput type="datetime-local" [name]="'connectionDepartureAt' + index"
                         [ngModel]="connection.departureAt"
@@ -1593,7 +1629,7 @@
                     <label class="grid gap-2">
                       <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
                         <svg lucideClock3 class="size-4" aria-hidden="true"></svg>
-                        Chegada da conexão
+                        Chegada do trecho
                       </span>
                       <input isumiInput type="datetime-local" [name]="'connectionArrivalAt' + index"
                         [ngModel]="connection.arrivalAt"
@@ -1605,7 +1641,7 @@
                     <label class="grid gap-2">
                       <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
                         <svg lucidePlane class="size-4" aria-hidden="true"></svg>
-                        Companhia da conexão
+                        Companhia do trecho
                       </span>
                       <input isumiInput [name]="'connectionAirline' + index" [ngModel]="connection.airline"
                         (ngModelChange)="updateFlightConnection(connection.id, 'airline', $event)"
@@ -1614,7 +1650,7 @@
                     <label class="grid gap-2">
                       <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
                         <svg lucideTicket class="size-4" aria-hidden="true"></svg>
-                        Número da conexão
+                        Número do trecho
                       </span>
                       <input isumiInput [name]="'connectionFlightNumber' + index" [ngModel]="connection.flightNumber"
                         (ngModelChange)="updateFlightConnection(connection.id, 'flightNumber', $event)"
@@ -1622,22 +1658,16 @@
                     </label>
                   </div>
 
-                  <label class="grid gap-2">
-                    <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-                      <svg lucideClock3 class="size-4" aria-hidden="true"></svg>
-                      Layover em minutos
-                    </span>
-                    <input isumiInput type="number" min="0" max="2880" [name]="'connectionLayoverMinutes' + index"
-                      [ngModel]="connection.layoverMinutes"
-                      (ngModelChange)="updateFlightConnection(connection.id, 'layoverMinutes', $event === '' ? null : +$event)"
-                      placeholder="150" required>
-                  </label>
+                  <p class="m-0 inline-flex w-fit items-center gap-1.5 rounded-sm bg-secondary/45 px-3 py-2 text-xs font-extrabold text-muted-foreground">
+                    <svg lucideClock3 class="size-3.5" aria-hidden="true"></svg>
+                    Conexão calculada: {{ flightFormConnectionLayoverLabel(index, connection) }}
+                  </p>
                 </section>
                 }
               </div>
               } @else {
               <p class="m-0 rounded-sm bg-secondary/45 px-3 py-2 text-xs font-semibold leading-5 text-muted-foreground">
-                Sem conexões. O voo será tratado como direto.
+                Sem conexões. A jornada será tratada como voo direto.
               </p>
               }
             </section>
@@ -1656,20 +1686,20 @@
               <div class="grid gap-2 rounded-md bg-background/55 p-3">
                 <dt class="inline-flex items-center gap-2 text-xs font-extrabold text-muted-foreground">
                   <svg lucideRoute class="size-3.5" aria-hidden="true"></svg>
-                  Trecho
+                  Jornada
                 </dt>
-                <dd class="m-0 grid min-w-0 grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] items-center gap-2">
-                  <span class="truncate font-mono text-lg font-black text-foreground">{{ departureAirport().trim().toUpperCase() || "Origem" }}</span>
-                  <span class="grid size-8 place-items-center justify-self-center rounded-sm bg-secondary text-muted-foreground" aria-hidden="true">
-                    <svg lucideMoveRight class="size-4"></svg>
+                <dd class="m-0 grid gap-1">
+                  <span class="break-words font-mono text-lg font-black text-foreground">{{ flightFormRouteLabel() }}</span>
+                  <span class="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+                    <svg lucideClock3 class="size-3.5" aria-hidden="true"></svg>
+                    {{ flightFormTotalDuration() }} no total
                   </span>
-                  <span class="truncate text-right font-mono text-lg font-black text-foreground">{{ arrivalAirport().trim().toUpperCase() || "Destino" }}</span>
                 </dd>
               </div>
               <div class="grid gap-2 rounded-md bg-background/55 p-3">
                 <dt class="inline-flex items-center gap-2 text-xs font-extrabold text-muted-foreground">
                   <svg lucideClock3 class="size-3.5" aria-hidden="true"></svg>
-                  Horários
+                  Primeiro trecho
                 </dt>
                 <dd class="m-0 grid gap-2 text-foreground sm:grid-cols-2">
                   <span class="grid gap-0.5">
@@ -1677,7 +1707,7 @@
                     <strong>{{ departureAt() ? formatDateTimeForSummary(departureAt()) : "Não informada" }}</strong>
                   </span>
                   <span class="grid gap-0.5 sm:text-right">
-                    <span class="text-xs text-muted-foreground">Chegada</span>
+                    <span class="text-xs text-muted-foreground">Primeira chegada</span>
                     <strong>{{ arrivalAt() ? formatDateTimeForSummary(arrivalAt()) : "Não informada" }}</strong>
                   </span>
                 </dd>
@@ -1692,13 +1722,15 @@
               <div class="grid gap-2 rounded-md bg-background/55 p-3">
                 <dt class="inline-flex items-center gap-2 text-xs font-extrabold text-muted-foreground">
                   <svg lucidePlane class="size-3.5" aria-hidden="true"></svg>
-                  Conexões
+                  Trechos seguintes
                 </dt>
                 @if (flightConnections().length) {
                 <dd class="m-0 grid gap-2">
                   @for (connection of flightConnections(); track connection.id; let index = $index) {
                   <span class="grid min-w-0 gap-1">
-                    <span class="text-xs font-bold text-muted-foreground">Conexão {{ index + 1 }}</span>
+                    <span class="text-xs font-bold text-muted-foreground">
+                      Trecho {{ index + 2 }} · conexão de {{ flightFormConnectionLayoverLabel(index, connection) }}
+                    </span>
                     <span class="grid min-w-0 grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] items-center gap-2">
                       <span class="truncate font-mono text-lg font-black text-foreground">{{ connection.departureAirport.trim().toUpperCase() || "Origem" }}</span>
                       <span class="grid size-8 place-items-center justify-self-center rounded-sm bg-secondary text-muted-foreground" aria-hidden="true">

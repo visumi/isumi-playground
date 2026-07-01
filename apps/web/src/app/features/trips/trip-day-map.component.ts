@@ -3,25 +3,38 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  EventEmitter,
   Input,
   OnChanges,
   OnDestroy,
+  Output,
   SimpleChanges,
   ViewChild
 } from "@angular/core";
 import type * as Leaflet from "leaflet";
 import { TripPlaceCategory } from "../../core/api/api.types";
 
-export interface TripDayMapPoint {
+export type TripMapPointStatus = "scheduled" | "unscheduled" | "lodging";
+
+export interface TripMapPoint {
   kind: "place" | "lodging";
   id: string;
+  placeId?: string;
   name: string;
   address: string;
   category?: TripPlaceCategory;
-  position: number;
+  position?: number;
+  dayId?: string;
+  dayNumber?: number;
+  status?: TripMapPointStatus;
+  markerClass?: string;
+  markerLabel?: string;
+  subtitle?: string;
   latitude: number;
   longitude: number;
 }
+
+export type TripDayMapPoint = TripMapPoint;
 
 const CATEGORY_MARKER_CLASSES: Record<TripPlaceCategory, string> = {
   food: "trip-map-marker--food",
@@ -67,7 +80,9 @@ type LeafletImport = typeof Leaflet | { default: typeof Leaflet };
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy {
-  @Input({ required: true }) points: TripDayMapPoint[] = [];
+  @Input({ required: true }) points: TripMapPoint[] = [];
+  @Input() highlightedPlaceIds: string[] = [];
+  @Output() placeSelected = new EventEmitter<string>();
   @ViewChild("mapContainer") private mapContainer?: ElementRef<HTMLElement>;
 
   private leaflet: typeof Leaflet | null = null;
@@ -95,7 +110,7 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes["points"]) {
+    if (changes["points"] || changes["highlightedPlaceIds"]) {
       this.renderPoints();
       this.scheduleMapRefresh();
     }
@@ -121,19 +136,29 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
       coordinates.push(position);
       const markerClass = point.kind === "lodging"
         ? "trip-map-marker--lodging"
-        : CATEGORY_MARKER_CLASSES[point.category || "other"];
-      const markerContent = point.kind === "lodging" ? LODGING_MARKER_ICON : `<span>${point.position}</span>`;
-      this.leaflet.marker(position, {
+        : point.markerClass || CATEGORY_MARKER_CLASSES[point.category || "other"];
+      const markerClasses = ["trip-map-marker", markerClass];
+      if (point.placeId && this.highlightedPlaceIds.includes(point.placeId)) {
+        markerClasses.push("trip-map-marker--selected");
+      }
+      const markerContent = point.kind === "lodging" ? LODGING_MARKER_ICON : `<span>${this.markerLabel(point)}</span>`;
+      const markerSubtitle = point.subtitle
+        || (point.kind === "lodging" ? "Hospedagem" : `Parada ${point.position || ""}`.trim());
+      const marker = this.leaflet.marker(position, {
         icon: this.leaflet.divIcon({
           className: "",
-          html: `<span class="trip-map-marker ${markerClass}">${markerContent}</span>`,
+          html: `<span class="${markerClasses.join(" ")}">${markerContent}</span>`,
           iconSize: point.kind === "lodging" ? [36, 36] : [32, 32],
           iconAnchor: point.kind === "lodging" ? [18, 36] : [16, 32],
           popupAnchor: [0, point.kind === "lodging" ? -34 : -30]
         })
-      })
-        .bindPopup(`<strong>${escapeHtml(point.name)}</strong><br><span>${escapeHtml(point.kind === "lodging" ? "Hospedagem" : `Parada ${point.position}`)}</span><br><span>${escapeHtml(point.address)}</span>`)
-        .addTo(this.markerLayer);
+      });
+      marker
+        .bindPopup(`<strong>${escapeHtml(point.name)}</strong><br><span>${escapeHtml(markerSubtitle)}</span><br><span>${escapeHtml(point.address)}</span>`);
+      if (point.status === "unscheduled" && point.placeId) {
+        marker.on("click", () => this.placeSelected.emit(point.placeId));
+      }
+      marker.addTo(this.markerLayer);
     }
 
     if (coordinates.length === 0) {
@@ -158,6 +183,10 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
     for (const delay of [80, 220, 420]) {
       this.refreshTimers.push(window.setTimeout(refresh, delay));
     }
+  }
+
+  private markerLabel(point: TripMapPoint): string {
+    return point.markerLabel || String(point.dayNumber || point.position || "");
   }
 }
 
