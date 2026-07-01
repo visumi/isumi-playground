@@ -883,6 +883,23 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     void this.changeFocusedDay(dayIndex);
   }
 
+  isFocusedDay(day: TripDay): boolean {
+    return this.focusedDay()?.id === day.id;
+  }
+
+  dayStopCount(day: TripDay): number {
+    return this.store.itemsForDay(day.id).length;
+  }
+
+  dayStopLabel(day: TripDay): string {
+    const stopCount = this.dayStopCount(day);
+    return stopCount === 1 ? "1 parada" : `${stopCount} paradas`;
+  }
+
+  dayNavigatorLabel(day: TripDay): string {
+    return `Ir para o dia ${this.dayNumber(day)}, ${this.formatDateOnlyLong(day.date)}, ${this.dayStopLabel(day)}`;
+  }
+
   departureLodgingForDay(day: TripDay): TripLodging | null {
     return departureLodgingForDate(this.store.lodgings(), day.date);
   }
