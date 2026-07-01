@@ -198,8 +198,8 @@
           [ngClass]="snapshot.flights.length <= 2 ? 'grid grid-cols-[repeat(auto-fit,minmax(min(32.5rem,100%),1fr))]' : 'flex'">
           @for (flight of snapshot.flights; track flight.id) {
           <article
-            class="grid flex-none snap-start grid-cols-[minmax(17rem,1fr)_12.5rem] overflow-hidden rounded-lg border border-border max-lg:grid-cols-1 max-sm:w-full max-sm:min-w-full"
-            [ngClass]="snapshot.flights.length <= 2 ? 'min-w-0' : 'min-w-[min(32.5rem,100%)]'">
+            class="grid flex-none snap-start overflow-hidden rounded-lg border border-border max-lg:grid-cols-1 max-sm:w-full max-sm:min-w-full"
+            [ngClass]="snapshot.flights.length === 1 ? 'min-w-0 grid-cols-[minmax(17rem,1fr)_minmax(16rem,0.55fr)]' : snapshot.flights.length === 2 ? 'min-w-0 grid-cols-[minmax(17rem,1fr)_12.5rem]' : 'min-w-[min(32.5rem,100%)] grid-cols-[minmax(17rem,1fr)_12.5rem]'">
             <div class="grid min-w-0 gap-4 bg-secondary/60 p-4 max-sm:gap-5 max-sm:p-3.5">
               <header class="flex items-start justify-between gap-3">
                 <div class="flex min-w-0 items-center gap-2">
@@ -691,18 +691,57 @@
                 {{ formatDateOnlyLong(day.date) }}
               </h2>
             </div>
-            <div class="flex shrink-0 items-center gap-1">
+            <div class="flex shrink-0 items-start gap-1">
+              <div class="relative" data-trip-order-picker>
               <isumi-tooltip
-                [label]="canOrderDayByProximity(day) ? 'Ordenar paradas' : 'Adicione paradas para ordenar'">
+                  [label]="canOrderDayByProximity(day) ? 'Escolher modo de ordenação' : 'Adicione paradas para ordenar'">
                 <isumi-button variant="secondary" size="sm" iconOnly type="button"
                   [disabled]="!canOrderDayByProximity(day) || sortingDayId() !== null"
                   [loading]="sortingDayId() === day.id"
-                  [ariaLabel]="'Ordenar roteiro do dia ' + dayNumber(day) + ' por proximidade'"
-                  (click)="orderDayByProximity(day)">
+                    [ariaLabel]="'Escolher modo de ordenação do dia ' + dayNumber(day)"
+                    ariaHaspopup="menu"
+                    [ariaExpanded]="isDayOrderMenuOpen(day)"
+                    [ariaControls]="'day-order-menu-' + day.id"
+                    (click)="toggleDayOrderMenu(day, $event)">
                   <svg icon lucideShuffle class="size-4" aria-hidden="true"></svg>
-                  Ordenar por proximidade
+                  Ordenar paradas
                 </isumi-button>
               </isumi-tooltip>
+                @if (isDayOrderMenuOpen(day)) {
+                <div [id]="'day-order-menu-' + day.id"
+                  class="trip-order-menu absolute right-0 top-full z-30 mt-2 flex gap-1 rounded-lg border border-secondary bg-popover p-1.5 text-popover-foreground shadow-xl shadow-black/35"
+                  role="menu" [attr.aria-label]="'Modos de ordenação do dia ' + dayNumber(day)"
+                  (keydown.escape)="closeDayOrderMenu()">
+                  <isumi-tooltip label="Perto">
+                    <isumi-button size="sm" iconOnly type="button" buttonRole="menuitem"
+                      [variant]="dayOrderMode() === 'near-first' ? 'secondary' : 'ghost'"
+                      ariaLabel="Ordenar perto primeiro"
+                      [ariaPressed]="dayOrderMode() === 'near-first'"
+                      (click)="orderDayByProximity(day, 'near-first')">
+                      <svg icon lucideMinimize2 class="size-4" aria-hidden="true"></svg>
+                    </isumi-button>
+                  </isumi-tooltip>
+                  <isumi-tooltip label="Longe">
+                    <isumi-button size="sm" iconOnly type="button" buttonRole="menuitem"
+                      [variant]="dayOrderMode() === 'far-first' ? 'secondary' : 'ghost'"
+                      ariaLabel="Ordenar longe primeiro"
+                      [ariaPressed]="dayOrderMode() === 'far-first'"
+                      (click)="orderDayByProximity(day, 'far-first')">
+                      <svg icon lucideMaximize2 class="size-4" aria-hidden="true"></svg>
+                    </isumi-button>
+                  </isumi-tooltip>
+                  <isumi-tooltip label="Equilibrado">
+                    <isumi-button size="sm" iconOnly type="button" buttonRole="menuitem"
+                      [variant]="dayOrderMode() === 'distance-curve' ? 'secondary' : 'ghost'"
+                      ariaLabel="Ordenar de forma equilibrada"
+                      [ariaPressed]="dayOrderMode() === 'distance-curve'"
+                      (click)="orderDayByProximity(day, 'distance-curve')">
+                      <svg icon lucideWeightTilde class="size-4" aria-hidden="true"></svg>
+                    </isumi-button>
+                  </isumi-tooltip>
+                </div>
+                }
+              </div>
               <isumi-tooltip
                 [label]="mapAddressCountForDay(day) > 0 ? 'Visualizar mapa do dia' : 'Adicione coordenadas para ver o mapa'">
                 <isumi-button variant="secondary" size="sm" iconOnly type="button"

@@ -20,7 +20,7 @@ export type IsumiButtonType = "button" | "submit" | "reset";
     "[class.max-sm:w-full]": "mobileFull()"
   },
   template: `
-    <button [type]="type()" [disabled]="disabled() || loading()" [attr.aria-busy]="loading() ? true : null" [attr.aria-label]="ariaLabel()" [attr.aria-pressed]="ariaPressed()" [class]="buttonClasses()">
+    <button [type]="type()" [disabled]="disabled() || loading()" [attr.role]="buttonRole()" [attr.aria-busy]="loading() ? true : null" [attr.aria-label]="ariaLabel()" [attr.aria-pressed]="ariaPressed()" [attr.aria-haspopup]="ariaHaspopup()" [attr.aria-expanded]="ariaExpanded()" [attr.aria-controls]="ariaControls()" [class]="buttonClasses()">
       @if (loading()) {
         <span class="size-4 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden="true"></span>
       } @else {
@@ -48,6 +48,10 @@ export class IsumiButtonComponent {
   readonly iconOnly = input(false, { transform: booleanAttribute });
   readonly ariaLabel = input<string | null>(null);
   readonly ariaPressed = input<boolean | null>(null);
+  readonly ariaHaspopup = input<string | null>(null);
+  readonly ariaExpanded = input<boolean | null>(null);
+  readonly ariaControls = input<string | null>(null);
+  readonly buttonRole = input<string | null>(null);
 
   readonly buttonClasses = computed(() => {
     const variantClasses: Record<IsumiButtonVariant, string> = {

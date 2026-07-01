@@ -13,6 +13,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  HostListener,
   OnDestroy,
   OnInit,
   TemplateRef,
@@ -49,6 +50,8 @@ import {
   LucideMap,
   LucideMapPin,
   LucideMapPinned,
+  LucideMaximize2,
+  LucideMinimize2,
   LucideMoonStar,
   LucideMoveRight,
   LucidePencil,
@@ -68,6 +71,7 @@ import {
   LucideTrees,
   LucideUtensils,
   LucideUsers,
+  LucideWeightTilde,
   LucideWifiOff,
   LucideX
 } from "@lucide/angular";
@@ -107,6 +111,7 @@ import { TripRoomStore } from "./trip-room.store";
 type TrayDragData = { kind: "place"; place: TripPlace };
 type ItemDragData = { kind: "item"; item: TripDayItem };
 type FlightEditorStep = "route" | "schedule" | "details" | "review";
+type TripDayOrderMode = "near-first" | "far-first" | "distance-curve";
 type FlightConnectionForm = {
   id: string;
   departureAirport: string;
@@ -604,6 +609,8 @@ export class DeleteTripPlaceModalComponent {
     LucideMap,
     LucideMapPin,
     LucideMapPinned,
+    LucideMaximize2,
+    LucideMinimize2,
     LucideMoveRight,
     LucidePencil,
     LucidePlane,
@@ -618,12 +625,39 @@ export class DeleteTripPlaceModalComponent {
     LucideTriangleAlert,
     LucideTrash2,
     LucideUsers,
+    LucideWeightTilde,
     LucideWifiOff,
     LucideTicketsPlane,
     LucideX
   ],
   providers: [TripRoomStore],
   templateUrl: "./trip-room.component.html",
+  styles: [`
+    .trip-order-menu {
+      animation: trip-order-menu-in 150ms cubic-bezier(0.22, 1, 0.36, 1);
+      transform-origin: top right;
+    }
+
+    @keyframes trip-order-menu-in {
+      from {
+        opacity: 0;
+        transform: translateY(-0.375rem) scale(0.98);
+        filter: blur(2px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .trip-order-menu {
+        animation: none;
+      }
+    }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TripRoomComponent implements OnInit, OnDestroy {
@@ -666,6 +700,15 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   @ViewChild("dayPanel") private dayPanel?: ElementRef<HTMLElement>;
   @ViewChild("editorModal") private editorModal?: TemplateRef<unknown>;
   private editorModalRef: IsumiModalRef<TripEditorModalData, void> | null = null;
+
+  @HostListener("document:click", ["$event"])
+  closeDayOrderMenuOnOutsideClick(event: MouseEvent): void {
+    if (!this.dayOrderMenuDayId()) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest("[data-trip-order-picker]")) return;
+    this.closeDayOrderMenu();
+  }
+
   readonly breadcrumbItems = computed(() => [
     { label: "Salas", link: "/tools/trips" },
     { label: "Sala" }
@@ -691,6 +734,8 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly checkInDate = signal("");
   readonly checkOutDate = signal("");
   readonly sortingDayId = signal<string | null>(null);
+  readonly dayOrderMode = signal<TripDayOrderMode>("near-first");
+  readonly dayOrderMenuDayId = signal<string | null>(null);
 
   readonly routeTransportMode = signal<TripTransportMode | "">("");
   readonly routeDurationMinutes = signal<number | null>(null);
@@ -1033,14 +1078,36 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.focusDay(dayId);
   }
 
-  async orderDayByProximity(day: TripDay): Promise<void> {
+  toggleDayOrderMenu(day: TripDay, event?: Event): void {
+    if (!this.canOrderDayByProximity(day) || this.sortingDayId()) return;
+    this.dayOrderMenuDayId.update((openDayId) => openDayId === day.id ? null : day.id);
+    const target = event?.target;
+    if (target instanceof Element) {
+      const button = target.closest("button");
+      if (button instanceof HTMLButtonElement) button.blur();
+    }
+  }
+
+  closeDayOrderMenu(): void {
+    this.dayOrderMenuDayId.set(null);
+  }
+
+  isDayOrderMenuOpen(day: TripDay): boolean {
+    return this.dayOrderMenuDayId() === day.id;
+  }
+
+  async orderDayByProximity(day: TripDay, mode: TripDayOrderMode = this.dayOrderMode()): Promise<void> {
     if (!this.canOrderDayByProximity(day) || this.sortingDayId()) return;
     const lodging = this.lodgingForDay(day);
     if (!lodging || !hasValidCoordinates(lodging)) return;
 
-    const orderedItemIds = this.orderItemsByProximityFrom(
+    this.dayOrderMode.set(mode);
+    this.closeDayOrderMenu();
+
+    const orderedItemIds = this.orderItemsFrom(
       { latitude: lodging.latitude, longitude: lodging.longitude },
-      this.store.itemsForDay(day.id)
+      this.store.itemsForDay(day.id),
+      mode
     ).map((item) => item.id);
 
     this.sortingDayId.set(day.id);
@@ -1049,11 +1116,22 @@ export class TripRoomComponent implements OnInit, OnDestroy {
         itemIds: orderedItemIds
       }));
       this.store.setSnapshot(snapshot);
-      this.toast.success("Roteiro ordenado por proximidade.");
+      this.toast.success(`Roteiro ordenado: ${this.orderModeLabel(mode).toLowerCase()}.`);
     } catch {
       this.toast.error("Não foi possível ordenar o roteiro.");
     } finally {
       this.sortingDayId.set(null);
+    }
+  }
+
+  orderModeLabel(mode: TripDayOrderMode = this.dayOrderMode()): string {
+    switch (mode) {
+      case "far-first":
+        return "Longe primeiro";
+      case "distance-curve":
+        return "Perto, longe, perto";
+      default:
+        return "Perto primeiro";
     }
   }
 
@@ -1789,6 +1867,17 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     return [...lodgingPoint, ...placePoints];
   }
 
+  private orderItemsFrom(start: CoordinatePair, items: TripDayItem[], mode: TripDayOrderMode): TripDayItem[] {
+    switch (mode) {
+      case "far-first":
+        return this.orderItemsByDistanceFrom(start, items, "desc");
+      case "distance-curve":
+        return this.orderItemsByDistanceCurveFrom(start, items);
+      default:
+        return this.orderItemsByProximityFrom(start, items);
+    }
+  }
+
   private orderItemsByProximityFrom(start: CoordinatePair, items: TripDayItem[]): TripDayItem[] {
     const remaining = [...items];
     const ordered: TripDayItem[] = [];
@@ -1819,6 +1908,50 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     }
 
     return ordered;
+  }
+
+  private orderItemsByDistanceFrom(start: CoordinatePair, items: TripDayItem[], direction: "asc" | "desc"): TripDayItem[] {
+    return items
+      .map((item, index) => ({
+        item,
+        index,
+        distance: this.distanceFrom(start, item)
+      }))
+      .sort((a, b) => {
+        const distanceComparison = direction === "asc"
+          ? a.distance - b.distance
+          : b.distance - a.distance;
+        return distanceComparison || a.item.position - b.item.position || a.index - b.index;
+      })
+      .map(({ item }) => item);
+  }
+
+  private orderItemsByDistanceCurveFrom(start: CoordinatePair, items: TripDayItem[]): TripDayItem[] {
+    const rankedItems = this.orderItemsByDistanceFrom(start, items, "asc");
+    const orderedItems = new Array<TripDayItem>(rankedItems.length);
+    let leftIndex = 0;
+    let rightIndex = rankedItems.length - 1;
+
+    for (let index = 0; index < rankedItems.length; index += 1) {
+      if (index % 2 === 0) {
+        orderedItems[leftIndex] = rankedItems[index];
+        leftIndex += 1;
+      } else {
+        orderedItems[rightIndex] = rankedItems[index];
+        rightIndex -= 1;
+      }
+    }
+
+    return orderedItems;
+  }
+
+  private distanceFrom(start: CoordinatePair, item: TripDayItem): number {
+    const place = this.placeById(item.placeId);
+    if (!place || !hasValidCoordinates(place)) return Number.POSITIVE_INFINITY;
+    return haversineDistanceInMeters(start, {
+      latitude: place.latitude,
+      longitude: place.longitude
+    });
   }
 
   private async reload(): Promise<void> {
