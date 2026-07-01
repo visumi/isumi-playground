@@ -210,6 +210,60 @@ describe("trip planner validation", () => {
     expect(statements[0]?.sql).toContain("INSERT INTO trip_routes");
   });
 
+  it("creates a route from the last stop to the check-in lodging", async () => {
+    let statements: Array<{ sql: string; args: unknown[] }> = [];
+    const execute = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ role: "member" }] })
+      .mockResolvedValueOnce({ rows: [{ 1: 1 }] });
+    const db = {
+      execute,
+      batch: vi.fn().mockImplementation(async (nextStatements: Array<{ sql: string; args: unknown[] }>) => {
+        statements = nextStatements;
+        throw new Error("stop_after_arrival_route_batch");
+      })
+    } as unknown as Client;
+
+    await expect(createTripRoute(db, "user-1", "room-1", {
+      fromItemId: "item-last",
+      toLodgingId: "lodging-new",
+      transportMode: "car",
+      durationMinutes: 18
+    })).rejects.toThrowError("stop_after_arrival_route_batch");
+
+    const arrivalRouteCheck = String(execute.mock.calls[1][0].sql);
+    expect(arrivalRouteCheck).toContain("lodging.check_in_date = day.date");
+    expect(arrivalRouteCheck).toContain("later.position > origin.position");
+    expect(statements[0]?.sql).toContain("to_lodging_id");
+    expect(statements[0]?.args).toEqual(expect.arrayContaining(["item-last", "lodging-new"]));
+  });
+
+  it("creates a direct lodging transfer route when the transfer day has no stops", async () => {
+    let statements: Array<{ sql: string; args: unknown[] }> = [];
+    const execute = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ role: "member" }] })
+      .mockResolvedValueOnce({ rows: [{ 1: 1 }] });
+    const db = {
+      execute,
+      batch: vi.fn().mockImplementation(async (nextStatements: Array<{ sql: string; args: unknown[] }>) => {
+        statements = nextStatements;
+        throw new Error("stop_after_lodging_transfer_batch");
+      })
+    } as unknown as Client;
+
+    await expect(createTripRoute(db, "user-1", "room-1", {
+      fromLodgingId: "lodging-old",
+      toLodgingId: "lodging-new",
+      transportMode: "transit",
+      durationMinutes: 35
+    })).rejects.toThrowError("stop_after_lodging_transfer_batch");
+
+    const transferRouteCheck = String(execute.mock.calls[1][0].sql);
+    expect(transferRouteCheck).toContain("arrival.check_in_date = departure.check_out_date");
+    expect(transferRouteCheck).toContain("NOT EXISTS");
+    expect(statements[0]?.sql).toContain("to_lodging_id");
+    expect(statements[0]?.args).toEqual(expect.arrayContaining(["lodging-old", "lodging-new"]));
+  });
+
   it("does not delete a place that is already planned", async () => {
     const db = {
       execute: vi.fn()
@@ -255,6 +309,7 @@ describe("trip planner validation", () => {
     expect(cleanup?.sql).toContain("destination.position = origin.position + 1");
     expect(cleanup?.sql).toContain("origin.id = trip_routes.from_item_id");
     expect(cleanup?.sql).toContain("destination.id = trip_routes.to_item_id");
+    expect(cleanup?.sql).toContain("trip_routes.to_lodging_id");
   });
 
   it("stores manual coordinates when creating a place", async () => {
@@ -303,6 +358,34 @@ describe("trip planner validation", () => {
 
     expect(statements[0]?.sql).toContain("INSERT INTO trip_lodgings");
     expect(statements[0]?.args).toEqual(expect.arrayContaining([-22.8969586, -47.0780046]));
+  });
+
+  it("allows a lodging to start on another lodging check-out date", async () => {
+    let statements: Array<{ sql: string; args: unknown[] }> = [];
+    const execute = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ role: "member" }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const db = {
+      execute,
+      batch: vi.fn().mockImplementation(async (nextStatements: Array<{ sql: string; args: unknown[] }>) => {
+        statements = nextStatements;
+        throw new Error("stop_after_adjacent_lodging_batch");
+      })
+    } as unknown as Client;
+
+    await expect(createTripLodging(db, "user-1", "room-1", {
+      name: "Hotel novo",
+      address: "Rua Nova, 20",
+      checkInDate: "2026-10-14",
+      checkOutDate: "2026-10-16",
+      latitude: -22.9,
+      longitude: -47.08
+    })).rejects.toThrowError("stop_after_adjacent_lodging_batch");
+
+    const conflictCheck = String(execute.mock.calls[1][0].sql);
+    expect(conflictCheck).toContain("check_in_date < ?");
+    expect(conflictCheck).toContain("check_out_date > ?");
+    expect(statements[0]?.args).toEqual(expect.arrayContaining(["2026-10-14", "2026-10-16"]));
   });
 
   it("rejects place coordinates outside valid ranges", async () => {

@@ -317,7 +317,8 @@ export interface TripRoute {
   id: string;
   fromItemId: string | null;
   fromLodgingId: string | null;
-  toItemId: string;
+  toItemId: string | null;
+  toLodgingId: string | null;
   transportMode: TripTransportMode;
   durationMinutes: number;
   notes: string | null;
@@ -405,6 +406,7 @@ export interface UpsertTripRouteRequest {
   fromItemId?: string;
   fromLodgingId?: string;
   toItemId?: string;
+  toLodgingId?: string;
   transportMode: TripTransportMode;
   durationMinutes: number;
   notes?: string | null;

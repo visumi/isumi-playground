@@ -755,7 +755,7 @@
             </div>
           </header>
 
-          @if (lodgingForDay(day); as lodging) {
+          @if (departureLodgingForDay(day); as lodging) {
           <section class="grid gap-0" aria-label="Hospedagem do dia">
             <article
               class="grid w-full rounded-lg bg-secondary/65 p-3 text-secondary-foreground outline-none focus-within:ring-2 focus-within:ring-primary/65"
@@ -1063,6 +1063,114 @@
             }
             }
           </div>
+
+          @if (arrivalLodgingForDay(day); as arrivalLodging) {
+          <section class="grid gap-0" aria-label="Hospedagem de chegada">
+            @if (store.itemsForDay(day.id).length > 0) {
+            @let lastItem = store.itemsForDay(day.id)[store.itemsForDay(day.id).length - 1];
+            @let arrivalRoute = routeToLodging(lastItem.id, arrivalLodging.id);
+            <button type="button"
+              class="group/route relative mx-4 mb-3 mt-3 flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md px-3 pl-10 text-left text-xs font-bold text-muted-foreground transition-colors duration-200 hover:bg-accent/70 hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+              (click)="openArrivalRoute(lastItem, arrivalLodging)">
+              <span
+                class="pointer-events-none absolute -bottom-3 -top-8 left-[1.375rem] w-px -translate-x-1/2 bg-border transition-colors group-hover/route:bg-primary/50"
+                aria-hidden="true"></span>
+              @switch (arrivalRoute?.transportMode) {
+              @case ("walk") { <svg lucideFootprints
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              @case ("car") { <svg lucideCar
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              @case ("transit") { <svg lucideBus
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              @case ("other") { <svg lucideShuffle
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              @default { <svg lucideLink
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              }
+              <span>
+                {{ arrivalRoute
+                  ? transportLabel(arrivalRoute.transportMode) + " · " + arrivalRoute.durationMinutes + " min"
+                  : "Definir trajeto até a hospedagem" }}
+              </span>
+            </button>
+            } @else if (departureLodgingForDay(day); as departureLodging) {
+            @let transferRoute = routeBetweenLodgings(departureLodging.id, arrivalLodging.id);
+            <button type="button"
+              class="group/route relative mx-4 mb-3 mt-3 flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md px-3 pl-10 text-left text-xs font-bold text-muted-foreground transition-colors duration-200 hover:bg-accent/70 hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+              (click)="openLodgingTransferRoute(departureLodging, arrivalLodging)">
+              <span
+                class="pointer-events-none absolute -bottom-3 -top-8 left-[1.375rem] w-px -translate-x-1/2 bg-border transition-colors group-hover/route:bg-primary/50"
+                aria-hidden="true"></span>
+              @switch (transferRoute?.transportMode) {
+              @case ("walk") { <svg lucideFootprints
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              @case ("car") { <svg lucideCar
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              @case ("transit") { <svg lucideBus
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              @case ("other") { <svg lucideShuffle
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              @default { <svg lucideLink
+                class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground transition-colors group-hover/route:text-primary"
+                aria-hidden="true"></svg> }
+              }
+              <span>
+                {{ transferRoute
+                  ? transportLabel(transferRoute.transportMode) + " · " + transferRoute.durationMinutes + " min"
+                  : "Definir trajeto até a hospedagem" }}
+              </span>
+            </button>
+            }
+
+            <article
+              class="grid w-full rounded-lg bg-secondary/65 p-3 text-secondary-foreground outline-none focus-within:ring-2 focus-within:ring-primary/65"
+              aria-label="Hospedagem de chegada deste dia">
+              <div class="flex min-w-0 items-start gap-3">
+                <div class="min-w-0 flex-1">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <span class="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+                      <svg lucideBedDouble class="size-4" aria-hidden="true"></svg>
+                    </span>
+                    <div class="min-w-0">
+                      <strong class="block break-words text-[0.9375rem] font-extrabold leading-5 text-foreground/85">
+                        {{ arrivalLodging.name }}
+                      </strong>
+                      <span class="mt-0.5 block text-xs font-semibold leading-5 text-muted-foreground">
+                        {{ formatDateOnly(arrivalLodging.checkInDate) }} → {{ formatDateOnly(arrivalLodging.checkOutDate) }}
+                      </span>
+                    </div>
+                  </div>
+
+                  @if (arrivalLodging.address) {
+                  <p class="m-0 mt-1.5 flex min-w-0 items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+                    <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0 text-foreground/45" aria-hidden="true"></svg>
+                    <span class="min-w-0 break-words">{{ arrivalLodging.address }}</span>
+                  </p>
+                  }
+                </div>
+                <div class="flex shrink-0 items-center gap-0.5">
+                  @if (arrivalLodging.address) {
+                  <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Copiar link do mapa"
+                    (pointerdown)="$event.stopPropagation()"
+                    (click)="$event.stopPropagation(); copyPlaceAddress(arrivalLodging.address)">
+                    <svg icon lucideMapPinned class="size-4"></svg>
+                    Copiar link do mapa
+                  </isumi-button>
+                  }
+                </div>
+              </div>
+            </article>
+          </section>
+          }
         </section>
         }
       </main>

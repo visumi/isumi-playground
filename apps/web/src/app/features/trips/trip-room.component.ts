@@ -84,6 +84,7 @@ import {
   TripLodging,
   TripPlace,
   TripPlaceCategory,
+  TripRoom,
   TripRoute,
   TripTransportMode
 } from "../../core/api/api.types";
@@ -237,6 +238,27 @@ function durationLabelForMinutes(durationMinutes: number): string {
 
 function dateOnlyValue(date: string): Date {
   return new Date(`${date.slice(0, 10)}T12:00:00Z`);
+}
+
+export function departureLodgingForDate(lodgings: TripLodging[], date: string): TripLodging | null {
+  return lodgings.find((lodging) => lodging.checkOutDate === date)
+    || lodgings.find((lodging) => lodging.checkInDate <= date && lodging.checkOutDate >= date)
+    || null;
+}
+
+export function arrivalLodgingForDate(lodgings: TripLodging[], date: string, departure: TripLodging | null): TripLodging | null {
+  if (!departure || departure.checkOutDate !== date) return null;
+  return lodgings.find((lodging) => lodging.id !== departure.id && lodging.checkInDate === date) || null;
+}
+
+export function suggestedLodgingDates(room: TripRoom, lodgings: TripLodging[]): { checkInDate: string; checkOutDate: string } {
+  const lastCheckOutDate = lodgings.reduce<string | null>((latest, lodging) =>
+    !latest || lodging.checkOutDate > latest ? lodging.checkOutDate : latest
+  , null);
+  return {
+    checkInDate: lastCheckOutDate || room.startDate,
+    checkOutDate: room.endDate
+  };
 }
 
 export const PLACE_CATEGORY_VISUALS: Record<TripPlaceCategory, {
@@ -684,6 +706,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly selectedRouteFromItemId = signal<string | null>(null);
   readonly selectedRouteFromLodgingId = signal<string | null>(null);
   readonly selectedRouteToItemId = signal<string | null>(null);
+  readonly selectedRouteToLodgingId = signal<string | null>(null);
   readonly dragKind = signal<"place" | "item" | null>(null);
   readonly draggingEntityId = signal<string | null>(null);
   readonly draggingSourceDayId = signal<string | null>(null);
@@ -741,11 +764,11 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly routeDurationMinutes = signal<number | null>(null);
   readonly routeNotes = signal("");
   readonly selectedRoute = computed(() => {
+    const fromItemId = this.selectedRouteFromItemId();
     const toItemId = this.selectedRouteToItemId();
     const fromLodgingId = this.selectedRouteFromLodgingId();
-    return fromLodgingId
-      ? this.routeFromLodging(fromLodgingId, toItemId)
-      : this.routeBetween(this.selectedRouteFromItemId(), toItemId);
+    const toLodgingId = this.selectedRouteToLodgingId();
+    return this.routeForEndpoints(fromItemId, fromLodgingId, toItemId, toLodgingId);
   });
   readonly focusedDay = computed(() =>
     this.store.days().find((day) => day.id === this.focusedDayId()) || this.store.days()[0] || null
@@ -860,14 +883,16 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     void this.changeFocusedDay(dayIndex);
   }
 
-  lodgingForDay(day: TripDay): TripLodging | null {
-    return this.store.lodgings().find((lodging) =>
-      lodging.checkInDate <= day.date && lodging.checkOutDate >= day.date
-    ) || null;
+  departureLodgingForDay(day: TripDay): TripLodging | null {
+    return departureLodgingForDate(this.store.lodgings(), day.date);
+  }
+
+  arrivalLodgingForDay(day: TripDay): TripLodging | null {
+    return arrivalLodgingForDate(this.store.lodgings(), day.date, this.departureLodgingForDay(day));
   }
 
   canOrderDayByProximity(day: TripDay): boolean {
-    const lodging = this.lodgingForDay(day);
+    const lodging = this.departureLodgingForDay(day);
     const items = this.store.itemsForDay(day.id);
     return !!lodging
       && hasValidCoordinates(lodging)
@@ -1098,7 +1123,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   async orderDayByProximity(day: TripDay, mode: TripDayOrderMode = this.dayOrderMode()): Promise<void> {
     if (!this.canOrderDayByProximity(day) || this.sortingDayId()) return;
-    const lodging = this.lodgingForDay(day);
+    const lodging = this.departureLodgingForDay(day);
     if (!lodging || !hasValidCoordinates(lodging)) return;
 
     this.dayOrderMode.set(mode);
@@ -1310,8 +1335,30 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   routeFromLodging(fromLodgingId: string | null, toItemId: string | null): TripRoute | null {
     if (!fromLodgingId || !toItemId) return null;
+    return this.routeForEndpoints(null, fromLodgingId, toItemId, null);
+  }
+
+  routeToLodging(fromItemId: string | null, toLodgingId: string | null): TripRoute | null {
+    if (!fromItemId || !toLodgingId) return null;
+    return this.routeForEndpoints(fromItemId, null, null, toLodgingId);
+  }
+
+  routeBetweenLodgings(fromLodgingId: string | null, toLodgingId: string | null): TripRoute | null {
+    if (!fromLodgingId || !toLodgingId) return null;
+    return this.routeForEndpoints(null, fromLodgingId, null, toLodgingId);
+  }
+
+  routeForEndpoints(
+    fromItemId: string | null,
+    fromLodgingId: string | null,
+    toItemId: string | null,
+    toLodgingId: string | null
+  ): TripRoute | null {
     return this.store.routes().find((route) =>
-      route.fromLodgingId === fromLodgingId && route.toItemId === toItemId
+      route.fromItemId === fromItemId
+      && route.fromLodgingId === fromLodgingId
+      && route.toItemId === toItemId
+      && route.toLodgingId === toLodgingId
     ) || null;
   }
 
@@ -1320,6 +1367,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.selectedRouteFromItemId.set(fromItem.id);
     this.selectedRouteFromLodgingId.set(null);
     this.selectedRouteToItemId.set(toItem.id);
+    this.selectedRouteToLodgingId.set(null);
     this.routeTransportMode.set(route?.transportMode || "");
     this.routeDurationMinutes.set(route?.durationMinutes || null);
     this.routeNotes.set(route?.notes || "");
@@ -1331,6 +1379,31 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.selectedRouteFromItemId.set(null);
     this.selectedRouteFromLodgingId.set(lodging.id);
     this.selectedRouteToItemId.set(toItem.id);
+    this.selectedRouteToLodgingId.set(null);
+    this.routeTransportMode.set(route?.transportMode || "");
+    this.routeDurationMinutes.set(route?.durationMinutes || null);
+    this.routeNotes.set(route?.notes || "");
+    this.openEditorModal("route");
+  }
+
+  openArrivalRoute(fromItem: TripDayItem, lodging: TripLodging): void {
+    const route = this.routeToLodging(fromItem.id, lodging.id);
+    this.selectedRouteFromItemId.set(fromItem.id);
+    this.selectedRouteFromLodgingId.set(null);
+    this.selectedRouteToItemId.set(null);
+    this.selectedRouteToLodgingId.set(lodging.id);
+    this.routeTransportMode.set(route?.transportMode || "");
+    this.routeDurationMinutes.set(route?.durationMinutes || null);
+    this.routeNotes.set(route?.notes || "");
+    this.openEditorModal("route");
+  }
+
+  openLodgingTransferRoute(fromLodging: TripLodging, toLodging: TripLodging): void {
+    const route = this.routeBetweenLodgings(fromLodging.id, toLodging.id);
+    this.selectedRouteFromItemId.set(null);
+    this.selectedRouteFromLodgingId.set(fromLodging.id);
+    this.selectedRouteToItemId.set(null);
+    this.selectedRouteToLodgingId.set(toLodging.id);
     this.routeTransportMode.set(route?.transportMode || "");
     this.routeDurationMinutes.set(route?.durationMinutes || null);
     this.routeNotes.set(route?.notes || "");
@@ -1341,13 +1414,20 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     const fromItemId = this.selectedRouteFromItemId();
     const fromLodgingId = this.selectedRouteFromLodgingId();
     const toItemId = this.selectedRouteToItemId();
+    const toLodgingId = this.selectedRouteToLodgingId();
     const transportMode = this.routeTransportMode();
     const durationMinutes = Number(this.routeDurationMinutes());
-    if ((!fromItemId && !fromLodgingId) || !toItemId || !transportMode || !durationMinutes || this.savingPanel()) return;
+    if (
+      (!fromItemId && !fromLodgingId)
+      || (!toItemId && !toLodgingId)
+      || !transportMode
+      || !durationMinutes
+      || this.savingPanel()
+    ) return;
     const selected = this.selectedRoute();
     const payload = {
       ...(fromItemId ? { fromItemId } : { fromLodgingId: fromLodgingId! }),
-      toItemId,
+      ...(toItemId ? { toItemId } : { toLodgingId: toLodgingId! }),
       transportMode,
       durationMinutes,
       notes: this.routeNotes()
@@ -1390,6 +1470,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.selectedRouteFromItemId.set(null);
     this.selectedRouteFromLodgingId.set(null);
     this.selectedRouteToItemId.set(null);
+    this.selectedRouteToLodgingId.set(null);
     this.closePanel();
   }
 
@@ -1616,16 +1697,13 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.openEditorModal("lodging");
   }
 
-  openCreateLodgingForDay(day: TripDay): void {
-    const nextDate = new Date(`${day.date}T12:00:00Z`);
-    nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+  openCreateLodgingForDay(_day: TripDay): void {
     this.selectedLodging.set(null);
     this.lodgingName.set("");
     this.lodgingAddress.set("");
     this.lodgingCoordinates.set("");
     this.lodgingNotes.set("");
-    this.checkInDate.set(day.date);
-    this.checkOutDate.set(nextDate.toISOString().slice(0, 10));
+    this.initializeDateForms();
     this.openEditorModal("lodging");
   }
 
@@ -1672,7 +1750,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     } catch (error) {
       const code = error instanceof HttpErrorResponse ? error.error?.error : null;
       this.toast.error(code === "lodging_date_conflict"
-        ? "Este período se sobrepõe a outra hospedagem da viagem."
+        ? "As datas podem encostar no check-out, mas não podem compartilhar noites com outra hospedagem."
         : "Confira o nome e as datas da hospedagem.");
     } finally {
       this.savingPanel.set(false);
@@ -1833,7 +1911,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   private mapPointsForDay(day: TripDay): TripDayMapPoint[] {
-    const lodging = this.lodgingForDay(day);
+    const lodging = this.departureLodgingForDay(day);
     const lodgingPoint: TripDayMapPoint[] = lodging && hasValidCoordinates(lodging)
       ? [{
           kind: "lodging",
@@ -1843,6 +1921,18 @@ export class TripRoomComponent implements OnInit, OnDestroy {
           position: 0,
           latitude: lodging.latitude,
           longitude: lodging.longitude
+        }]
+      : [];
+    const arrival = this.arrivalLodgingForDay(day);
+    const arrivalPoint: TripDayMapPoint[] = arrival && hasValidCoordinates(arrival)
+      ? [{
+          kind: "lodging",
+          id: `lodging-${arrival.id}`,
+          name: arrival.name,
+          address: arrival.address || "Endereço não informado",
+          position: this.store.itemsForDay(day.id).length + 1,
+          latitude: arrival.latitude,
+          longitude: arrival.longitude
         }]
       : [];
     const placePoints = this.store.itemsForDay(day.id)
@@ -1864,7 +1954,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
         };
       })
       .filter((point): point is TripDayMapPoint => point !== null);
-    return [...lodgingPoint, ...placePoints];
+    return [...lodgingPoint, ...placePoints, ...arrivalPoint];
   }
 
   private orderItemsFrom(start: CoordinatePair, items: TripDayItem[], mode: TripDayOrderMode): TripDayItem[] {
@@ -1991,6 +2081,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
         this.selectedRouteFromItemId.set(null);
         this.selectedRouteFromLodgingId.set(null);
         this.selectedRouteToItemId.set(null);
+        this.selectedRouteToLodgingId.set(null);
       } else if (panel === "flight") {
         this.selectedFlight.set(null);
         this.flightEditorStep.set("route");
@@ -2012,8 +2103,9 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   private initializeDateForms(): void {
     const room = this.store.room();
     if (!room) return;
-    this.checkInDate.set(room.startDate);
-    this.checkOutDate.set(room.endDate);
+    const dates = suggestedLodgingDates(room, this.store.lodgings());
+    this.checkInDate.set(dates.checkInDate);
+    this.checkOutDate.set(dates.checkOutDate);
   }
 
   formatDateTimeForSummary(value: string): string {

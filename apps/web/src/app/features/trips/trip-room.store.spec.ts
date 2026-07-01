@@ -167,6 +167,7 @@ describe("TripRoomStore", () => {
         fromItemId: "first",
         fromLodgingId: null,
         toItemId: "middle",
+        toLodgingId: null,
         transportMode: "walk",
         durationMinutes: 10,
         notes: null,

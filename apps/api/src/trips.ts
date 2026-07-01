@@ -36,6 +36,7 @@ export interface TripRouteInput {
   fromItemId?: string;
   fromLodgingId?: string;
   toItemId?: string;
+  toLodgingId?: string;
   transportMode?: TripTransportMode;
   durationMinutes?: number;
   notes?: string | null;
@@ -216,7 +217,7 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
     }),
     db.execute({
       sql: `
-        SELECT id, from_item_id, from_lodging_id, to_item_id,
+        SELECT id, from_item_id, from_lodging_id, to_item_id, to_lodging_id,
                transport_mode, duration_minutes, notes, version
         FROM trip_routes WHERE room_id = ? ORDER BY created_at, id
       `,
@@ -293,7 +294,8 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       id: String(row.id),
       fromItemId: row.from_item_id ? String(row.from_item_id) : null,
       fromLodgingId: row.from_lodging_id ? String(row.from_lodging_id) : null,
-      toItemId: String(row.to_item_id),
+      toItemId: row.to_item_id ? String(row.to_item_id) : null,
+      toLodgingId: row.to_lodging_id ? String(row.to_lodging_id) : null,
       transportMode: String(row.transport_mode),
       durationMinutes: Number(row.duration_minutes),
       notes: row.notes ? String(row.notes) : null,
@@ -495,6 +497,7 @@ export async function createTripDayItem(db: Client, userId: string, roomId: stri
         position
       ]
     },
+    cleanupInvalidTripRouteStatements(roomId),
     touchRoom(roomId)
   ]);
   return getTripSnapshot(db, userId, roomId);
@@ -540,20 +543,18 @@ export async function createTripRoute(db: Client, userId: string, roomId: string
   await assertTripMember(db, roomId, userId);
   const fromItemId = optionalText(payload.fromItemId, 64);
   const fromLodgingId = optionalText(payload.fromLodgingId, 64);
-  const toItemId = requiredText(payload.toItemId, "missing_route_destination", 64);
+  const toItemId = optionalText(payload.toItemId, 64);
+  const toLodgingId = optionalText(payload.toLodgingId, 64);
   if (!!fromItemId === !!fromLodgingId) throw new HttpError(400, "invalid_route_origin");
-  if (fromItemId) {
-    await assertAdjacentItems(db, roomId, fromItemId, toItemId);
-  } else {
-    await assertLodgingToFirstItem(db, roomId, fromLodgingId!, toItemId);
-  }
+  if (!!toItemId === !!toLodgingId) throw new HttpError(400, "invalid_route_destination");
+  await assertValidTripRoute(db, roomId, fromItemId, fromLodgingId, toItemId, toLodgingId);
   await executeStatementsAtomically(db, [
     {
       sql: `
         INSERT INTO trip_routes
-          (id, room_id, from_item_id, from_lodging_id, to_item_id,
+          (id, room_id, from_item_id, from_lodging_id, to_item_id, to_lodging_id,
            transport_mode, duration_minutes, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
         crypto.randomUUID(),
@@ -561,6 +562,7 @@ export async function createTripRoute(db: Client, userId: string, roomId: string
         fromItemId,
         fromLodgingId,
         toItemId,
+        toLodgingId,
         requiredTransportMode(payload.transportMode),
         integer(payload.durationMinutes, "invalid_route_duration", 1, 1440),
         nullableText(payload.notes, 500)
@@ -581,23 +583,21 @@ export async function updateTripRoute(
   await assertTripMember(db, roomId, userId);
   const existing = await db.execute({
     sql: `
-      SELECT from_item_id, from_lodging_id, to_item_id
+      SELECT from_item_id, from_lodging_id, to_item_id, to_lodging_id
       FROM trip_routes WHERE id = ? AND room_id = ?
     `,
     args: [routeId, roomId]
   });
   const route = existing.rows[0];
   if (!route) throw new HttpError(404, "not_found");
-  if (route.from_item_id) {
-    await assertAdjacentItems(db, roomId, String(route.from_item_id), String(route.to_item_id));
-  } else {
-    await assertLodgingToFirstItem(
-      db,
-      roomId,
-      String(route.from_lodging_id),
-      String(route.to_item_id)
-    );
-  }
+  await assertValidTripRoute(
+    db,
+    roomId,
+    route.from_item_id ? String(route.from_item_id) : null,
+    route.from_lodging_id ? String(route.from_lodging_id) : null,
+    route.to_item_id ? String(route.to_item_id) : null,
+    route.to_lodging_id ? String(route.to_lodging_id) : null
+  );
   const version = integer(payload.version, "missing_entity_version", 1, Number.MAX_SAFE_INTEGER);
   const result = await db.execute({
     sql: `
@@ -857,21 +857,7 @@ export async function updateTripLodging(
     ]
   });
   if (result.rowsAffected === 0) throw new HttpError(409, "entity_version_conflict");
-  await db.execute({
-    sql: `
-      DELETE FROM trip_routes
-      WHERE room_id = ? AND from_lodging_id = ? AND NOT EXISTS (
-        SELECT 1
-        FROM trip_day_items destination
-        INNER JOIN trip_days day ON day.id = destination.day_id
-        WHERE destination.id = trip_routes.to_item_id
-          AND destination.position = 0
-          AND day.date >= ?
-          AND day.date <= ?
-      )
-    `,
-    args: [roomId, lodgingId, checkIn, checkOut]
-  });
+  await db.execute(cleanupInvalidTripRouteStatements(roomId));
   await db.execute(touchRoom(roomId));
   return getTripSnapshot(db, userId, roomId);
 }
@@ -888,8 +874,8 @@ export async function deleteTripLodging(db: Client, userId: string, roomId: stri
   await assertTripMember(db, roomId, userId);
   await executeStatementsAtomically(db, [
     {
-      sql: "DELETE FROM trip_routes WHERE room_id = ? AND from_lodging_id = ?",
-      args: [roomId, lodgingId]
+      sql: "DELETE FROM trip_routes WHERE room_id = ? AND (from_lodging_id = ? OR to_lodging_id = ?)",
+      args: [roomId, lodgingId, lodgingId]
     },
     { sql: "DELETE FROM trip_lodgings WHERE id = ? AND room_id = ?", args: [lodgingId, roomId] },
     touchRoom(roomId)
@@ -1009,10 +995,11 @@ function cleanupInvalidTripRouteStatements(roomId: string): InStatement {
   return {
     sql: `
       DELETE FROM trip_routes
-      WHERE room_id = ? AND (
+      WHERE room_id = ? AND NOT (
         (
           from_item_id IS NOT NULL
-          AND NOT EXISTS (
+          AND to_item_id IS NOT NULL
+          AND EXISTS (
             SELECT 1
             FROM trip_day_items origin
             INNER JOIN trip_day_items destination
@@ -1024,7 +1011,8 @@ function cleanupInvalidTripRouteStatements(roomId: string): InStatement {
         )
         OR (
           from_lodging_id IS NOT NULL
-          AND NOT EXISTS (
+          AND to_item_id IS NOT NULL
+          AND EXISTS (
             SELECT 1
             FROM trip_lodgings lodging
             INNER JOIN trip_day_items destination
@@ -1035,6 +1023,51 @@ function cleanupInvalidTripRouteStatements(roomId: string): InStatement {
              AND day.date >= lodging.check_in_date
              AND day.date <= lodging.check_out_date
             WHERE lodging.id = trip_routes.from_lodging_id
+          )
+        )
+        OR (
+          from_item_id IS NOT NULL
+          AND to_lodging_id IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+            FROM trip_day_items origin
+            INNER JOIN trip_days day
+              ON day.id = origin.day_id
+            INNER JOIN trip_lodgings lodging
+              ON lodging.id = trip_routes.to_lodging_id
+             AND lodging.room_id = origin.room_id
+             AND lodging.check_in_date = day.date
+            WHERE origin.id = trip_routes.from_item_id
+              AND origin.room_id = trip_routes.room_id
+              AND NOT EXISTS (
+                SELECT 1
+                FROM trip_day_items later
+                WHERE later.day_id = origin.day_id
+                  AND later.position > origin.position
+              )
+          )
+        )
+        OR (
+          from_lodging_id IS NOT NULL
+          AND to_lodging_id IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+            FROM trip_lodgings departure
+            INNER JOIN trip_lodgings arrival
+              ON arrival.id = trip_routes.to_lodging_id
+             AND arrival.room_id = departure.room_id
+             AND arrival.id <> departure.id
+             AND arrival.check_in_date = departure.check_out_date
+            INNER JOIN trip_days day
+              ON day.room_id = departure.room_id
+             AND day.date = arrival.check_in_date
+            WHERE departure.id = trip_routes.from_lodging_id
+              AND departure.room_id = trip_routes.room_id
+              AND NOT EXISTS (
+                SELECT 1
+                FROM trip_day_items item
+                WHERE item.day_id = day.id
+              )
           )
         )
       )
@@ -1106,6 +1139,94 @@ async function assertLodgingToFirstItem(
     args: [toItemId, lodgingId, roomId]
   });
   if (result.rows.length === 0) throw new HttpError(400, "route_lodging_not_first_stop");
+}
+
+async function assertValidTripRoute(
+  db: Client,
+  roomId: string,
+  fromItemId: string | null,
+  fromLodgingId: string | null,
+  toItemId: string | null,
+  toLodgingId: string | null
+): Promise<void> {
+  if (fromItemId && toItemId) {
+    await assertAdjacentItems(db, roomId, fromItemId, toItemId);
+    return;
+  }
+  if (fromLodgingId && toItemId) {
+    await assertLodgingToFirstItem(db, roomId, fromLodgingId, toItemId);
+    return;
+  }
+  if (fromItemId && toLodgingId) {
+    await assertLastItemToLodging(db, roomId, fromItemId, toLodgingId);
+    return;
+  }
+  if (fromLodgingId && toLodgingId) {
+    await assertDirectLodgingTransfer(db, roomId, fromLodgingId, toLodgingId);
+    return;
+  }
+  throw new HttpError(400, "invalid_route_endpoints");
+}
+
+async function assertLastItemToLodging(
+  db: Client,
+  roomId: string,
+  fromItemId: string,
+  toLodgingId: string
+): Promise<void> {
+  const result = await db.execute({
+    sql: `
+      SELECT 1
+      FROM trip_day_items origin
+      INNER JOIN trip_days day
+        ON day.id = origin.day_id
+      INNER JOIN trip_lodgings lodging
+        ON lodging.id = ?
+       AND lodging.room_id = origin.room_id
+       AND lodging.check_in_date = day.date
+      WHERE origin.id = ? AND origin.room_id = ?
+        AND NOT EXISTS (
+          SELECT 1
+          FROM trip_day_items later
+          WHERE later.day_id = origin.day_id
+            AND later.position > origin.position
+        )
+      LIMIT 1
+    `,
+    args: [toLodgingId, fromItemId, roomId]
+  });
+  if (result.rows.length === 0) throw new HttpError(400, "route_item_not_last_stop");
+}
+
+async function assertDirectLodgingTransfer(
+  db: Client,
+  roomId: string,
+  fromLodgingId: string,
+  toLodgingId: string
+): Promise<void> {
+  const result = await db.execute({
+    sql: `
+      SELECT 1
+      FROM trip_lodgings departure
+      INNER JOIN trip_lodgings arrival
+        ON arrival.id = ?
+       AND arrival.room_id = departure.room_id
+       AND arrival.id <> departure.id
+       AND arrival.check_in_date = departure.check_out_date
+      INNER JOIN trip_days day
+        ON day.room_id = departure.room_id
+       AND day.date = arrival.check_in_date
+      WHERE departure.id = ? AND departure.room_id = ?
+        AND NOT EXISTS (
+          SELECT 1
+          FROM trip_day_items item
+          WHERE item.day_id = day.id
+        )
+      LIMIT 1
+    `,
+    args: [toLodgingId, fromLodgingId, roomId]
+  });
+  if (result.rows.length === 0) throw new HttpError(400, "route_lodging_transfer_has_stops");
 }
 
 export function enumerateTripDates(startDate: string, endDate: string): string[] {

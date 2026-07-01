@@ -8,11 +8,15 @@ import {
 } from "@lucide/angular";
 import {
   PLACE_CATEGORY_VISUALS,
+  arrivalLodgingForDate,
+  departureLodgingForDate,
   googleMapsUrlForAddress,
   haversineDistanceInMeters,
   linkifyObservationText,
-  parseCoordinatePair
+  parseCoordinatePair,
+  suggestedLodgingDates
 } from "./trip-room.component";
+import { TripLodging, TripRoom } from "../../core/api/api.types";
 
 describe("PLACE_CATEGORY_VISUALS", () => {
   it("assigns a unique icon and color treatment to every category", () => {
@@ -76,5 +80,75 @@ describe("haversineDistanceInMeters", () => {
 
     expect(haversineDistanceInMeters(lodging, nearby))
       .toBeLessThan(haversineDistanceInMeters(lodging, far));
+  });
+});
+
+describe("lodging day helpers", () => {
+  const room: TripRoom = {
+    id: "trip-1",
+    ownerUserId: "user-1",
+    title: "Viagem",
+    destination: "São Paulo",
+    startDate: "2026-10-10",
+    endDate: "2026-10-20",
+    timezone: "America/Sao_Paulo",
+    revision: 1,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z"
+  };
+  const lodgings: TripLodging[] = [
+    {
+      id: "old-hotel",
+      name: "Hotel antigo",
+      address: "Rua A",
+      checkInDate: "2026-10-12",
+      checkOutDate: "2026-10-14",
+      notes: null,
+      latitude: -23.55,
+      longitude: -46.63,
+      version: 1
+    },
+    {
+      id: "new-hotel",
+      name: "Hotel novo",
+      address: "Rua B",
+      checkInDate: "2026-10-14",
+      checkOutDate: "2026-10-16",
+      notes: null,
+      latitude: -23.56,
+      longitude: -46.64,
+      version: 1
+    }
+  ];
+
+  it("uses the checkout lodging as the departure lodging on transfer day", () => {
+    expect(departureLodgingForDate(lodgings, "2026-10-14")?.id).toBe("old-hotel");
+  });
+
+  it("uses the check-in lodging as the arrival lodging on transfer day", () => {
+    const departure = departureLodgingForDate(lodgings, "2026-10-14");
+
+    expect(arrivalLodgingForDate(lodgings, "2026-10-14", departure)?.id).toBe("new-hotel");
+  });
+
+  it("does not duplicate the same lodging as arrival on normal days", () => {
+    const departure = departureLodgingForDate(lodgings, "2026-10-13");
+
+    expect(departure?.id).toBe("old-hotel");
+    expect(arrivalLodgingForDate(lodgings, "2026-10-13", departure)).toBeNull();
+  });
+
+  it("suggests the trip range when there are no lodgings yet", () => {
+    expect(suggestedLodgingDates(room, [])).toEqual({
+      checkInDate: "2026-10-10",
+      checkOutDate: "2026-10-20"
+    });
+  });
+
+  it("suggests the last registered checkout as check-in and the trip end as checkout", () => {
+    expect(suggestedLodgingDates(room, [lodgings[1], lodgings[0]])).toEqual({
+      checkInDate: "2026-10-16",
+      checkOutDate: "2026-10-20"
+    });
   });
 });
