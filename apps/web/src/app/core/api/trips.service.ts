@@ -57,6 +57,10 @@ export class TripsService {
     return this.http.post<TripSnapshot>(`${this.baseUrl}/${roomId}/items`, payload);
   }
 
+  updateItem(roomId: string, itemId: string, payload: UpsertTripDayItemRequest): Observable<TripSnapshot> {
+    return this.http.patch<TripSnapshot>(`${this.baseUrl}/${roomId}/items/${itemId}`, payload);
+  }
+
   deleteItem(roomId: string, itemId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${roomId}/items/${itemId}`);
   }

@@ -49,6 +49,12 @@ export class IsumiCheckboxComponent {
       secondary: "border-input bg-background"
     };
 
+    if (this.disabled() || this.loading()) {
+      return this.checked()
+        ? checkedClasses[this.variant()]
+        : "border-input bg-background";
+    }
+
     return this.checked()
       ? `${checkedClasses[this.variant()]} focus-within:ring-2 focus-within:ring-ring/60`
       : "border-input bg-background hover:border-ring/70 focus-within:ring-2 focus-within:ring-ring/60";

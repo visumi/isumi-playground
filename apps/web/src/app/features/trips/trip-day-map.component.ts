@@ -60,11 +60,11 @@ type LeafletImport = typeof Leaflet | { default: typeof Leaflet };
   selector: "isumi-trip-day-map",
   standalone: true,
   host: {
-    class: "block h-full min-h-[20rem]"
+    class: "block h-full min-h-[14rem] sm:min-h-[20rem]"
   },
   template: `
-    <div class="relative h-full min-h-[20rem] overflow-hidden rounded-lg bg-background">
-      <div #mapContainer class="h-full min-h-[20rem] w-full" aria-label="Mapa dos lugares do dia"></div>
+    <div class="relative h-full min-h-[14rem] overflow-hidden rounded-lg bg-background sm:min-h-[20rem]">
+      <div #mapContainer class="h-full min-h-[14rem] w-full sm:min-h-[20rem]" aria-label="Mapa dos lugares do dia"></div>
       @if (points.length === 0) {
       <div class="absolute inset-0 grid place-items-center bg-background/90 px-5 text-center">
         <div>
@@ -83,6 +83,7 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
   @Input({ required: true }) points: TripMapPoint[] = [];
   @Input() highlightedPlaceIds: string[] = [];
   @Output() placeSelected = new EventEmitter<string>();
+  @Output() pointSelected = new EventEmitter<TripMapPoint>();
   @ViewChild("mapContainer") private mapContainer?: ElementRef<HTMLElement>;
 
   private leaflet: typeof Leaflet | null = null;
@@ -90,6 +91,8 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
   private markerLayer: Leaflet.LayerGroup | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private refreshTimers: number[] = [];
+  private readonly markerElementsByPlaceId = new Map<string, HTMLElement[]>();
+  private lastBoundsSignature: string | null = null;
 
   async ngAfterViewInit(): Promise<void> {
     this.leaflet = resolveLeafletModule(await import("leaflet"));
@@ -110,9 +113,13 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes["points"] || changes["highlightedPlaceIds"]) {
+    if (changes["points"]) {
       this.renderPoints();
       this.scheduleMapRefresh();
+      return;
+    }
+    if (changes["highlightedPlaceIds"]) {
+      this.updateMarkerHighlights();
     }
   }
 
@@ -129,11 +136,14 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
     if (!this.leaflet || !this.map || !this.markerLayer) return;
 
     this.markerLayer.clearLayers();
+    this.markerElementsByPlaceId.clear();
     const coordinates: Leaflet.LatLngExpression[] = [];
+    const coordinateKeys: string[] = [];
 
     for (const point of this.points) {
       const position: Leaflet.LatLngExpression = [point.latitude, point.longitude];
       coordinates.push(position);
+      coordinateKeys.push(`${point.latitude}:${point.longitude}`);
       const markerClass = point.kind === "lodging"
         ? "trip-map-marker--lodging"
         : point.markerClass || CATEGORY_MARKER_CLASSES[point.category || "other"];
@@ -153,13 +163,32 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
           popupAnchor: [0, point.kind === "lodging" ? -34 : -30]
         })
       });
+      const popup = this.leaflet.popup({
+        autoPan: false,
+        closeButton: false,
+        offset: [0, point.kind === "lodging" ? -34 : -30]
+      }).setContent(this.popupContent(point, markerSubtitle));
       marker
-        .bindPopup(`<strong>${escapeHtml(point.name)}</strong><br><span>${escapeHtml(markerSubtitle)}</span><br><span>${escapeHtml(point.address)}</span>`);
-      if (point.status === "unscheduled" && point.placeId) {
-        marker.on("click", () => this.placeSelected.emit(point.placeId));
+        .on("mouseover", () => popup.setLatLng(marker.getLatLng()).openOn(this.map!))
+        .on("mouseout", () => this.map?.closePopup(popup));
+      if (point.kind === "place" && point.placeId) {
+        marker.on("click", () => {
+          this.placeSelected.emit(point.placeId);
+          this.pointSelected.emit(point);
+        });
       }
       marker.addTo(this.markerLayer);
+      const markerElement = marker.getElement()?.querySelector<HTMLElement>(".trip-map-marker");
+      if (point.placeId && markerElement) {
+        const elements = this.markerElementsByPlaceId.get(point.placeId) || [];
+        elements.push(markerElement);
+        this.markerElementsByPlaceId.set(point.placeId, elements);
+      }
     }
+
+    const boundsSignature = coordinateKeys.sort().join("|");
+    if (boundsSignature === this.lastBoundsSignature) return;
+    this.lastBoundsSignature = boundsSignature;
 
     if (coordinates.length === 0) {
       this.map.setView([-14.235, -51.9253], 4);
@@ -187,6 +216,19 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
 
   private markerLabel(point: TripMapPoint): string {
     return point.markerLabel || String(point.dayNumber || point.position || "");
+  }
+
+  private popupContent(point: TripMapPoint, subtitle: string): string {
+    return `<strong>${escapeHtml(point.name)}</strong><br><span>${escapeHtml(subtitle)}</span><br><span>${escapeHtml(point.address)}</span>`;
+  }
+
+  private updateMarkerHighlights(): void {
+    const highlightedPlaceIds = new Set(this.highlightedPlaceIds);
+    for (const [placeId, elements] of this.markerElementsByPlaceId) {
+      for (const element of elements) {
+        element.classList.toggle("trip-map-marker--selected", highlightedPlaceIds.has(placeId));
+      }
+    }
   }
 }
 

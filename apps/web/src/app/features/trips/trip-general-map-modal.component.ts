@@ -4,11 +4,12 @@ import { FormsModule } from "@angular/forms";
 import {
   LucideBedDouble,
   LucideCalendarDays,
+  LucideHourglass,
   LucideMap,
   LucideMapPin,
   LucideX
 } from "@lucide/angular";
-import { TripDay, TripPlaceCategory } from "../../core/api/api.types";
+import { TripDay } from "../../core/api/api.types";
 import {
   IsumiButtonComponent,
   IsumiCheckboxComponent,
@@ -25,27 +26,11 @@ export interface TripGeneralMapModalData {
 }
 
 export interface TripGeneralMapAllocation {
-  dayId: string;
+  dayId?: string;
   placeIds: string[];
+  itemIds: string[];
+  removeItemIds?: string[];
 }
-
-const MAP_CATEGORY_CLASSES: Record<TripPlaceCategory, string> = {
-  food: "bg-amber-500/15 text-amber-400",
-  culture: "bg-violet-500/15 text-violet-400",
-  nightlife: "bg-pink-500/15 text-pink-400",
-  nature: "bg-emerald-500/15 text-emerald-400",
-  shopping: "bg-blue-500/15 text-blue-400",
-  other: "bg-cyan-500/15 text-cyan-300"
-};
-
-const MAP_CATEGORY_LABELS: Record<TripPlaceCategory, string> = {
-  food: "Comer e beber",
-  culture: "Cultura",
-  nightlife: "Vida noturna",
-  nature: "Natureza",
-  shopping: "Compras",
-  other: "Outro"
-};
 
 @Component({
   selector: "isumi-trip-general-map-modal",
@@ -59,6 +44,7 @@ const MAP_CATEGORY_LABELS: Record<TripPlaceCategory, string> = {
     IsumiSelectDirective,
     LucideBedDouble,
     LucideCalendarDays,
+    LucideHourglass,
     LucideMap,
     LucideMapPin,
     LucideX,
@@ -66,7 +52,7 @@ const MAP_CATEGORY_LABELS: Record<TripPlaceCategory, string> = {
   ],
   template: `
     @if (data; as mapData) {
-    <div class="grid h-[min(660px,calc(100dvh-7rem))] min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden overscroll-contain max-sm:h-[calc(100dvh-8rem)]">
+    <div class="grid h-[min(660px,calc(100dvh-7rem))] min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden overscroll-contain max-sm:h-[calc(100dvh-5rem)]">
       <header class="flex shrink-0 items-start justify-between gap-4">
         <div class="min-w-0">
           <h2 class="m-0 inline-flex items-center gap-2 text-[1.2rem] font-black">
@@ -86,13 +72,13 @@ const MAP_CATEGORY_LABELS: Record<TripPlaceCategory, string> = {
         </isumi-button>
       </header>
 
-      <div class="grid min-h-0 grid-cols-[minmax(0,1fr)_minmax(19rem,26rem)] gap-4 max-lg:grid-cols-1 max-lg:grid-rows-[minmax(18rem,1fr)_minmax(16rem,0.95fr)]">
+      <div class="grid min-h-0 grid-cols-[minmax(0,1fr)_minmax(19rem,26rem)] gap-4 max-lg:grid-cols-1 max-lg:grid-rows-[minmax(18rem,1fr)_minmax(16rem,0.95fr)] max-sm:grid-rows-[minmax(16rem,1fr)_auto] max-sm:pb-4">
         <section class="min-h-0 overflow-hidden rounded-lg bg-background">
           <isumi-trip-day-map [points]="mapData.points()" [highlightedPlaceIds]="selectedPlaceIds()"
-            (placeSelected)="selectPlace($event)" />
+            (pointSelected)="togglePoint($event)" />
         </section>
 
-        <aside class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-lg bg-secondary/55 max-sm:mb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+        <aside class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-lg bg-secondary/55 max-sm:self-start max-sm:content-start max-sm:grid-rows-[auto_auto]">
           <div class="border-b border-border/70 px-4 py-3">
             <strong class="inline-flex items-center gap-2 text-sm font-black">
               <span class="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
@@ -100,29 +86,16 @@ const MAP_CATEGORY_LABELS: Record<TripPlaceCategory, string> = {
               </span>
               Pontos no mapa
             </strong>
-            <div class="mt-3 grid grid-cols-3 gap-2 text-center">
-              <span class="rounded-md bg-background/65 px-2 py-2">
-                <strong class="block text-sm">{{ scheduledCount() }}</strong>
-                <span class="block text-[0.625rem] font-bold text-muted-foreground">No roteiro</span>
-              </span>
-              <span class="rounded-md bg-background/65 px-2 py-2">
-                <strong class="block text-sm">{{ unscheduledCount() }}</strong>
-                <span class="block text-[0.625rem] font-bold text-muted-foreground">Pendentes</span>
-              </span>
-              <span class="rounded-md bg-background/65 px-2 py-2">
-                <strong class="block text-sm">{{ lodgingCount() }}</strong>
-                <span class="block text-[0.625rem] font-bold text-muted-foreground">Hospedagens</span>
-              </span>
-            </div>
           </div>
 
-          <form class="grid gap-3 border-b border-border/70 px-4 py-3" (submit)="submitAllocation($event)">
+          <form class="grid gap-3 border-b border-border/70 px-4 py-3 max-sm:border-b-0" (submit)="submitAllocation($event)">
             <label class="grid gap-2">
               <span class="inline-flex items-center gap-2 text-xs font-extrabold text-muted-foreground">
                 <svg lucideCalendarDays class="size-3.5" aria-hidden="true"></svg>
-                Alocar pendentes no dia
+                Enviar selecionados para o dia
               </span>
               <select isumiSelect name="generalMapDay" [ngModel]="selectedDayId()"
+                [disabled]="busy()"
                 (ngModelChange)="selectedDayId.set($event)">
                 <option value="">Escolha um dia</option>
                 @for (day of mapData.days; track day.id) {
@@ -131,34 +104,36 @@ const MAP_CATEGORY_LABELS: Record<TripPlaceCategory, string> = {
               </select>
             </label>
 
-            <isumi-button fullWidth variant="primary" size="sm" type="submit"
-              [disabled]="!canAllocate()"
-              [loading]="allocating()">
-              <svg icon lucideMapPin class="size-4" aria-hidden="true"></svg>
-              Alocar {{ selectedCount() || "" }} {{ selectedCount() === 1 ? "lugar" : "lugares" }}
-            </isumi-button>
+            <div class="grid gap-2.5">
+              <isumi-button fullWidth variant="primary" size="md" type="submit"
+                [disabled]="!canApplyToDay()"
+                [loading]="allocating()">
+                <svg icon lucideMapPin class="size-4" aria-hidden="true"></svg>
+                {{ primaryActionLabel() }}
+              </isumi-button>
+              <isumi-button fullWidth variant="secondary-destructive" size="md" type="button"
+                [disabled]="!canRemoveFromDay()"
+                [loading]="removing()"
+                (click)="removeSelectedFromDays()">
+                <svg icon lucideX class="size-4" aria-hidden="true"></svg>
+                {{ removeActionLabel() }}
+              </isumi-button>
+            </div>
           </form>
 
-          <div class="min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 pt-3">
+          <div class="min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 pt-3 max-sm:hidden">
             @if (mapData.points().length > 0) {
             <ol class="grid gap-2">
               @for (entry of mapData.points(); track entry.id) {
               <li class="grid gap-3 rounded-md bg-background/70 px-3 py-2.5 transition-colors duration-150">
                 <div class="flex min-w-0 items-start gap-3">
-                  @if (entry.status === "unscheduled" && entry.placeId) {
+                  @if (entry.kind === "place" && entry.placeId) {
                   <isumi-checkbox class="mt-1" [checked]="isSelected(entry.placeId)"
-                    [ariaLabel]="'Selecionar ' + entry.name"
+                    [disabled]="busy()"
+                    [ariaLabel]="selectionLabel(entry)"
                     (checkedChange)="togglePlace(entry.placeId!, $event)">
                     <span class="sr-only">Selecionar {{ entry.name }}</span>
                   </isumi-checkbox>
-                  } @else {
-                  <span class="mt-1 grid size-5 shrink-0 place-items-center text-muted-foreground" aria-hidden="true">
-                    @if (entry.kind === "lodging") {
-                    <svg lucideBedDouble class="size-4"></svg>
-                    } @else {
-                    <svg lucideMapPin class="size-4"></svg>
-                    }
-                  </span>
                   }
 
                   <span class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-sm text-xs font-black"
@@ -168,17 +143,13 @@ const MAP_CATEGORY_LABELS: Record<TripPlaceCategory, string> = {
                     } @else if (entry.status === "scheduled") {
                     {{ entry.dayNumber }}
                     } @else {
-                    <svg lucideMapPin class="size-4" aria-hidden="true"></svg>
+                    <svg lucideHourglass class="size-4" aria-hidden="true"></svg>
                     }
                   </span>
 
                   <div class="min-w-0 flex-1">
-                    <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <div class="flex min-w-0 items-center">
                       <strong class="block break-words text-sm">{{ entry.name }}</strong>
-                      <span class="rounded-full px-1.5 py-0.5 text-[0.625rem] font-bold"
-                        [ngClass]="pillClasses(entry)">
-                        {{ entryLabel(entry) }}
-                      </span>
                     </div>
                     <span class="mt-1 flex min-w-0 items-start gap-1.5 break-words text-xs leading-5 text-muted-foreground">
                       <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0 text-foreground/45" aria-hidden="true"></svg>
@@ -213,18 +184,28 @@ export class TripGeneralMapModalComponent {
   readonly selectedDayId = signal(this.data?.days[0]?.id || "");
   readonly selectedPlaceIds = signal<string[]>([]);
   readonly allocating = signal(false);
+  readonly removing = signal(false);
 
-  readonly selectedCount = computed(() => this.selectedPlaceIds().length);
-  readonly canAllocate = computed(() => this.selectedCount() > 0 && !!this.selectedDayId());
-  readonly scheduledCount = computed(() => this.data?.points().filter((point) => point.status === "scheduled").length || 0);
-  readonly unscheduledCount = computed(() => this.data?.points().filter((point) => point.status === "unscheduled").length || 0);
-  readonly lodgingCount = computed(() => this.data?.points().filter((point) => point.kind === "lodging").length || 0);
-
+  readonly selectedEntries = computed(() => {
+    const selectedPlaceIds = new Set(this.selectedPlaceIds());
+    return this.data?.points().filter((point) => point.kind === "place" && point.placeId && selectedPlaceIds.has(point.placeId)) || [];
+  });
+  readonly selectedUnscheduledEntries = computed(() => this.selectedEntries().filter((point) => point.status === "unscheduled"));
+  readonly selectedScheduledEntries = computed(() => this.selectedEntries().filter((point) => point.status === "scheduled"));
+  readonly selectedMovableScheduledEntries = computed(() =>
+    this.selectedScheduledEntries().filter((point) => point.dayId !== this.selectedDayId())
+  );
+  readonly busy = computed(() => this.allocating() || this.removing());
+  readonly selectedScheduledCount = computed(() => this.selectedScheduledEntries().length);
+  readonly selectedActionCount = computed(() => this.selectedUnscheduledEntries().length + this.selectedMovableScheduledEntries().length);
+  readonly canApplyToDay = computed(() => !this.busy() && this.selectedActionCount() > 0 && !!this.selectedDayId());
+  readonly canRemoveFromDay = computed(() => !this.busy() && this.selectedScheduledCount() > 0);
   isSelected(placeId: string): boolean {
     return this.selectedPlaceIds().includes(placeId);
   }
 
   togglePlace(placeId: string, checked: boolean): void {
+    if (this.busy()) return;
     this.selectedPlaceIds.update((placeIds) =>
       checked
         ? Array.from(new Set([...placeIds, placeId]))
@@ -232,41 +213,65 @@ export class TripGeneralMapModalComponent {
     );
   }
 
-  selectPlace(placeId: string): void {
-    this.selectedPlaceIds.update((placeIds) => Array.from(new Set([...placeIds, placeId])));
+  togglePoint(point: TripMapPoint): void {
+    if (this.busy()) return;
+    if (point.kind !== "place" || !point.placeId) return;
+    this.togglePlace(point.placeId, !this.isSelected(point.placeId));
   }
 
   async submitAllocation(event: Event): Promise<void> {
     event.preventDefault();
     const dayId = this.selectedDayId();
-    const placeIds = this.selectedPlaceIds();
-    if (!dayId || placeIds.length === 0 || this.allocating()) return;
+    const placeIds = this.selectedUnscheduledEntries()
+      .map((point) => point.placeId)
+      .filter((placeId): placeId is string => !!placeId);
+    const itemIds = this.selectedMovableScheduledEntries().map((point) => point.id);
+    if (!dayId || (placeIds.length === 0 && itemIds.length === 0) || this.busy()) return;
 
     this.allocating.set(true);
     try {
-      await this.data?.allocate({ dayId, placeIds });
+      await this.data?.allocate({ dayId, placeIds, itemIds });
       this.selectedPlaceIds.set([]);
     } finally {
       this.allocating.set(false);
     }
   }
 
+  async removeSelectedFromDays(): Promise<void> {
+    const removeItemIds = this.selectedScheduledEntries().map((point) => point.id);
+    if (removeItemIds.length === 0 || this.busy()) return;
+
+    this.removing.set(true);
+    try {
+      await this.data?.allocate({ placeIds: [], itemIds: [], removeItemIds });
+      this.selectedPlaceIds.set([]);
+    } finally {
+      this.removing.set(false);
+    }
+  }
+
+  primaryActionLabel(): string {
+    const count = this.selectedActionCount();
+    if (count === 0) return "Escolha lugares no mapa";
+    if (this.selectedMovableScheduledEntries().length === count) return `Mover ${count} ${count === 1 ? "lugar" : "lugares"}`;
+    if (this.selectedUnscheduledEntries().length === count) return `Alocar ${count} ${count === 1 ? "lugar" : "lugares"}`;
+    return `Aplicar a ${count} lugares`;
+  }
+
+  removeActionLabel(): string {
+    const count = this.selectedScheduledCount();
+    if (count === 0) return "Remover do roteiro";
+    return `Remover ${count} ${count === 1 ? "lugar" : "lugares"} do roteiro`;
+  }
+
+  selectionLabel(entry: TripMapPoint): string {
+    return `${this.isSelected(entry.placeId || "") ? "Desmarcar" : "Selecionar"} ${entry.name}`;
+  }
+
   badgeClasses(entry: TripMapPoint): string {
     if (entry.kind === "lodging") return "bg-primary/15 text-primary";
     if (entry.status === "unscheduled") return "bg-muted text-muted-foreground";
     return this.dayBadgeClasses(entry.dayNumber || 1);
-  }
-
-  pillClasses(entry: TripMapPoint): string {
-    if (entry.kind === "lodging") return "bg-primary/15 text-primary";
-    if (entry.status === "unscheduled") return "bg-muted text-muted-foreground";
-    return MAP_CATEGORY_CLASSES[entry.category || "other"];
-  }
-
-  entryLabel(entry: TripMapPoint): string {
-    if (entry.kind === "lodging") return "Hospedagem";
-    if (entry.status === "scheduled") return `Dia ${entry.dayNumber}`;
-    return `Pendente · ${MAP_CATEGORY_LABELS[entry.category || "other"]}`;
   }
 
   private dayBadgeClasses(dayNumber: number): string {

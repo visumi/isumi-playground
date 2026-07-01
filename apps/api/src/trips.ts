@@ -539,6 +539,27 @@ export async function reorderTripDayItems(
   return getTripSnapshot(db, userId, roomId);
 }
 
+export async function moveTripDayItem(db: Client, userId: string, roomId: string, itemId: string, payload: TripDayItemInput) {
+  await assertTripMember(db, roomId, userId);
+  const targetDayId = requiredText(payload.dayId, "missing_day", 64);
+  const itemResult = await db.execute({
+    sql: "SELECT version FROM trip_day_items WHERE id = ? AND room_id = ?",
+    args: [itemId, roomId]
+  });
+  const item = itemResult.rows[0];
+  if (!item) throw new HttpError(404, "not_found");
+
+  const targetPosition = await nextPosition(db, targetDayId);
+  return applyTripMoveOperation(db, userId, roomId, {
+    operationId: crypto.randomUUID(),
+    type: "move_item",
+    entityVersion: Number(item.version),
+    itemId,
+    targetDayId,
+    targetPosition
+  });
+}
+
 export async function createTripRoute(db: Client, userId: string, roomId: string, payload: TripRouteInput) {
   await assertTripMember(db, roomId, userId);
   const fromItemId = optionalText(payload.fromItemId, 64);

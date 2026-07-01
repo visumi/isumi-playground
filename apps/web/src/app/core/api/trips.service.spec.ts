@@ -75,6 +75,17 @@ describe("TripsService", () => {
     request.flush({});
   });
 
+  it("moves an itinerary item to another day", () => {
+    service.updateItem("trip-1", "item-1", {
+      dayId: "day-2"
+    }).subscribe();
+
+    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/items/item-1");
+    expect(request.request.method).toBe("PATCH");
+    expect(request.request.body).toEqual({ dayId: "day-2" });
+    request.flush({});
+  });
+
   it("requests a short-lived realtime ticket", () => {
     service.realtimeTicket("trip-1").subscribe();
     const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/realtime-ticket");

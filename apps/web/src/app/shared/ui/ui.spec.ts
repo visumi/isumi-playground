@@ -108,8 +108,8 @@ describe("shared ui", () => {
     const button = buttons[3].nativeElement as HTMLButtonElement;
 
     expect(button.classList).toContain("bg-transparent");
-    expect(button.classList).toContain("hover:bg-red-700");
-    expect(button.classList).toContain("hover:text-white");
+    expect(button.classList).toContain("enabled:hover:bg-red-700");
+    expect(button.classList).toContain("enabled:hover:text-white");
   });
 
   it("supports filled destructive buttons with consistent foreground color", () => {
@@ -118,8 +118,8 @@ describe("shared ui", () => {
 
     expect(button.classList).toContain("bg-destructive");
     expect(button.classList).toContain("text-white");
-    expect(button.classList).toContain("hover:bg-red-700");
-    expect(button.classList).toContain("hover:text-white");
+    expect(button.classList).toContain("enabled:hover:bg-red-700");
+    expect(button.classList).toContain("enabled:hover:text-white");
   });
 
   it("distinguishes selected tabs with accessible state and a quiet active treatment", () => {

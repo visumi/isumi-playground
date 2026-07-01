@@ -19,6 +19,7 @@ import {
   deleteTripRoom,
   getTripSnapshot,
   listTripRooms,
+  moveTripDayItem,
   reorderTripDayItems,
   updateTripFlight,
   updateTripLodging,
@@ -166,6 +167,9 @@ export async function handleTripRequest(
     const [, roomId, itemId] = itemMatch;
     if (request.method === "POST" && !itemId) {
       return snapshotResponse(env, roomId, user.uid, await createTripDayItem(db, user.uid, roomId, await readJson<TripDayItemInput>(request)), 201, corsHeaders);
+    }
+    if (request.method === "PATCH" && itemId) {
+      return snapshotResponse(env, roomId, user.uid, await moveTripDayItem(db, user.uid, roomId, itemId, await readJson<TripDayItemInput>(request)), 200, corsHeaders);
     }
     if (request.method === "DELETE" && itemId) {
       await deleteTripDayItem(db, user.uid, roomId, itemId);

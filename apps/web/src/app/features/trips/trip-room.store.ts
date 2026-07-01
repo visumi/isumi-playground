@@ -24,6 +24,9 @@ export class TripRoomStore {
   private closedIntentionally = false;
   private localDragActive = false;
   private queuedSnapshot: TripSnapshot | null = null;
+  private snapshotBatchDepth = 0;
+  private batchedSnapshot: TripSnapshot | null = null;
+  private batchedSnapshotForce = false;
   private readonly pendingOptimisticSnapshots = new Map<string, TripSnapshot>();
 
   readonly snapshot = this.snapshotState.asReadonly();
@@ -46,12 +49,11 @@ export class TripRoomStore {
 
   async load(roomId: string): Promise<void> {
     this.roomId = roomId;
-    this.snapshotState.set(await firstValueFrom(this.trips.get(roomId)));
+    this.applyServerSnapshot(await firstValueFrom(this.trips.get(roomId)), true);
   }
 
   setSnapshot(snapshot: TripSnapshot): void {
-    if (this.localDragActive) this.queuedSnapshot = snapshot;
-    else this.snapshotState.set(snapshot);
+    this.applyServerSnapshot(snapshot);
   }
 
   beginLocalDrag(): void {
@@ -62,7 +64,7 @@ export class TripRoomStore {
   endLocalDrag(): void {
     this.localDragActive = false;
     if (this.queuedSnapshot) {
-      this.snapshotState.set(this.queuedSnapshot);
+      this.applyServerSnapshot(this.queuedSnapshot);
       this.queuedSnapshot = null;
     }
   }
@@ -98,6 +100,9 @@ export class TripRoomStore {
     this.editingState.set({});
     this.localDragActive = false;
     this.queuedSnapshot = null;
+    this.snapshotBatchDepth = 0;
+    this.batchedSnapshot = null;
+    this.batchedSnapshotForce = false;
     this.pendingOptimisticSnapshots.clear();
   }
 
@@ -167,6 +172,20 @@ export class TripRoomStore {
     this.snapshotState.set(snapshot);
   }
 
+  beginSnapshotBatch(): void {
+    this.snapshotBatchDepth += 1;
+  }
+
+  endSnapshotBatch(): void {
+    this.snapshotBatchDepth = Math.max(0, this.snapshotBatchDepth - 1);
+    if (this.snapshotBatchDepth > 0 || !this.batchedSnapshot) return;
+    const snapshot = this.batchedSnapshot;
+    const force = this.batchedSnapshotForce;
+    this.batchedSnapshot = null;
+    this.batchedSnapshotForce = false;
+    this.applyServerSnapshot(snapshot, force);
+  }
+
   selectItem(itemId: string | null): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify({ type: "presence", selectedItemId: itemId }));
@@ -185,8 +204,7 @@ export class TripRoomStore {
       status?: number;
     };
     if (event.type === "snapshot" && event.snapshot) {
-      if (this.localDragActive) this.queuedSnapshot = event.snapshot;
-      else this.snapshotState.set(event.snapshot);
+      this.applyServerSnapshot(event.snapshot);
     }
     if (event.type === "presence" && event.members) this.presenceState.set(event.members);
     if (event.type === "presence_update" && event.userId) {
@@ -247,6 +265,32 @@ export class TripRoomStore {
     const firstSnapshot = this.pendingOptimisticSnapshots.values().next().value;
     this.pendingOptimisticSnapshots.clear();
     if (firstSnapshot) this.snapshotState.set(firstSnapshot);
+  }
+
+  private applyServerSnapshot(snapshot: TripSnapshot, force = false): void {
+    if (!force && !this.shouldAcceptServerSnapshot(snapshot)) return;
+    if (this.snapshotBatchDepth > 0) {
+      if (!this.batchedSnapshot || force || snapshot.room.revision >= this.batchedSnapshot.room.revision) {
+        this.batchedSnapshot = snapshot;
+        this.batchedSnapshotForce = this.batchedSnapshotForce || force;
+      }
+      return;
+    }
+    if (this.localDragActive) {
+      if (!this.queuedSnapshot || snapshot.room.revision >= this.queuedSnapshot.room.revision) {
+        this.queuedSnapshot = snapshot;
+      }
+      return;
+    }
+    this.snapshotState.set(snapshot);
+  }
+
+  private shouldAcceptServerSnapshot(snapshot: TripSnapshot): boolean {
+    const current = this.snapshotState();
+    if (!current) return true;
+    if (snapshot.room.revision > current.room.revision) return true;
+    if (snapshot.room.revision < current.room.revision) return false;
+    return this.pendingOptimisticSnapshots.size === 0;
   }
 
   private handleClose(): void {

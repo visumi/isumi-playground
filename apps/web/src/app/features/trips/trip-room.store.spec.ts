@@ -62,6 +62,16 @@ describe("TripRoomStore", () => {
     };
   }
 
+  function withRevision(snapshot: TripSnapshot, revision: number): TripSnapshot {
+    return {
+      ...snapshot,
+      room: {
+        ...snapshot.room,
+        revision
+      }
+    };
+  }
+
   function configureStore(): TripRoomStore {
     TestBed.configureTestingModule({
       providers: [TripRoomStore, provideHttpClient(), provideHttpClientTesting()]
@@ -200,5 +210,82 @@ describe("TripRoomStore", () => {
     expect(store.itemsForDay("day-1").map((item) => item.id)).toEqual(["first", "middle", "last"]);
     expect(store.itemsForDay("day-2").map((item) => item.id)).toEqual(["other-day"]);
     expect(store.pending()).toBe(0);
+  });
+
+  it("ignores websocket snapshots older than the current revision", () => {
+    const store = configureStore();
+    store.setSnapshot(withRevision({
+      ...createSnapshot(),
+      items: [{
+        id: "current",
+        dayId: "day-1",
+        placeId: "place-current",
+        position: 0,
+        version: 1
+      }]
+    }, 3));
+
+    (store as unknown as { handleMessage(raw: string): void }).handleMessage(JSON.stringify({
+      type: "snapshot",
+      snapshot: withRevision(createSnapshot(), 2)
+    }));
+
+    expect(store.snapshot()?.room.revision).toBe(3);
+    expect(store.itemsForDay("day-1").map((item) => item.id)).toEqual(["current"]);
+  });
+
+  it("does not let same-revision websocket snapshots clobber pending optimistic state", () => {
+    const store = configureStore();
+    connectSocket(store);
+    store.setSnapshot(createSnapshot());
+
+    store.moveItem(store.itemsForDay("day-1")[1], "day-2", 1);
+    (store as unknown as { handleMessage(raw: string): void }).handleMessage(JSON.stringify({
+      type: "snapshot",
+      snapshot: createSnapshot()
+    }));
+
+    expect(store.itemsForDay("day-1").map((item) => item.id)).toEqual(["first", "last"]);
+    expect(store.itemsForDay("day-2").map((item) => item.id)).toEqual(["other-day", "middle"]);
+  });
+
+  it("coalesces server snapshots while a snapshot batch is active", () => {
+    const store = configureStore();
+    store.setSnapshot(createSnapshot());
+    const firstBatchSnapshot = withRevision({
+      ...createSnapshot(),
+      items: [{
+        id: "first-batch",
+        dayId: "day-1",
+        placeId: "place-first-batch",
+        position: 0,
+        version: 1
+      }]
+    }, 2);
+    const finalBatchSnapshot = withRevision({
+      ...createSnapshot(),
+      items: [{
+        id: "final-batch",
+        dayId: "day-1",
+        placeId: "place-final-batch",
+        position: 0,
+        version: 1
+      }]
+    }, 3);
+
+    store.beginSnapshotBatch();
+    store.setSnapshot(firstBatchSnapshot);
+    (store as unknown as { handleMessage(raw: string): void }).handleMessage(JSON.stringify({
+      type: "snapshot",
+      snapshot: finalBatchSnapshot
+    }));
+
+    expect(store.snapshot()?.room.revision).toBe(1);
+    expect(store.itemsForDay("day-1").map((item) => item.id)).toEqual(["first", "middle", "last"]);
+
+    store.endSnapshotBatch();
+
+    expect(store.snapshot()?.room.revision).toBe(3);
+    expect(store.itemsForDay("day-1").map((item) => item.id)).toEqual(["final-batch"]);
   });
 });

@@ -87,6 +87,7 @@ import {
   TripPlaceCategory,
   TripRoom,
   TripRoute,
+  TripSnapshot,
   TripTransportMode
 } from "../../core/api/api.types";
 import { TripsService } from "../../core/api/trips.service";
@@ -334,6 +335,25 @@ export function flightTotalDurationMinutes(flight: TripFlightSegment): number {
 
 export function flightViaAirports(flight: TripFlightSegment): string[] {
   return flightLegs(flight).slice(0, -1).map((leg) => leg.arrivalAirport).filter(Boolean);
+}
+
+export function flightAirlineSummary(flight: TripFlightSegment): string {
+  const airlines = flightLegs(flight)
+    .map((leg) => leg.airline?.trim())
+    .filter((airline): airline is string => !!airline);
+  const uniqueAirlines = [...new Set(airlines)];
+  return uniqueAirlines.length ? uniqueAirlines.join(", ") : "Companhia não informada";
+}
+
+export function flightNumberSummary(flight: TripFlightSegment): string {
+  const flightNumbers = flightNumberList(flight);
+  return flightNumbers.length ? flightNumbers.join(" · ") : "Sem número";
+}
+
+export function flightNumberList(flight: TripFlightSegment): string[] {
+  return flightLegs(flight)
+    .map((leg) => leg.flightNumber?.trim())
+    .filter((flightNumber): flightNumber is string => !!flightNumber);
 }
 
 export function connectionLayoverMinutes(previousLeg: TripFlightLeg, nextLeg: TripFlightLeg): number {
@@ -719,7 +739,7 @@ export class TripFlightDetailsModalComponent {
   }
 
   connectionSummary(flight: TripFlightSegment | null | undefined): string {
-    return flight ? flightConnectionSummary(flight).toLowerCase() : "voo direto";
+    return flight ? flightConnectionSummary(flight) : "voo direto";
   }
 }
 
@@ -1411,26 +1431,35 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
     this.dayAnimating.set(true);
     try {
+      this.resetDayPanelAnimations(panel);
       await this.waitForDayAnimation(panel.animate(
         [
           { opacity: 1, transform: "translateX(0) scale(1)", filter: "blur(0)" },
           { opacity: 0, transform: `translateX(${-18 * direction}px) scale(0.99)`, filter: "blur(1.5px)" }
         ],
-        { duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" }
+        { duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)" }
       ), 180);
 
+      panel.style.opacity = "0";
+      panel.style.transform = `translateX(${-18 * direction}px) scale(0.99)`;
+      panel.style.filter = "blur(1.5px)";
       this.focusedDayId.set(targetDay.id);
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 
-      await this.waitForDayAnimation(panel.animate(
+      const nextPanel = this.dayPanel?.nativeElement || panel;
+      this.resetDayPanelAnimations(panel);
+      this.resetDayPanelAnimations(nextPanel);
+      await this.waitForDayAnimation(nextPanel.animate(
         [
           { opacity: 0, transform: `translateX(${26 * direction}px) scale(0.99)`, filter: "blur(1.5px)" },
           { opacity: 1, transform: "translateX(0) scale(1)", filter: "blur(0)" }
         ],
-        { duration: 240, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "both" }
+        { duration: 240, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
       ), 320);
     } finally {
       this.resetDayPanelAnimations(panel);
+      const currentPanel = this.dayPanel?.nativeElement;
+      if (currentPanel && currentPanel !== panel) this.resetDayPanelAnimations(currentPanel);
       this.dayAnimating.set(false);
     }
   }
@@ -1876,6 +1905,18 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     return flightConnectionSummary(flight);
   }
 
+  flightAirlineSummary(flight: TripFlightSegment): string {
+    return flightAirlineSummary(flight);
+  }
+
+  flightNumberSummary(flight: TripFlightSegment): string {
+    return flightNumberSummary(flight);
+  }
+
+  flightNumberList(flight: TripFlightSegment): string[] {
+    return flightNumberList(flight);
+  }
+
   flightDuration(flight: TripFlightSegment): string {
     return this.durationLabel(flightTotalDurationMinutes(flight));
   }
@@ -2193,25 +2234,84 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   private async allocateGeneralMapPlaces(allocation: TripGeneralMapAllocation): Promise<void> {
     const pendingPlaces = new Map(this.unscheduledPlaces().map((place) => [place.id, place]));
-    const places = allocation.placeIds
-      .map((placeId) => pendingPlaces.get(placeId))
-      .filter((place): place is TripPlace => !!place);
-    if (places.length === 0) return;
+    const places = allocation.dayId
+      ? allocation.placeIds
+        .map((placeId) => pendingPlaces.get(placeId))
+        .filter((place): place is TripPlace => !!place)
+      : [];
+    const scheduledItems = new Map((this.store.snapshot()?.items || []).map((item) => [item.id, item]));
+    const itemsToMove = (allocation.itemIds || [])
+      .map((itemId) => scheduledItems.get(itemId))
+      .filter((item): item is TripDayItem => !!item && !!allocation.dayId && item.dayId !== allocation.dayId);
+    const itemsToRemove = (allocation.removeItemIds || [])
+      .map((itemId) => scheduledItems.get(itemId))
+      .filter((item): item is TripDayItem => !!item);
+    if (places.length === 0 && itemsToMove.length === 0 && itemsToRemove.length === 0) return;
 
     let successCount = 0;
-    for (const place of places) {
-      if (await this.addPlaceToDay(place, allocation.dayId, false)) successCount += 1;
+    let failureCount = 0;
+    let latestSnapshot: TripSnapshot | null = null;
+    this.store.beginSnapshotBatch();
+    try {
+      for (const place of places) {
+        try {
+          const snapshot = await firstValueFrom(this.trips.createItem(this.roomId(), {
+            dayId: allocation.dayId,
+            placeId: place.id
+          }));
+          latestSnapshot = snapshot;
+          successCount += 1;
+        } catch {
+          failureCount += 1;
+        }
+      }
+
+      for (const item of itemsToMove) {
+        try {
+          const snapshot = await firstValueFrom(this.trips.updateItem(this.roomId(), item.id, {
+            dayId: allocation.dayId
+          }));
+          latestSnapshot = snapshot;
+          successCount += 1;
+        } catch {
+          failureCount += 1;
+        }
+      }
+
+      for (const item of itemsToRemove) {
+        try {
+          await firstValueFrom(this.trips.deleteItem(this.roomId(), item.id));
+          successCount += 1;
+        } catch {
+          failureCount += 1;
+        }
+      }
+      if (itemsToRemove.length > 0 && successCount > 0) {
+        await this.reload();
+      } else if (latestSnapshot) {
+        this.store.setSnapshot(latestSnapshot);
+      }
+    } finally {
+      this.store.endSnapshotBatch();
     }
 
-    if (successCount === places.length) {
+    if (failureCount === 0) {
+      if (itemsToRemove.length > 0 && places.length === 0 && itemsToMove.length === 0) {
+        this.toast.success(successCount === 1 ? "Lugar removido do roteiro." : "Lugares removidos do roteiro.");
+        return;
+      }
+      if (itemsToMove.length > 0 && places.length === 0) {
+        this.toast.success(successCount === 1 ? "Lugar movido para o dia." : "Lugares movidos para o dia.");
+        return;
+      }
       this.toast.success(successCount === 1 ? "Lugar alocado no dia." : "Lugares alocados no dia.");
       return;
     }
     if (successCount > 0) {
-      this.toast.error("Alguns lugares não foram alocados.");
+      this.toast.error("Alguns lugares não foram atualizados.");
       return;
     }
-    this.toast.error("Não foi possível alocar os lugares.");
+    this.toast.error("Não foi possível atualizar os lugares.");
   }
 
   mapAddressCountForDay(day: TripDay): number {

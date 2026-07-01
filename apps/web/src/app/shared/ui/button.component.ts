@@ -29,7 +29,7 @@ export type IsumiButtonType = "button" | "submit" | "reset";
         </span>
       }
       @if (!iconOnly()) {
-        <span class="min-w-0 truncate text-center">
+        <span class="min-w-0 text-center leading-tight">
           <ng-content />
         </span>
       }
@@ -55,13 +55,13 @@ export class IsumiButtonComponent {
 
   readonly buttonClasses = computed(() => {
     const variantClasses: Record<IsumiButtonVariant, string> = {
-      primary: "bg-primary text-primary-foreground hover:bg-chart-5 hover:text-primary-foreground disabled:hover:bg-primary disabled:hover:text-primary-foreground",
-      secondary: "bg-secondary text-secondary-foreground hover:bg-ring/45 hover:text-foreground disabled:hover:bg-secondary disabled:hover:text-secondary-foreground",
-      "secondary-destructive": "bg-secondary text-secondary-foreground hover:bg-red-700 hover:text-white disabled:hover:bg-transparent disabled:hover:text-destructive",
-      ghost: "bg-transparent text-muted-foreground hover:bg-ring/30 hover:text-foreground disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
-      "ghost-primary": "bg-transparent text-muted-foreground hover:bg-primary hover:text-primary-foreground disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
-      destructive: "bg-destructive text-white hover:bg-red-700 hover:text-white disabled:hover:bg-destructive disabled:hover:text-white",
-      "ghost-destructive": "bg-transparent text-muted-foreground hover:bg-red-700 hover:text-white disabled:hover:bg-transparent disabled:hover:text-destructive"
+      primary: "bg-primary text-primary-foreground enabled:hover:bg-chart-5 enabled:hover:text-primary-foreground",
+      secondary: "bg-secondary text-secondary-foreground enabled:hover:bg-ring/45 enabled:hover:text-foreground",
+      "secondary-destructive": "bg-secondary text-secondary-foreground enabled:hover:bg-red-700 enabled:hover:text-white",
+      ghost: "bg-transparent text-muted-foreground enabled:hover:bg-ring/30 enabled:hover:text-foreground",
+      "ghost-primary": "bg-transparent text-muted-foreground enabled:hover:bg-primary enabled:hover:text-primary-foreground",
+      destructive: "bg-destructive text-white enabled:hover:bg-red-700 enabled:hover:text-white",
+      "ghost-destructive": "bg-transparent text-muted-foreground enabled:hover:bg-red-700 enabled:hover:text-white"
     };
     const sizeClasses: Record<IsumiButtonSize, string> = {
       sm: "min-h-9 px-3",
@@ -76,6 +76,6 @@ export class IsumiButtonComponent {
     const widthClass = this.fullWidth() ? "w-full" : this.mobileFull() ? "max-sm:w-full" : "";
     const shapeClass = this.iconOnly() ? iconSizeClasses[this.size()] : sizeClasses[this.size()];
 
-    return `inline-flex items-center justify-center gap-2 rounded-sm text-sm font-extrabold no-underline transition-colors hover:cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-40 disabled:saturate-50 ${variantClasses[this.variant()]} ${shapeClass} ${widthClass}`;
+    return `inline-flex items-center justify-center gap-2 rounded-sm text-sm font-extrabold no-underline transition-colors enabled:hover:cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-40 disabled:saturate-50 ${variantClasses[this.variant()]} ${shapeClass} ${widthClass}`;
   });
 }

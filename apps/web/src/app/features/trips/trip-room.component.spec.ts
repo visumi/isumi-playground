@@ -15,10 +15,13 @@ import {
   arrivalLodgingForDate,
   buildTripGeneralMapPoints,
   connectionLayoverMinutes,
+  flightAirlineSummary,
   departureLodgingForDate,
   flightConnectionSummary,
   flightFinalDestination,
   flightLegs,
+  flightNumberList,
+  flightNumberSummary,
   flightOrigin,
   flightTotalDurationMinutes,
   flightViaAirports,
@@ -163,8 +166,142 @@ describe("trip general map helpers", () => {
     component.togglePlace("place-2", true);
     await component.submitAllocation(new Event("submit"));
 
-    expect(allocate).toHaveBeenCalledOnceWith({ dayId: "day-1", placeIds: ["place-2"] });
+    expect(allocate).toHaveBeenCalledOnceWith({ dayId: "day-1", placeIds: ["place-2"], itemIds: [] });
     expect(component.selectedPlaceIds()).toEqual([]);
+  });
+
+  it("toggles pending place selection when the same map point is clicked again", () => {
+    const data: TripGeneralMapModalData = {
+      points: signal(buildTripGeneralMapPoints(days, places, items, lodgings)),
+      days,
+      allocate: jasmine.createSpy("allocate").and.resolveTo()
+    };
+    TestBed.configureTestingModule({
+      imports: [TripGeneralMapModalComponent],
+      providers: [
+        { provide: ISUMI_MODAL_DATA, useValue: data },
+        { provide: ISUMI_MODAL_REF, useValue: new IsumiModalRef<TripGeneralMapModalData, void>(data) }
+      ]
+    });
+    const fixture = TestBed.createComponent(TripGeneralMapModalComponent);
+    const component = fixture.componentInstance;
+    const pendingPoint = data.points().find((point) => point.status === "unscheduled")!;
+
+    component.togglePoint(pendingPoint);
+    component.togglePoint(pendingPoint);
+
+    expect(component.selectedPlaceIds()).toEqual([]);
+  });
+
+  it("lets the general map modal move scheduled places to another day", async () => {
+    const allocate = jasmine.createSpy("allocate").and.resolveTo();
+    const data: TripGeneralMapModalData = {
+      points: signal(buildTripGeneralMapPoints(days, places, items, lodgings)),
+      days,
+      allocate
+    };
+    TestBed.configureTestingModule({
+      imports: [TripGeneralMapModalComponent],
+      providers: [
+        { provide: ISUMI_MODAL_DATA, useValue: data },
+        { provide: ISUMI_MODAL_REF, useValue: new IsumiModalRef<TripGeneralMapModalData, void>(data) }
+      ]
+    });
+    const fixture = TestBed.createComponent(TripGeneralMapModalComponent);
+    const component = fixture.componentInstance;
+    const scheduledPoint = data.points().find((point) => point.status === "scheduled")!;
+
+    component.togglePoint(scheduledPoint);
+    await component.submitAllocation(new Event("submit"));
+
+    expect(allocate).toHaveBeenCalledOnceWith({ dayId: "day-1", placeIds: [], itemIds: ["item-1"] });
+    expect(component.selectedPlaceIds()).toEqual([]);
+  });
+
+  it("does not offer a move action when the selected place is already on the chosen day", async () => {
+    const allocate = jasmine.createSpy("allocate").and.resolveTo();
+    const data: TripGeneralMapModalData = {
+      points: signal(buildTripGeneralMapPoints(days, places, items, lodgings)),
+      days,
+      allocate
+    };
+    TestBed.configureTestingModule({
+      imports: [TripGeneralMapModalComponent],
+      providers: [
+        { provide: ISUMI_MODAL_DATA, useValue: data },
+        { provide: ISUMI_MODAL_REF, useValue: new IsumiModalRef<TripGeneralMapModalData, void>(data) }
+      ]
+    });
+    const fixture = TestBed.createComponent(TripGeneralMapModalComponent);
+    const component = fixture.componentInstance;
+    const scheduledPoint = data.points().find((point) => point.status === "scheduled")!;
+
+    component.selectedDayId.set("day-2");
+    component.togglePoint(scheduledPoint);
+    await component.submitAllocation(new Event("submit"));
+
+    expect(component.canApplyToDay()).toBeFalse();
+    expect(component.primaryActionLabel()).toBe("Escolha lugares no mapa");
+    expect(allocate).not.toHaveBeenCalled();
+  });
+
+  it("lets the general map modal remove scheduled places from the trip days", async () => {
+    const allocate = jasmine.createSpy("allocate").and.resolveTo();
+    const data: TripGeneralMapModalData = {
+      points: signal(buildTripGeneralMapPoints(days, places, items, lodgings)),
+      days,
+      allocate
+    };
+    TestBed.configureTestingModule({
+      imports: [TripGeneralMapModalComponent],
+      providers: [
+        { provide: ISUMI_MODAL_DATA, useValue: data },
+        { provide: ISUMI_MODAL_REF, useValue: new IsumiModalRef<TripGeneralMapModalData, void>(data) }
+      ]
+    });
+    const fixture = TestBed.createComponent(TripGeneralMapModalComponent);
+    const component = fixture.componentInstance;
+    const scheduledPoint = data.points().find((point) => point.status === "scheduled")!;
+
+    component.togglePoint(scheduledPoint);
+    await component.removeSelectedFromDays();
+
+    expect(allocate).toHaveBeenCalledOnceWith({ placeIds: [], itemIds: [], removeItemIds: ["item-1"] });
+    expect(component.selectedPlaceIds()).toEqual([]);
+  });
+
+  it("blocks map allocation actions while an API request is processing", () => {
+    const allocate = jasmine.createSpy("allocate").and.returnValue(new Promise<void>(() => undefined));
+    const data: TripGeneralMapModalData = {
+      points: signal(buildTripGeneralMapPoints(days, places, items, lodgings)),
+      days,
+      allocate
+    };
+    TestBed.configureTestingModule({
+      imports: [TripGeneralMapModalComponent],
+      providers: [
+        { provide: ISUMI_MODAL_DATA, useValue: data },
+        { provide: ISUMI_MODAL_REF, useValue: new IsumiModalRef<TripGeneralMapModalData, void>(data) }
+      ]
+    });
+    const fixture = TestBed.createComponent(TripGeneralMapModalComponent);
+    const component = fixture.componentInstance;
+    const pendingPoint = data.points().find((point) => point.status === "unscheduled")!;
+    const scheduledPoint = data.points().find((point) => point.status === "scheduled")!;
+
+    component.togglePoint(pendingPoint);
+    void component.submitAllocation(new Event("submit"));
+
+    expect(component.busy()).toBeTrue();
+    expect(component.canApplyToDay()).toBeFalse();
+    expect(component.canRemoveFromDay()).toBeFalse();
+
+    component.togglePoint(scheduledPoint);
+    component.togglePlace("place-2", false);
+    void component.removeSelectedFromDays();
+
+    expect(component.selectedPlaceIds()).toEqual(["place-2"]);
+    expect(allocate).toHaveBeenCalledOnceWith({ dayId: "day-1", placeIds: ["place-2"], itemIds: [] });
   });
 
   function createPlace(id: string, name: string, latitude: number | null, longitude: number | null): TripPlace {
@@ -246,6 +383,24 @@ describe("flight itinerary helpers", () => {
     expect(flightFinalDestination(connectedFlight)).toBe("HND");
     expect(flightViaAirports(connectedFlight)).toEqual(["DOH", "SIN"]);
     expect(flightConnectionSummary(connectedFlight)).toBe("2 conexões via DOH, SIN");
+  });
+
+  it("summarizes every airline and flight number in itinerary order", () => {
+    expect(flightAirlineSummary(connectedFlight)).toBe("Qatar, JAL");
+    expect(flightNumberList(connectedFlight)).toEqual(["QR780", "QR942", "JL36"]);
+    expect(flightNumberSummary(connectedFlight)).toBe("QR780 · QR942 · JL36");
+  });
+
+  it("falls back when the itinerary has no airline or flight number", () => {
+    const anonymousFlight: TripFlightSegment = {
+      ...directFlight,
+      airline: null,
+      flightNumber: null
+    };
+
+    expect(flightAirlineSummary(anonymousFlight)).toBe("Companhia não informada");
+    expect(flightNumberList(anonymousFlight)).toEqual([]);
+    expect(flightNumberSummary(anonymousFlight)).toBe("Sem número");
   });
 
   it("calculates total duration from first departure to final arrival", () => {
