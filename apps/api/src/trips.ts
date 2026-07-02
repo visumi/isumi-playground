@@ -43,27 +43,6 @@ export interface TripRouteInput {
   version?: number;
 }
 
-export interface TripFlightInput {
-  departureAirport?: string;
-  arrivalAirport?: string;
-  departureAt?: string;
-  arrivalAt?: string;
-  airline?: string | null;
-  flightNumber?: string | null;
-  connections?: TripFlightConnectionInput[] | null;
-  version?: number;
-}
-
-export interface TripFlightConnectionInput {
-  departureAirport?: string;
-  arrivalAirport?: string;
-  departureAt?: string;
-  arrivalAt?: string;
-  airline?: string | null;
-  flightNumber?: string | null;
-  layoverMinutes?: number;
-}
-
 export interface TripLodgingInput {
   name?: string;
   address?: string | null;
@@ -189,7 +168,7 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
   const room = roomResult.rows[0] as TripRoomRow | undefined;
   if (!room) throw new HttpError(404, "not_found");
 
-  const [members, days, places, items, routes, flights, flightConnections, lodgings] = await Promise.all([
+  const [members, days, places, items, routes, lodgings] = await Promise.all([
     db.execute({
       sql: `
         SELECT m.user_id, m.role, m.joined_at, u.email, u.name, u.picture
@@ -225,25 +204,6 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
     }),
     db.execute({
       sql: `
-        SELECT id, departure_airport, arrival_airport, departure_at, arrival_at,
-               airline, flight_number, position, version
-        FROM trip_flight_segments WHERE room_id = ? AND direction IN ('outbound', 'return') ORDER BY departure_at, position
-      `,
-      args: [roomId]
-    }),
-    db.execute({
-      sql: `
-        SELECT c.id, c.flight_id, c.departure_airport, c.arrival_airport, c.departure_at,
-               c.arrival_at, c.airline, c.flight_number, c.layover_minutes, c.position, c.version
-        FROM trip_flight_connections c
-        INNER JOIN trip_flight_segments f ON f.id = c.flight_id
-        WHERE f.room_id = ?
-        ORDER BY c.flight_id, c.position, c.departure_at
-      `,
-      args: [roomId]
-    }),
-    db.execute({
-      sql: `
         SELECT id, name, address, check_in_date, check_out_date, notes,
                latitude, longitude, version
         FROM trip_lodgings WHERE room_id = ? ORDER BY check_in_date
@@ -251,12 +211,6 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       args: [roomId]
     })
   ]);
-
-  const connectionsByFlightId = new Map<string, Row[]>();
-  for (const row of flightConnections.rows) {
-    const flightId = String(row.flight_id);
-    connectionsByFlightId.set(flightId, [...(connectionsByFlightId.get(flightId) || []), row]);
-  }
 
   return {
     room: mapRoom(room),
@@ -299,18 +253,6 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       transportMode: String(row.transport_mode),
       durationMinutes: Number(row.duration_minutes),
       notes: row.notes ? String(row.notes) : null,
-      version: Number(row.version)
-    })),
-    flights: flights.rows.map((row) => ({
-      id: String(row.id),
-      departureAirport: String(row.departure_airport),
-      arrivalAirport: String(row.arrival_airport),
-      departureAt: String(row.departure_at),
-      arrivalAt: String(row.arrival_at),
-      airline: row.airline ? String(row.airline) : null,
-      flightNumber: row.flight_number ? String(row.flight_number) : null,
-      connections: mapFlightConnections(connectionsByFlightId.get(String(row.id)) || []),
-      position: Number(row.position),
       version: Number(row.version)
     })),
     lodgings: lodgings.rows.map((row) => ({
@@ -733,83 +675,6 @@ export async function applyTripMoveOperation(db: Client, userId: string, roomId:
   return getTripSnapshot(db, userId, roomId);
 }
 
-export async function createTripFlight(db: Client, userId: string, roomId: string, payload: TripFlightInput) {
-  await assertTripMember(db, roomId, userId);
-  const flightId = crypto.randomUUID();
-  await executeStatementsAtomically(db, [
-    {
-      sql: `
-        INSERT INTO trip_flight_segments
-          (id, room_id, direction, departure_airport, arrival_airport, departure_at,
-           arrival_at, airline, flight_number, position)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      args: [
-        flightId,
-        roomId,
-        "outbound",
-        requiredText(payload.departureAirport, "missing_departure_airport", 12),
-        requiredText(payload.arrivalAirport, "missing_arrival_airport", 12),
-        requiredText(payload.departureAt, "missing_departure_time", 40),
-        requiredText(payload.arrivalAt, "missing_arrival_time", 40),
-        nullableText(payload.airline, 120),
-        nullableText(payload.flightNumber, 30),
-        Date.now()
-      ]
-    },
-    ...upsertFlightConnectionStatements(flightId, payload.connections, false),
-    touchRoom(roomId)
-  ]);
-  return getTripSnapshot(db, userId, roomId);
-}
-
-export async function updateTripFlight(
-  db: Client,
-  userId: string,
-  roomId: string,
-  flightId: string,
-  payload: TripFlightInput
-) {
-  await assertTripMember(db, roomId, userId);
-  const version = integer(payload.version, "missing_entity_version", 1, Number.MAX_SAFE_INTEGER);
-  const result = await db.execute({
-    sql: `
-      UPDATE trip_flight_segments SET departure_airport = ?,
-        arrival_airport = ?, departure_at = ?, arrival_at = ?, airline = ?,
-        flight_number = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND room_id = ? AND version = ?
-    `,
-    args: [
-      requiredText(payload.departureAirport, "missing_departure_airport", 12),
-      requiredText(payload.arrivalAirport, "missing_arrival_airport", 12),
-      requiredText(payload.departureAt, "missing_departure_time", 40),
-      requiredText(payload.arrivalAt, "missing_arrival_time", 40),
-      nullableText(payload.airline, 120),
-      nullableText(payload.flightNumber, 30),
-      flightId,
-      roomId,
-      version
-    ]
-  });
-  if (result.rowsAffected === 0) throw new HttpError(409, "entity_version_conflict");
-  const connectionStatements = Object.prototype.hasOwnProperty.call(payload, "connections")
-    ? upsertFlightConnectionStatements(flightId, payload.connections, true)
-    : [];
-  await executeStatementsAtomically(db, [
-    ...connectionStatements,
-    touchRoom(roomId)
-  ]);
-  return getTripSnapshot(db, userId, roomId);
-}
-
-export async function deleteTripFlight(db: Client, userId: string, roomId: string, flightId: string): Promise<void> {
-  await assertTripMember(db, roomId, userId);
-  await executeStatementsAtomically(db, [
-    { sql: "DELETE FROM trip_flight_segments WHERE id = ? AND room_id = ?", args: [flightId, roomId] },
-    touchRoom(roomId)
-  ]);
-}
-
 export async function createTripLodging(db: Client, userId: string, roomId: string, payload: TripLodgingInput) {
   await assertTripMember(db, roomId, userId);
   const checkIn = date(payload.checkInDate, "missing_check_in");
@@ -972,21 +837,6 @@ function mapTripMember(row: Row) {
     picture: row.picture ? String(row.picture) : null,
     joinedAt: toUtcIsoTimestamp(String(row.joined_at))
   };
-}
-
-function mapFlightConnections(rows: Row[]) {
-  return rows.map((row) => ({
-    id: String(row.id),
-    departureAirport: String(row.departure_airport),
-    arrivalAirport: String(row.arrival_airport),
-    departureAt: String(row.departure_at),
-    arrivalAt: String(row.arrival_at),
-    airline: row.airline ? String(row.airline) : null,
-    flightNumber: row.flight_number ? String(row.flight_number) : null,
-    layoverMinutes: Number(row.layover_minutes),
-    position: Number(row.position || 0),
-    version: Number(row.version)
-  }));
 }
 
 function touchRoom(roomId: string): InStatement {
@@ -1314,39 +1164,4 @@ function requiredTransportMode(value: unknown): TripTransportMode {
 function optionalText(value: unknown, max: number): string | null {
   const normalized = typeof value === "string" ? value.trim() : "";
   return normalized ? normalized.slice(0, max) : null;
-}
-
-function upsertFlightConnectionStatements(
-  flightId: string,
-  payload: TripFlightConnectionInput[] | null | undefined,
-  replaceExisting: boolean
-): InStatement[] {
-  const statements: InStatement[] = replaceExisting
-    ? [{ sql: "DELETE FROM trip_flight_connections WHERE flight_id = ?", args: [flightId] }]
-    : [];
-  if (!payload?.length) return statements;
-
-  for (const [index, connection] of payload.entries()) {
-    statements.push({
-      sql: `
-        INSERT INTO trip_flight_connections
-          (id, flight_id, departure_airport, arrival_airport, departure_at,
-           arrival_at, airline, flight_number, layover_minutes, position)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      args: [
-        crypto.randomUUID(),
-        flightId,
-        requiredText(connection.departureAirport, "missing_connection_departure_airport", 12),
-        requiredText(connection.arrivalAirport, "missing_connection_arrival_airport", 12),
-        requiredText(connection.departureAt, "missing_connection_departure_time", 40),
-        requiredText(connection.arrivalAt, "missing_connection_arrival_time", 40),
-        nullableText(connection.airline, 120),
-        nullableText(connection.flightNumber, 30),
-        integer(connection.layoverMinutes, "invalid_connection_layover", 0, 2880),
-        index
-      ]
-    });
-  }
-  return statements;
 }

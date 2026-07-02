@@ -325,32 +325,6 @@ export interface TripRoute {
   version: number;
 }
 
-export interface TripFlightConnection {
-  id: string;
-  departureAirport: string;
-  arrivalAirport: string;
-  departureAt: string;
-  arrivalAt: string;
-  airline: string | null;
-  flightNumber: string | null;
-  layoverMinutes: number;
-  position: number;
-  version: number;
-}
-
-export interface TripFlightSegment {
-  id: string;
-  departureAirport: string;
-  arrivalAirport: string;
-  departureAt: string;
-  arrivalAt: string;
-  airline: string | null;
-  flightNumber: string | null;
-  connections: TripFlightConnection[];
-  position: number;
-  version: number;
-}
-
 export interface TripLodging {
   id: string;
   name: string;
@@ -371,7 +345,6 @@ export interface TripSnapshot {
   places: TripPlace[];
   items: TripDayItem[];
   routes: TripRoute[];
-  flights: TripFlightSegment[];
   lodgings: TripLodging[];
 }
 
@@ -411,28 +384,6 @@ export interface UpsertTripRouteRequest {
   durationMinutes: number;
   notes?: string | null;
   version?: number;
-}
-
-export interface CreateTripFlightRequest {
-  departureAirport: string;
-  arrivalAirport: string;
-  departureAt: string;
-  arrivalAt: string;
-  airline?: string | null;
-  flightNumber?: string | null;
-  connections?: Array<{
-    departureAirport: string;
-    arrivalAirport: string;
-    departureAt: string;
-    arrivalAt: string;
-    airline?: string | null;
-    flightNumber?: string | null;
-    layoverMinutes: number;
-  }> | null;
-}
-
-export interface UpdateTripFlightRequest extends CreateTripFlightRequest {
-  version: number;
 }
 
 export interface CreateTripLodgingRequest {

@@ -93,33 +93,6 @@ describe("TripsService", () => {
     request.flush({ token: "ticket", expiresInSeconds: 60 });
   });
 
-  it("updates a flight with optimistic concurrency", () => {
-    service.updateFlight("trip-1", "flight-1", {
-      departureAirport: "EZE",
-      arrivalAirport: "GRU",
-      departureAt: "2026-10-16T18:00",
-      arrivalAt: "2026-10-16T20:40",
-      airline: "LATAM",
-      flightNumber: "LA8001",
-      connections: [{
-        departureAirport: "GRU",
-        arrivalAirport: "VCP",
-        departureAt: "2026-10-16T22:00",
-        arrivalAt: "2026-10-16T22:45",
-        airline: "Azul",
-        flightNumber: "AD4000",
-        layoverMinutes: 80
-      }],
-      version: 2
-    }).subscribe();
-
-    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/flights/flight-1");
-    expect(request.request.method).toBe("PATCH");
-    expect(request.request.body.version).toBe(2);
-    expect(request.request.body.connections[0].layoverMinutes).toBe(80);
-    request.flush({});
-  });
-
   it("updates a lodging with optimistic concurrency", () => {
     service.updateLodging("trip-1", "lodging-1", {
       name: "Hotel Centro",

@@ -29,7 +29,7 @@ import { IsumiButtonComponent, IsumiToastService } from "../../shared/ui";
                   Entrar nesta sala?
                 </h1>
                 <p class="m-0 max-w-[46ch] leading-6 text-muted-foreground text-pretty">
-                  Aceite o convite para organizar lugares, dias, voos e hospedagens com o grupo.
+                  Aceite o convite para organizar lugares, dias e hospedagens com o grupo.
                 </p>
               </div>
             </div>

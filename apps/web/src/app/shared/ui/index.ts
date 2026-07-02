@@ -10,6 +10,7 @@ export * from "./modal.service";
 export * from "./nav-item.directive";
 export * from "./page-header.component";
 export * from "./select.directive";
+export * from "./stepper.component";
 export * from "./switch.component";
 export * from "./tab.component";
 export * from "./tag.component";

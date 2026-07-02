@@ -57,7 +57,6 @@ describe("TripRoomStore", () => {
         }
       ],
       routes: [],
-      flights: [],
       lodgings: []
     };
   }
@@ -126,7 +125,6 @@ describe("TripRoomStore", () => {
         }
       ],
       routes: [],
-      flights: [],
       lodgings: []
     } satisfies TripSnapshot);
 

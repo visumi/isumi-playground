@@ -14,17 +14,7 @@ import {
   PLACE_CATEGORY_VISUALS,
   arrivalLodgingForDate,
   buildTripGeneralMapPoints,
-  connectionLayoverMinutes,
-  flightAirlineSummary,
   departureLodgingForDate,
-  flightConnectionSummary,
-  flightFinalDestination,
-  flightLegs,
-  flightNumberList,
-  flightNumberSummary,
-  flightOrigin,
-  flightTotalDurationMinutes,
-  flightViaAirports,
   googleMapsUrlForAddress,
   haversineDistanceInMeters,
   linkifyObservationText,
@@ -34,7 +24,7 @@ import {
 } from "./trip-room.component";
 import { TripGeneralMapModalComponent, TripGeneralMapModalData } from "./trip-general-map-modal.component";
 import { ISUMI_MODAL_DATA, ISUMI_MODAL_REF, IsumiModalRef } from "../../shared/ui";
-import { TripDay, TripDayItem, TripFlightSegment, TripLodging, TripPlace, TripRoom } from "../../core/api/api.types";
+import { TripDay, TripDayItem, TripLodging, TripPlace, TripRoom } from "../../core/api/api.types";
 
 describe("PLACE_CATEGORY_VISUALS", () => {
   it("assigns a unique icon and color treatment to every category", () => {
@@ -322,110 +312,6 @@ describe("trip general map helpers", () => {
       updatedAt: "2026-01-01T00:00:00Z"
     };
   }
-});
-
-describe("flight itinerary helpers", () => {
-  const directFlight: TripFlightSegment = {
-    id: "flight-1",
-    departureAirport: "GRU",
-    arrivalAirport: "DOH",
-    departureAt: "2026-10-12T08:00",
-    arrivalAt: "2026-10-12T20:00",
-    airline: "Qatar",
-    flightNumber: "QR780",
-    connections: [],
-    position: 1,
-    version: 1
-  };
-
-  const connectedFlight: TripFlightSegment = {
-    ...directFlight,
-    arrivalAirport: "DOH",
-    arrivalAt: "2026-10-12T20:00",
-    connections: [
-      {
-        id: "connection-2",
-        departureAirport: "SIN",
-        arrivalAirport: "HND",
-        departureAt: "2026-10-13T08:00",
-        arrivalAt: "2026-10-13T14:00",
-        airline: "JAL",
-        flightNumber: "JL36",
-        layoverMinutes: 120,
-        position: 1,
-        version: 1
-      },
-      {
-        id: "connection-1",
-        departureAirport: "DOH",
-        arrivalAirport: "SIN",
-        departureAt: "2026-10-12T22:00",
-        arrivalAt: "2026-10-13T06:00",
-        airline: "Qatar",
-        flightNumber: "QR942",
-        layoverMinutes: 120,
-        position: 0,
-        version: 1
-      }
-    ]
-  };
-
-  it("keeps direct flights as a single leg", () => {
-    expect(flightLegs(directFlight).map((leg) => `${leg.departureAirport}-${leg.arrivalAirport}`))
-      .toEqual(["GRU-DOH"]);
-    expect(flightOrigin(directFlight)).toBe("GRU");
-    expect(flightFinalDestination(directFlight)).toBe("DOH");
-    expect(flightConnectionSummary(directFlight)).toBe("Direto");
-  });
-
-  it("uses the final connection as the itinerary destination", () => {
-    expect(flightLegs(connectedFlight).map((leg) => leg.arrivalAirport)).toEqual(["DOH", "SIN", "HND"]);
-    expect(flightFinalDestination(connectedFlight)).toBe("HND");
-    expect(flightViaAirports(connectedFlight)).toEqual(["DOH", "SIN"]);
-    expect(flightConnectionSummary(connectedFlight)).toBe("2 conexões via DOH, SIN");
-  });
-
-  it("summarizes every airline and flight number in itinerary order", () => {
-    expect(flightAirlineSummary(connectedFlight)).toBe("Qatar, JAL");
-    expect(flightNumberList(connectedFlight)).toEqual(["QR780", "QR942", "JL36"]);
-    expect(flightNumberSummary(connectedFlight)).toBe("QR780 · QR942 · JL36");
-  });
-
-  it("falls back when the itinerary has no airline or flight number", () => {
-    const anonymousFlight: TripFlightSegment = {
-      ...directFlight,
-      airline: null,
-      flightNumber: null
-    };
-
-    expect(flightAirlineSummary(anonymousFlight)).toBe("Companhia não informada");
-    expect(flightNumberList(anonymousFlight)).toEqual([]);
-    expect(flightNumberSummary(anonymousFlight)).toBe("Sem número");
-  });
-
-  it("calculates total duration from first departure to final arrival", () => {
-    expect(flightTotalDurationMinutes(connectedFlight)).toBe(1800);
-  });
-
-  it("calculates layover from previous arrival to next departure", () => {
-    const legs = flightLegs(connectedFlight);
-
-    expect(connectionLayoverMinutes(legs[0], legs[1])).toBe(120);
-  });
-
-  it("rolls overnight connection departures forward when the filled date is still the previous day", () => {
-    expect(connectionLayoverMinutes(
-      { ...flightLegs(directFlight)[0], arrivalAt: "2026-06-26T23:03" },
-      { ...flightLegs(directFlight)[0], departureAt: "2026-06-26T00:05" }
-    )).toBe(62);
-  });
-
-  it("returns zero for invalid layover values", () => {
-    expect(connectionLayoverMinutes(
-      { ...flightLegs(directFlight)[0], arrivalAt: "invalid" },
-      { ...flightLegs(directFlight)[0], departureAt: "2026-10-12T22:00" }
-    )).toBe(0);
-  });
 });
 
 describe("lodging day helpers", () => {

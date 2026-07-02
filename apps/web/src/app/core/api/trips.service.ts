@@ -3,12 +3,10 @@ import { Injectable, inject } from "@angular/core";
 import { Observable } from "rxjs";
 import { environment } from "../../../environments/environment";
 import {
-  CreateTripFlightRequest,
   CreateTripLodgingRequest,
   CreateTripRequest,
   TripRoomSummary,
   TripSnapshot,
-  UpdateTripFlightRequest,
   UpdateTripLodgingRequest,
   UpdateTripDayItemOrderRequest,
   UpsertTripDayItemRequest,
@@ -79,18 +77,6 @@ export class TripsService {
 
   deleteRoute(roomId: string, routeId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${roomId}/routes/${routeId}`);
-  }
-
-  createFlight(roomId: string, payload: CreateTripFlightRequest): Observable<TripSnapshot> {
-    return this.http.post<TripSnapshot>(`${this.baseUrl}/${roomId}/flights`, payload);
-  }
-
-  updateFlight(roomId: string, flightId: string, payload: UpdateTripFlightRequest): Observable<TripSnapshot> {
-    return this.http.patch<TripSnapshot>(`${this.baseUrl}/${roomId}/flights/${flightId}`, payload);
-  }
-
-  deleteFlight(roomId: string, flightId: string): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/${roomId}/flights/${flightId}`);
   }
 
   createLodging(roomId: string, payload: CreateTripLodgingRequest): Observable<TripSnapshot> {

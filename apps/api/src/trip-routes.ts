@@ -6,13 +6,11 @@ import {
   acceptTripRoom,
   assertTripMember,
   createTripDayItem,
-  createTripFlight,
   createTripLodging,
   createTripPlace,
   createTripRoute,
   createTripRoom,
   deleteTripDayItem,
-  deleteTripFlight,
   deleteTripLodging,
   deleteTripPlace,
   deleteTripRoute,
@@ -21,14 +19,12 @@ import {
   listTripRooms,
   moveTripDayItem,
   reorderTripDayItems,
-  updateTripFlight,
   updateTripLodging,
   updateTripPlace,
   updateTripRoute,
   updateTripRoom,
   type TripDayItemOrderInput,
   type TripDayItemInput,
-  type TripFlightInput,
   type TripLodgingInput,
   type TripPlaceInput,
   type TripRouteInput,
@@ -203,23 +199,6 @@ export async function handleTripRequest(
     }
     if (request.method === "DELETE" && routeId) {
       await deleteTripRoute(db, user.uid, roomId, routeId);
-      const snapshot = await getTripSnapshot(db, user.uid, roomId);
-      await notifyRoom(env, roomId, snapshot, user.uid);
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
-  }
-
-  const flightMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)\/flights(?:\/([^/]+))?$/);
-  if (flightMatch) {
-    const [, roomId, flightId] = flightMatch;
-    if (request.method === "POST" && !flightId) {
-      return snapshotResponse(env, roomId, user.uid, await createTripFlight(db, user.uid, roomId, await readJson<TripFlightInput>(request)), 201, corsHeaders);
-    }
-    if (request.method === "PATCH" && flightId) {
-      return snapshotResponse(env, roomId, user.uid, await updateTripFlight(db, user.uid, roomId, flightId, await readJson<TripFlightInput>(request)), 200, corsHeaders);
-    }
-    if (request.method === "DELETE" && flightId) {
-      await deleteTripFlight(db, user.uid, roomId, flightId);
       const snapshot = await getTripSnapshot(db, user.uid, roomId);
       await notifyRoom(env, roomId, snapshot, user.uid);
       return new Response(null, { status: 204, headers: corsHeaders });
