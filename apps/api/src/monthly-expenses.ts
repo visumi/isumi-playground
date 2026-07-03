@@ -1,5 +1,5 @@
 ﻿import { type Client, type InStatement } from "@libsql/client/web";
-import { executeStatementsAtomically, HttpError, toUtcIsoTimestamp } from "./shared";
+import { executeStatementsAtomically, HttpError, mapDbRows, readDbNumber, readDbString, toUtcIsoTimestamp, type DbRow } from "./shared";
 
 export type MonthlyExpenseType = "FIXO" | "VARIAVEL" | "RESERVA";
 
@@ -112,6 +112,7 @@ export interface MonthlyExpenseCsvImportInput {
 export interface MonthlyExpenseShortcutPendingInput {
   merchant?: string;
   amount?: string;
+  sourceId?: string;
 }
 
 export interface MonthlyExpensePendingApproveInput {
@@ -123,6 +124,9 @@ export interface MonthlyExpensePendingApproveInput {
 }
 
 const shortcutTransactionTimeZone = "America/Sao_Paulo";
+const maxCsvImportBytes = 256 * 1024;
+const maxCsvImportRows = 1_000;
+const maxShortcutPayloadBytes = 4 * 1024;
 
 export async function listMonthlyExpenseMonths(db: Client, userId: string) {
   const result = await db.execute({
@@ -135,7 +139,7 @@ export async function listMonthlyExpenseMonths(db: Client, userId: string) {
     args: [userId]
   });
 
-  return (result.rows as unknown as MonthlyExpenseMonthRow[]).map(mapMonthlyExpenseMonth);
+  return mapDbRows(result.rows, mapMonthlyExpenseMonthRow).map(mapMonthlyExpenseMonth);
 }
 
 export async function createMonthlyExpenseMonth(db: Client, userId: string, payload: MonthlyExpenseMonthInput) {
@@ -388,6 +392,7 @@ export async function exportMonthlyExpenseCsv(db: Client, userId: string, monthI
 export async function importMonthlyExpenseCsv(db: Client, userId: string, monthId: string, payload: MonthlyExpenseCsvImportInput) {
   await assertMonthlyExpenseMonth(db, userId, monthId);
   const csv = typeof payload.csv === "string" ? payload.csv : "";
+  assertMonthlyExpenseCsvImportLimits(csv);
   const rows = parseMonthlyExpenseCsv(csv);
   const categories = await listMonthlyExpenseCategoryRows(db, userId);
   const methods = await listMonthlyExpensePaymentMethodRows(db, userId);
@@ -1086,6 +1091,19 @@ export function splitInstallmentAmounts(totalCents: number, installmentTotal: nu
   });
 }
 
+function mapMonthlyExpenseMonthRow(row: DbRow): MonthlyExpenseMonthRow {
+  return {
+    id: readDbString(row, "id"),
+    user_id: readDbString(row, "user_id"),
+    year: readDbNumber(row, "year"),
+    month: readDbNumber(row, "month"),
+    income_cents: readDbNumber(row, "income_cents"),
+    variable_limit_cents: readDbNumber(row, "variable_limit_cents"),
+    created_at: readDbString(row, "created_at"),
+    updated_at: readDbString(row, "updated_at")
+  };
+}
+
 function mapMonthlyExpenseMonth(row: MonthlyExpenseMonthRow) {
   return {
     id: row.id,
@@ -1194,7 +1212,7 @@ export function sanitizeMonthlyExpenseShortcutPendingInput(payload: MonthlyExpen
     amountCents: parseShortcutMoneyAmount(payload.amount),
     transactionDate: currentShortcutTransactionDate(),
     merchantName,
-    sourceId: null
+    sourceId: sanitizeShortcutSourceId(payload.sourceId)
   };
 }
 
@@ -1203,8 +1221,17 @@ function assertExactShortcutPayload(payload: MonthlyExpenseShortcutPendingInput)
     throw new HttpError(400, "invalid_shortcut_payload");
   }
 
+  if (new TextEncoder().encode(JSON.stringify(payload)).byteLength > maxShortcutPayloadBytes) {
+    throw new HttpError(413, "shortcut_payload_too_large");
+  }
+
   const keys = Object.keys(payload).sort();
-  if (keys.length !== 2 || keys[0] !== "amount" || keys[1] !== "merchant") {
+  const allowedKeys = new Set(["amount", "merchant", "sourceId"]);
+  if (
+    !keys.every((key) => allowedKeys.has(key))
+    || !keys.includes("amount")
+    || !keys.includes("merchant")
+  ) {
     throw new HttpError(400, "invalid_shortcut_payload");
   }
 }
@@ -1217,6 +1244,15 @@ function sanitizeShortcutMerchant(value: unknown): string {
   }
 
   return merchant;
+}
+
+function sanitizeShortcutSourceId(value: unknown): string | null {
+  const sourceId = sanitizeOptionalText(value, 128);
+  if (!sourceId) return null;
+  if (!/^[a-zA-Z0-9._:-]+$/.test(sourceId)) {
+    throw new HttpError(400, "invalid_source_id");
+  }
+  return sourceId;
 }
 
 export function parseShortcutMoneyAmount(value: unknown): number {
@@ -1335,6 +1371,17 @@ export function parseMonthlyExpenseCsv(csv: string): Array<Record<string, string
     const cells = parseCsvLine(line);
     return Object.fromEntries(headers.map((header, index) => [header, cells[index] || ""]));
   });
+}
+
+function assertMonthlyExpenseCsvImportLimits(csv: string): void {
+  if (new TextEncoder().encode(csv).byteLength > maxCsvImportBytes) {
+    throw new HttpError(413, "csv_too_large");
+  }
+
+  const rowCount = csv.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim().length > 0).length - 1;
+  if (rowCount > maxCsvImportRows) {
+    throw new HttpError(413, "csv_too_many_rows");
+  }
 }
 
 function parseCsvLine(line: string): string[] {

@@ -1,5 +1,5 @@
 import { type Client, type InStatement } from "@libsql/client/web";
-import { AuthUser, executeStatementsAtomically, HttpError, toUtcIsoTimestamp } from "./shared";
+import { AuthUser, executeStatementsAtomically, HttpError, mapDbRows, readDbString, toUtcIsoTimestamp, type DbRow } from "./shared";
 
 interface ExpenseRoomRow {
   id: string;
@@ -102,7 +102,7 @@ export async function listExpenseRooms(db: Client, userId: string) {
     args: [userId]
   });
 
-  const rooms = (result.rows as unknown as ExpenseRoomRow[]).map(mapExpenseRoom);
+  const rooms = mapDbRows(result.rows, mapExpenseRoomRow).map(mapExpenseRoom);
 
   if (rooms.length === 0) {
     return [];
@@ -802,6 +802,16 @@ export function optimizeSettlements(balances: Array<{ participantId: string; bal
   }
 
   return settlements;
+}
+
+function mapExpenseRoomRow(row: DbRow): ExpenseRoomRow {
+  return {
+    id: readDbString(row, "id"),
+    owner_user_id: readDbString(row, "owner_user_id"),
+    name: readDbString(row, "name"),
+    created_at: readDbString(row, "created_at"),
+    updated_at: readDbString(row, "updated_at")
+  };
 }
 
 function mapExpenseRoom(row: ExpenseRoomRow) {

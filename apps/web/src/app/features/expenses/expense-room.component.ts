@@ -9,7 +9,7 @@ import { ExpensesService } from "../../core/api/expenses.service";
 import { ExpenseItem, ExpenseParticipant, ExpenseParticipantTotal, ExpenseRoomDetail, ExpenseSettlement, UpsertExpenseItemRequest } from "../../core/api/api.types";
 import { AuthService } from "../../core/auth/auth.service";
 import { IsumiBreadcrumbComponent } from "../../shared/ui/breadcrumb.component";
-import { IsumiAvatarComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiTagComponent, IsumiToastService, IsumiTooltipComponent, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
+import { IsumiAvatarComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiClipboardService, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiTagComponent, IsumiToastService, IsumiTooltipComponent, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
 import { formatBrl, formatMoneyInput, normalizeDecimalInput, parseMoneyCents } from "../../shared/utils/money";
 
 interface ExpenseItemModalData {
@@ -306,6 +306,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   private readonly modal = inject(IsumiModalService);
   private readonly router = inject(Router);
   private readonly toast = inject(IsumiToastService);
+  private readonly clipboard = inject(IsumiClipboardService);
   private readonly autoRefreshMs = 5000;
   private autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
   private copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
@@ -488,21 +489,7 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     const inviteUrl = this.inviteUrl();
 
     try {
-      let copied = false;
-
-      if (navigator.clipboard?.writeText) {
-        try {
-          await navigator.clipboard.writeText(inviteUrl);
-          copied = true;
-        } catch {
-          copied = false;
-        }
-      }
-
-      if (!copied) {
-        this.copyWithTextarea(inviteUrl);
-      }
-
+      await this.clipboard.copyText(inviteUrl);
       this.error.set(null);
       this.copiedInviteUrl.set(true);
       this.toast.success("Link de convite copiado.", { id: "expense-invite-url-copied" });
@@ -559,23 +546,6 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   private inviteUrl(): string {
     const path = this.router.serializeUrl(this.router.createUrlTree(["/tools/expenses", this.roomId()]));
     return `${window.location.origin}${path}`;
-  }
-
-  private copyWithTextarea(value: string): void {
-    const textarea = document.createElement("textarea");
-    textarea.value = value;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.select();
-
-    const copied = document.execCommand("copy");
-    textarea.remove();
-
-    if (!copied) {
-      throw new Error("Copy command failed");
-    }
   }
 
   private clearCopyFeedbackTimer(): void {

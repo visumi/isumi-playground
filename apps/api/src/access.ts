@@ -1,6 +1,17 @@
 import { type Client } from "@libsql/client/web";
 import { decodeProtectedHeader, importX509, jwtVerify, type JWTPayload } from "jose";
-import { AuthUser, Env, HttpError, requiredEnv, type AccessRole } from "./shared";
+import {
+  AuthUser,
+  Env,
+  HttpError,
+  mapOptionalDbRow,
+  readDbNullableString,
+  readDbNumber,
+  readDbString,
+  requiredEnv,
+  type AccessRole,
+  type DbRow
+} from "./shared";
 
 interface AuthIdentity {
   uid: string;
@@ -158,6 +169,26 @@ export function resolveAccessDecision(
   return { allowed: false, role: null };
 }
 
+function mapAccessGrantRow(row: DbRow): AccessGrantRow {
+  const role = readDbString(row, "role");
+  if (role !== "owner" && role !== "member") {
+    throw new HttpError(500, "invalid_db_role");
+  }
+
+  return {
+    email: readDbString(row, "email"),
+    role,
+    active: readDbNumber(row, "active"),
+    created_by_user_id: readDbNullableString(row, "created_by_user_id"),
+    created_at: readDbString(row, "created_at"),
+    updated_at: readDbString(row, "updated_at"),
+    user_id: row["user_id"] === undefined ? undefined : readDbNullableString(row, "user_id"),
+    name: row["name"] === undefined ? undefined : readDbNullableString(row, "name"),
+    picture: row["picture"] === undefined ? undefined : readDbNullableString(row, "picture"),
+    last_login_at: row["last_login_at"] === undefined ? undefined : readDbNullableString(row, "last_login_at")
+  };
+}
+
 async function findAccessGrant(db: Client, email: string): Promise<AccessGrantRow | null> {
   const result = await db.execute({
     sql: `
@@ -169,7 +200,7 @@ async function findAccessGrant(db: Client, email: string): Promise<AccessGrantRo
     args: [normalizeEmail(email)]
   });
 
-  return (result.rows[0] as unknown as AccessGrantRow | undefined) || null;
+  return mapOptionalDbRow(result.rows[0], mapAccessGrantRow);
 }
 
 export function requireOwner(user: AuthUser): void {
@@ -201,7 +232,7 @@ export async function listAccessGrants(db: Client, env: Env) {
     args: [normalizeEmail(requiredEnv(env.OWNER_EMAIL, "OWNER_EMAIL"))]
   });
 
-  return (result.rows as unknown as AccessGrantRow[]).map((row) => mapAccessGrant(row, env));
+  return result.rows.map((row) => mapAccessGrant(mapAccessGrantRow(row), env));
 }
 
 export async function createAccessGrant(db: Client, user: AuthUser, env: Env, payload: AccessGrantInput) {

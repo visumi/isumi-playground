@@ -64,94 +64,101 @@ function monthlyExpenseItem(overrides: Partial<MonthlyExpenseItemRow>): MonthlyE
 function monthlyExpenseMigrationDb(initialMonths: MonthlyExpenseMonthRow[], initialItems: MonthlyExpenseItemRow[]) {
   const months = [...initialMonths];
   const items = [...initialItems];
+  const execute = async ({ sql, args }: { sql: string; args: unknown[] }) => {
+    if (sql.includes("FROM monthly_expense_months") && sql.includes("WHERE id = ?")) {
+      const [monthId, userId] = args;
+      return { rows: months.filter((item) => item.id === monthId && item.user_id === userId) };
+    }
+
+    if (sql.includes("FROM monthly_expense_months") && sql.includes("WHERE user_id = ? AND year = ? AND month = ?")) {
+      const [userId, year, month] = args;
+      return { rows: months.filter((item) => item.user_id === userId && item.year === year && item.month === month) };
+    }
+
+    if (sql.includes("FROM monthly_expense_months") && sql.includes("ORDER BY year DESC, month DESC")) {
+      const [userId, yearValue, repeatedYearValue, monthValue] = args;
+      const year = Number(yearValue);
+      const repeatedYear = Number(repeatedYearValue);
+      const month = Number(monthValue);
+      return {
+        rows: months
+          .filter((item) => item.user_id === userId && (item.year < year || (item.year === repeatedYear && item.month < month)))
+          .sort((a, b) => b.year - a.year || b.month - a.month)
+          .slice(0, 1)
+      };
+    }
+
+    if (sql.includes("INSERT INTO monthly_expense_months")) {
+      const [id, userId, year, month, incomeCents, variableLimitCents] = args;
+      months.push(monthlyExpenseMonth({
+        id: String(id),
+        user_id: String(userId),
+        year: Number(year),
+        month: Number(month),
+        income_cents: Number(incomeCents),
+        variable_limit_cents: Number(variableLimitCents)
+      }));
+      return { rows: [] };
+    }
+
+    if (sql.includes("FROM monthly_expense_categories")) {
+      return { rows: [] };
+    }
+
+    if (sql.includes("FROM monthly_expense_payment_methods")) {
+      return { rows: [] };
+    }
+
+    if (sql.includes("FROM monthly_expense_items") && sql.includes("SELECT")) {
+      const [userId, monthId] = args;
+      return { rows: items.filter((item) => item.user_id === userId && item.month_id === monthId) };
+    }
+
+    if (sql.includes("INSERT INTO monthly_expense_items")) {
+      const [
+        id,
+        userId,
+        monthId,
+        categoryId,
+        paymentMethodId,
+        description,
+        amountCents,
+        totalPurchaseCents,
+        installmentNumber,
+        installmentTotal,
+        expenseType,
+        installmentGroupId
+      ] = args;
+      items.push(monthlyExpenseItem({
+        id: String(id),
+        user_id: String(userId),
+        month_id: String(monthId),
+        category_id: String(categoryId),
+        payment_method_id: String(paymentMethodId),
+        description: String(description),
+        amount_cents: Number(amountCents),
+        total_purchase_cents: Number(totalPurchaseCents),
+        installment_number: Number(installmentNumber),
+        installment_total: Number(installmentTotal),
+        expense_type: expenseType as MonthlyExpenseItemRow["expense_type"],
+        installment_group_id: String(installmentGroupId)
+      }));
+      return { rows: [] };
+    }
+
+    throw new Error(`Unexpected SQL: ${sql}`);
+  };
 
   return {
     months,
     items,
     db: {
-      execute: async ({ sql, args }: { sql: string; args: unknown[] }) => {
-        if (sql.includes("FROM monthly_expense_months") && sql.includes("WHERE id = ?")) {
-          const [monthId, userId] = args;
-          return { rows: months.filter((item) => item.id === monthId && item.user_id === userId) };
+      execute,
+      batch: async (statements: Array<{ sql: string; args: unknown[] }>) => {
+        for (const statement of statements) {
+          await execute(statement);
         }
-
-        if (sql.includes("FROM monthly_expense_months") && sql.includes("WHERE user_id = ? AND year = ? AND month = ?")) {
-          const [userId, year, month] = args;
-          return { rows: months.filter((item) => item.user_id === userId && item.year === year && item.month === month) };
-        }
-
-        if (sql.includes("FROM monthly_expense_months") && sql.includes("ORDER BY year DESC, month DESC")) {
-          const [userId, yearValue, repeatedYearValue, monthValue] = args;
-          const year = Number(yearValue);
-          const repeatedYear = Number(repeatedYearValue);
-          const month = Number(monthValue);
-          return {
-            rows: months
-              .filter((item) => item.user_id === userId && (item.year < year || (item.year === repeatedYear && item.month < month)))
-              .sort((a, b) => b.year - a.year || b.month - a.month)
-              .slice(0, 1)
-          };
-        }
-
-        if (sql.includes("INSERT INTO monthly_expense_months")) {
-          const [id, userId, year, month, incomeCents, variableLimitCents] = args;
-          months.push(monthlyExpenseMonth({
-            id: String(id),
-            user_id: String(userId),
-            year: Number(year),
-            month: Number(month),
-            income_cents: Number(incomeCents),
-            variable_limit_cents: Number(variableLimitCents)
-          }));
-          return { rows: [] };
-        }
-
-        if (sql.includes("FROM monthly_expense_categories")) {
-          return { rows: [] };
-        }
-
-        if (sql.includes("FROM monthly_expense_payment_methods")) {
-          return { rows: [] };
-        }
-
-        if (sql.includes("FROM monthly_expense_items") && sql.includes("SELECT")) {
-          const [userId, monthId] = args;
-          return { rows: items.filter((item) => item.user_id === userId && item.month_id === monthId) };
-        }
-
-        if (sql.includes("INSERT INTO monthly_expense_items")) {
-          const [
-            id,
-            userId,
-            monthId,
-            categoryId,
-            paymentMethodId,
-            description,
-            amountCents,
-            totalPurchaseCents,
-            installmentNumber,
-            installmentTotal,
-            expenseType,
-            installmentGroupId
-          ] = args;
-          items.push(monthlyExpenseItem({
-            id: String(id),
-            user_id: String(userId),
-            month_id: String(monthId),
-            category_id: String(categoryId),
-            payment_method_id: String(paymentMethodId),
-            description: String(description),
-            amount_cents: Number(amountCents),
-            total_purchase_cents: Number(totalPurchaseCents),
-            installment_number: Number(installmentNumber),
-            installment_total: Number(installmentTotal),
-            expense_type: expenseType as MonthlyExpenseItemRow["expense_type"],
-            installment_group_id: String(installmentGroupId)
-          }));
-          return { rows: [] };
-        }
-
-        throw new Error(`Unexpected SQL: ${sql}`);
+        return [];
       }
     }
   };
@@ -288,10 +295,11 @@ describe("monthly expense CSV", () => {
 });
 
 describe("monthly expense shortcut payload", () => {
-  it("accepts only merchant and amount in the shortcut body", () => {
+  it("accepts merchant, amount, and optional source id in the shortcut body", () => {
     const input = sanitizeMonthlyExpenseShortcutPendingInput({
       merchant: "Mercado Exemplo",
-      amount: "R$ 45,90"
+      amount: "R$ 45,90",
+      sourceId: "atalho-2026-07-03T01:00:00"
     });
 
     expect(input).toEqual({
@@ -299,7 +307,7 @@ describe("monthly expense shortcut payload", () => {
       amountCents: 4590,
       transactionDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       merchantName: "Mercado Exemplo",
-      sourceId: null
+      sourceId: "atalho-2026-07-03T01:00:00"
     });
   });
 

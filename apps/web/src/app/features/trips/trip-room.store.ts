@@ -134,6 +134,43 @@ export class TripRoomStore {
     }));
   }
 
+  async addItem(dayId: string, placeId: string): Promise<boolean> {
+    if (!this.roomId) return false;
+    const rollbackSnapshot = this.addItemOptimistically(dayId, placeId);
+
+    try {
+      this.setSnapshot(await firstValueFrom(this.trips.createItem(this.roomId, { dayId, placeId })));
+      return true;
+    } catch {
+      this.restoreSnapshot(rollbackSnapshot);
+      return false;
+    }
+  }
+
+  async moveItemWithRest(item: TripDayItem, targetDayId: string): Promise<boolean> {
+    if (!this.roomId) return false;
+
+    try {
+      this.setSnapshot(await firstValueFrom(this.trips.updateItem(this.roomId, item.id, { dayId: targetDayId })));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async removeItem(itemId: string): Promise<boolean> {
+    if (!this.roomId) return false;
+    const rollbackSnapshot = this.removeItemOptimistically(itemId);
+
+    try {
+      await firstValueFrom(this.trips.deleteItem(this.roomId, itemId));
+      return true;
+    } catch {
+      this.restoreSnapshot(rollbackSnapshot);
+      return false;
+    }
+  }
+
   addItemOptimistically(dayId: string, placeId: string): TripSnapshot | null {
     const snapshot = this.snapshotState();
     if (!snapshot || !snapshot.days.some((day) => day.id === dayId)) return null;

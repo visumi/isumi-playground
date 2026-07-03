@@ -41,9 +41,7 @@ export async function executeStatementsAtomically(db: AtomicDb, statements: InSt
     return;
   }
 
-  for (const statement of statements) {
-    await db.execute(statement);
-  }
+  throw new HttpError(500, "database_batch_not_available");
 }
 
 export function toUtcIsoTimestamp(value: string): string {
@@ -57,6 +55,48 @@ export function requiredEnv(value: string | undefined, name: string): string {
   }
 
   return value;
+}
+
+export type DbRow = Record<string, unknown>;
+
+export function mapDbRows<T>(rows: Iterable<unknown>, mapper: (row: DbRow) => T): T[] {
+  return [...rows].map((row) => mapper(asDbRow(row)));
+}
+
+export function mapOptionalDbRow<T>(row: unknown, mapper: (row: DbRow) => T): T | null {
+  return row === undefined ? null : mapper(asDbRow(row));
+}
+
+export function readDbString(row: DbRow, key: string): string {
+  const value = row[key];
+  if (typeof value !== "string") {
+    throw new HttpError(500, `invalid_db_${key}`);
+  }
+  return value;
+}
+
+export function readDbNullableString(row: DbRow, key: string): string | null {
+  const value = row[key];
+  if (value === null) return null;
+  if (typeof value !== "string") {
+    throw new HttpError(500, `invalid_db_${key}`);
+  }
+  return value;
+}
+
+export function readDbNumber(row: DbRow, key: string): number {
+  const value = row[key];
+  if (typeof value !== "number") {
+    throw new HttpError(500, `invalid_db_${key}`);
+  }
+  return value;
+}
+
+function asDbRow(value: unknown): DbRow {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new HttpError(500, "invalid_db_row");
+  }
+  return value as DbRow;
 }
 
 export class HttpError extends Error {

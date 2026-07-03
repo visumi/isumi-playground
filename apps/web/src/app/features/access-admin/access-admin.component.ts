@@ -2,7 +2,7 @@ import { DatePipe } from "@angular/common";
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { LucideCheck, LucideRefreshCw, LucideUserPlus, LucideUsersRound, LucideX } from "@lucide/angular";
-import { finalize } from "rxjs";
+import { firstValueFrom } from "rxjs";
 import { AccessService } from "../../core/api/access.service";
 import { AccessUser } from "../../core/api/api.types";
 import { IsumiAvatarComponent, IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiPageHeaderComponent, IsumiSwitchComponent, IsumiTagComponent, IsumiToastService } from "../../shared/ui";
@@ -44,17 +44,18 @@ export class AccessAdminComponent implements OnInit {
     this.loadUsers();
   }
 
-  loadUsers(): void {
+  async loadUsers(): Promise<void> {
     this.loading.set(true);
-    this.api.listUsers().pipe(
-      finalize(() => this.loading.set(false))
-    ).subscribe({
-      next: (users) => this.users.set(users),
-      error: () => this.toast.error("Não foi possível carregar os acessos.", { id: "access-admin-load-error" })
-    });
+    try {
+      this.users.set(await firstValueFrom(this.api.listUsers()));
+    } catch {
+      this.toast.error("Não foi possível carregar os acessos.", { id: "access-admin-load-error" });
+    } finally {
+      this.loading.set(false);
+    }
   }
 
-  addUser(): void {
+  async addUser(): Promise<void> {
     const email = this.email().trim().toLowerCase();
 
     if (!this.isValidEmail(email) || this.saving()) {
@@ -63,33 +64,33 @@ export class AccessAdminComponent implements OnInit {
     }
 
     this.saving.set(true);
-    this.api.createUser({ email }).pipe(
-      finalize(() => this.saving.set(false))
-    ).subscribe({
-      next: (user) => {
-        this.upsertUser(user);
-        this.email.set("");
-        this.toast.success("Acesso liberado.", { id: "access-admin-created" });
-      },
-      error: () => this.toast.error("Não foi possível liberar este acesso.", { id: "access-admin-create-error" })
-    });
+    try {
+      const user = await firstValueFrom(this.api.createUser({ email }));
+      this.upsertUser(user);
+      this.email.set("");
+      this.toast.success("Acesso liberado.", { id: "access-admin-created" });
+    } catch {
+      this.toast.error("Não foi possível liberar este acesso.", { id: "access-admin-create-error" });
+    } finally {
+      this.saving.set(false);
+    }
   }
 
-  setActive(user: AccessUser, active: boolean): void {
+  async setActive(user: AccessUser, active: boolean): Promise<void> {
     if (user.role === "owner" || this.updatingEmail()) {
       return;
     }
 
     this.updatingEmail.set(user.email);
-    this.api.updateUser(user.email, { active }).pipe(
-      finalize(() => this.updatingEmail.set(null))
-    ).subscribe({
-      next: (updated) => {
-        this.upsertUser(updated);
-        this.toast.success(active ? "Acesso ativado." : "Acesso desativado.", { id: "access-admin-updated" });
-      },
-      error: () => this.toast.error("Não foi possível alterar este acesso.", { id: "access-admin-update-error" })
-    });
+    try {
+      const updated = await firstValueFrom(this.api.updateUser(user.email, { active }));
+      this.upsertUser(updated);
+      this.toast.success(active ? "Acesso ativado." : "Acesso desativado.", { id: "access-admin-updated" });
+    } catch {
+      this.toast.error("Não foi possível alterar este acesso.", { id: "access-admin-update-error" });
+    } finally {
+      this.updatingEmail.set(null);
+    }
   }
 
   private upsertUser(user: AccessUser): void {

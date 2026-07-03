@@ -3,6 +3,8 @@ export * from "./avatar-group.component";
 export * from "./breadcrumb.component";
 export * from "./button.component";
 export * from "./checkbox.component";
+export * from "./clipboard.service";
+export * from "./download.service";
 export * from "./empty-state.component";
 export * from "./input.directive";
 export * from "./modal-host.component";

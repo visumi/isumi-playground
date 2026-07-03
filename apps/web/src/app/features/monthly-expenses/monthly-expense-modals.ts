@@ -24,7 +24,7 @@ import {
 import { finalize } from "rxjs";
 import { MonthlyExpensesService } from "../../core/api/monthly-expenses.service";
 import { MonthlyExpenseCatalogItem, MonthlyExpenseIngestTokenStatus, MonthlyExpenseItem, MonthlyExpenseType, UpsertMonthlyExpenseItemRequest } from "../../core/api/api.types";
-import { IsumiButtonComponent, IsumiInputDirective, IsumiSelectDirective, IsumiTagComponent, IsumiTagTone, IsumiToastService, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
+import { IsumiButtonComponent, IsumiClipboardService, IsumiInputDirective, IsumiSelectDirective, IsumiTagComponent, IsumiTagTone, IsumiToastService, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
 import { formatMoneyInput, normalizeDecimalInput, parseMoneyCents } from "../../shared/utils/money";
 
 export type CatalogKind = "category" | "payment";
@@ -414,6 +414,7 @@ export class MonthlyExpenseShortcutModalComponent implements OnInit {
   readonly modalRef = injectIsumiModalRef<MonthlyExpenseShortcutModalData, void>();
   private readonly api = inject(MonthlyExpensesService);
   private readonly toast = inject(IsumiToastService);
+  private readonly clipboard = inject(IsumiClipboardService);
 
   readonly status = signal<MonthlyExpenseIngestTokenStatus | null>(null);
   readonly generatedToken = signal("");
@@ -492,21 +493,7 @@ Body: {"merchant":"Mercado Exemplo","amount":"R$ 45,90"}`;
     }
 
     try {
-      let copied = false;
-
-      if (navigator.clipboard?.writeText) {
-        try {
-          await navigator.clipboard.writeText(value);
-          copied = true;
-        } catch {
-          copied = false;
-        }
-      }
-
-      if (!copied) {
-        this.copyWithTextarea(value);
-      }
-
+      await this.clipboard.copyText(value);
       this.toast.success(successMessage, { id: toastId });
     } catch {
       this.toast.error("Não foi possível copiar.", { id: `${toastId}-error` });
@@ -523,22 +510,6 @@ Body: {"merchant":"Mercado Exemplo","amount":"R$ 45,90"}`;
     });
   }
 
-  private copyWithTextarea(value: string): void {
-    const textarea = document.createElement("textarea");
-    textarea.value = value;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.select();
-
-    const copied = document.execCommand("copy");
-    textarea.remove();
-
-    if (!copied) {
-      throw new Error("Copy command failed");
-    }
-  }
 }
 
 @Component({

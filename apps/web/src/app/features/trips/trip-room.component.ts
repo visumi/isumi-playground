@@ -74,13 +74,15 @@ import {
   TripRoom,
   TripRoute,
   TripSnapshot,
-  TripTransportMode
+  TripTransportMode,
+  UpsertTripRouteRequest
 } from "../../core/api/api.types";
 import { TripsService } from "../../core/api/trips.service";
 import {
   IsumiAvatarGroupComponent,
   IsumiBreadcrumbComponent,
   IsumiButtonComponent,
+  IsumiClipboardService,
   IsumiEmptyStateComponent,
   IsumiInputDirective,
   IsumiModalRef,
@@ -106,6 +108,13 @@ import { TripRoomStore } from "./trip-room.store";
 type TrayDragData = { kind: "place"; place: TripPlace };
 type ItemDragData = { kind: "item"; item: TripDayItem };
 type TripDayOrderMode = "near-first" | "far-first" | "distance-curve";
+type RouteEndpoint =
+  | { kind: "item"; itemId: string }
+  | { kind: "lodging"; lodgingId: string };
+type RouteDraft = {
+  from: RouteEndpoint;
+  to: RouteEndpoint;
+};
 export interface ObservationTextSegment {
   text: string;
   href?: string;
@@ -530,6 +539,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly router = inject(Router);
   private readonly toast = inject(IsumiToastService);
   private readonly modal = inject(IsumiModalService);
+  private readonly clipboard = inject(IsumiClipboardService);
   readonly store = inject(TripRoomStore);
   readonly roomId = input.required<string>();
   readonly loading = signal(true);
@@ -755,15 +765,13 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     const hasAnotherAssociation = (this.store.snapshot()?.items || []).some(
       (item) => item.id !== data.item.id && item.placeId === data.item.placeId
     );
-    const rollbackSnapshot = this.store.removeItemOptimistically(data.item.id);
-
     try {
-      await firstValueFrom(this.trips.deleteItem(this.roomId(), data.item.id));
+      const removed = await this.store.removeItem(data.item.id);
+      if (!removed) throw new Error("remove_item_failed");
       await this.reload();
       if (!hasAnotherAssociation) this.placeTab.set("unscheduled");
       this.toast.success("Lugar devolvido à biblioteca.");
     } catch {
-      this.store.restoreSnapshot(rollbackSnapshot);
       this.toast.error("Não foi possível devolver o lugar à biblioteca.");
     }
   }
@@ -890,22 +898,15 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   async addPlaceToDay(place: TripPlace, dayId: string, showErrorToast = true): Promise<boolean> {
-    const rollbackSnapshot = this.store.addItemOptimistically(dayId, place.id);
     this.focusDay(dayId);
     this.showDropFeedback(dayId);
 
-    try {
-      const snapshot = await firstValueFrom(this.trips.createItem(this.roomId(), {
-        dayId,
-        placeId: place.id
-      }));
-      this.store.setSnapshot(snapshot);
-      return true;
-    } catch {
-      this.store.restoreSnapshot(rollbackSnapshot);
+    const added = await this.store.addItem(dayId, place.id);
+    if (!added) {
       if (showErrorToast) this.toast.error("Não foi possível adicionar o lugar ao dia.");
       return false;
     }
+    return true;
   }
 
   private showDropFeedback(dayId: string): void {
@@ -1193,47 +1194,45 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   openRoute(fromItem: TripDayItem, toItem: TripDayItem): void {
-    const route = this.routeBetween(fromItem.id, toItem.id);
-    this.selectedRouteFromItemId.set(fromItem.id);
-    this.selectedRouteFromLodgingId.set(null);
-    this.selectedRouteToItemId.set(toItem.id);
-    this.selectedRouteToLodgingId.set(null);
-    this.routeTransportMode.set(route?.transportMode || "");
-    this.routeDurationMinutes.set(route?.durationMinutes || null);
-    this.routeNotes.set(route?.notes || "");
-    this.openEditorModal("route");
+    this.openRouteDraft({
+      from: { kind: "item", itemId: fromItem.id },
+      to: { kind: "item", itemId: toItem.id }
+    });
   }
 
   openLodgingRoute(lodging: TripLodging, toItem: TripDayItem): void {
-    const route = this.routeFromLodging(lodging.id, toItem.id);
-    this.selectedRouteFromItemId.set(null);
-    this.selectedRouteFromLodgingId.set(lodging.id);
-    this.selectedRouteToItemId.set(toItem.id);
-    this.selectedRouteToLodgingId.set(null);
-    this.routeTransportMode.set(route?.transportMode || "");
-    this.routeDurationMinutes.set(route?.durationMinutes || null);
-    this.routeNotes.set(route?.notes || "");
-    this.openEditorModal("route");
+    this.openRouteDraft({
+      from: { kind: "lodging", lodgingId: lodging.id },
+      to: { kind: "item", itemId: toItem.id }
+    });
   }
 
   openArrivalRoute(fromItem: TripDayItem, lodging: TripLodging): void {
-    const route = this.routeToLodging(fromItem.id, lodging.id);
-    this.selectedRouteFromItemId.set(fromItem.id);
-    this.selectedRouteFromLodgingId.set(null);
-    this.selectedRouteToItemId.set(null);
-    this.selectedRouteToLodgingId.set(lodging.id);
-    this.routeTransportMode.set(route?.transportMode || "");
-    this.routeDurationMinutes.set(route?.durationMinutes || null);
-    this.routeNotes.set(route?.notes || "");
-    this.openEditorModal("route");
+    this.openRouteDraft({
+      from: { kind: "item", itemId: fromItem.id },
+      to: { kind: "lodging", lodgingId: lodging.id }
+    });
   }
 
   openLodgingTransferRoute(fromLodging: TripLodging, toLodging: TripLodging): void {
-    const route = this.routeBetweenLodgings(fromLodging.id, toLodging.id);
-    this.selectedRouteFromItemId.set(null);
-    this.selectedRouteFromLodgingId.set(fromLodging.id);
-    this.selectedRouteToItemId.set(null);
-    this.selectedRouteToLodgingId.set(toLodging.id);
+    this.openRouteDraft({
+      from: { kind: "lodging", lodgingId: fromLodging.id },
+      to: { kind: "lodging", lodgingId: toLodging.id }
+    });
+  }
+
+  private openRouteDraft(draft: RouteDraft): void {
+    const endpoints = this.routeEndpointIds(draft);
+    const route = this.routeForEndpoints(
+      endpoints.fromItemId,
+      endpoints.fromLodgingId,
+      endpoints.toItemId,
+      endpoints.toLodgingId
+    );
+    this.selectedRouteFromItemId.set(endpoints.fromItemId);
+    this.selectedRouteFromLodgingId.set(endpoints.fromLodgingId);
+    this.selectedRouteToItemId.set(endpoints.toItemId);
+    this.selectedRouteToLodgingId.set(endpoints.toLodgingId);
     this.routeTransportMode.set(route?.transportMode || "");
     this.routeDurationMinutes.set(route?.durationMinutes || null);
     this.routeNotes.set(route?.notes || "");
@@ -1256,8 +1255,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     ) return;
     const selected = this.selectedRoute();
     const payload = {
-      ...(fromItemId ? { fromItemId } : { fromLodgingId: fromLodgingId! }),
-      ...(toItemId ? { toItemId } : { toLodgingId: toLodgingId! }),
+      ...this.serializeRouteEndpoints({ fromItemId, fromLodgingId, toItemId, toLodgingId }),
       transportMode,
       durationMinutes,
       notes: this.routeNotes()
@@ -1286,6 +1284,32 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.selectedRouteToItemId.set(null);
     this.selectedRouteToLodgingId.set(null);
     this.closePanel();
+  }
+
+  private routeEndpointIds(draft: RouteDraft): {
+    fromItemId: string | null;
+    fromLodgingId: string | null;
+    toItemId: string | null;
+    toLodgingId: string | null;
+  } {
+    return {
+      fromItemId: draft.from.kind === "item" ? draft.from.itemId : null,
+      fromLodgingId: draft.from.kind === "lodging" ? draft.from.lodgingId : null,
+      toItemId: draft.to.kind === "item" ? draft.to.itemId : null,
+      toLodgingId: draft.to.kind === "lodging" ? draft.to.lodgingId : null
+    };
+  }
+
+  private serializeRouteEndpoints(input: {
+    fromItemId: string | null;
+    fromLodgingId: string | null;
+    toItemId: string | null;
+    toLodgingId: string | null;
+  }): Pick<UpsertTripRouteRequest, "fromItemId" | "fromLodgingId" | "toItemId" | "toLodgingId"> {
+    return {
+      ...(input.fromItemId ? { fromItemId: input.fromItemId } : { fromLodgingId: input.fromLodgingId! }),
+      ...(input.toItemId ? { toItemId: input.toItemId } : { toLodgingId: input.toLodgingId! })
+    };
   }
 
   openCreateLodging(): void {
@@ -1376,16 +1400,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     const inviteUrl = `${window.location.origin}${path}`;
 
     try {
-      let copied = false;
-      if (navigator.clipboard?.writeText) {
-        try {
-          await navigator.clipboard.writeText(inviteUrl);
-          copied = true;
-        } catch {
-          copied = false;
-        }
-      }
-      if (!copied) this.copyWithTextarea(inviteUrl);
+      await this.clipboard.copyText(inviteUrl);
       this.toast.success("Link de convite copiado.");
     } catch {
       this.toast.error("Não foi possível copiar o link da sala.");
@@ -1399,16 +1414,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     const mapUrl = this.googleMapsUrl(normalizedAddress);
 
     try {
-      let copied = false;
-      if (navigator.clipboard?.writeText) {
-        try {
-          await navigator.clipboard.writeText(mapUrl);
-          copied = true;
-        } catch {
-          copied = false;
-        }
-      }
-      if (!copied) this.copyWithTextarea(mapUrl);
+      await this.clipboard.copyText(mapUrl);
       this.toast.success(this.shouldOfferGoogleMapsOpen()
         ? "Link copiado. Abrindo o Google Maps..."
         : "Link do mapa copiado.");
@@ -1435,20 +1441,6 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   private shouldOfferGoogleMapsOpen(): boolean {
     return window.matchMedia("(pointer: coarse)").matches && window.matchMedia("(max-width: 768px)").matches;
-  }
-
-  private copyWithTextarea(value: string): void {
-    const textarea = document.createElement("textarea");
-    textarea.value = value;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.select();
-
-    const copied = document.execCommand("copy");
-    textarea.remove();
-    if (!copied) throw new Error("Copy command failed");
   }
 
   async openDeleteRoomModal(): Promise<void> {
@@ -1540,46 +1532,33 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
     let successCount = 0;
     let failureCount = 0;
-    let latestSnapshot: TripSnapshot | null = null;
     this.store.beginSnapshotBatch();
     try {
       for (const place of places) {
-        try {
-          const snapshot = await firstValueFrom(this.trips.createItem(this.roomId(), {
-            dayId: allocation.dayId,
-            placeId: place.id
-          }));
-          latestSnapshot = snapshot;
+        if (await this.store.addItem(allocation.dayId!, place.id)) {
           successCount += 1;
-        } catch {
+        } else {
           failureCount += 1;
         }
       }
 
       for (const item of itemsToMove) {
-        try {
-          const snapshot = await firstValueFrom(this.trips.updateItem(this.roomId(), item.id, {
-            dayId: allocation.dayId
-          }));
-          latestSnapshot = snapshot;
+        if (await this.store.moveItemWithRest(item, allocation.dayId!)) {
           successCount += 1;
-        } catch {
+        } else {
           failureCount += 1;
         }
       }
 
       for (const item of itemsToRemove) {
-        try {
-          await firstValueFrom(this.trips.deleteItem(this.roomId(), item.id));
+        if (await this.store.removeItem(item.id)) {
           successCount += 1;
-        } catch {
+        } else {
           failureCount += 1;
         }
       }
       if (itemsToRemove.length > 0 && successCount > 0) {
         await this.reload();
-      } else if (latestSnapshot) {
-        this.store.setSnapshot(latestSnapshot);
       }
     } finally {
       this.store.endSnapshotBatch();

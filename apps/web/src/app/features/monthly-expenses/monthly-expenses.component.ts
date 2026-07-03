@@ -31,7 +31,7 @@ import {
 } from "@lucide/angular";
 import { MonthlyExpensesService } from "../../core/api/monthly-expenses.service";
 import { MonthlyExpenseCatalogItem, MonthlyExpenseDetail, MonthlyExpenseItem, MonthlyExpenseMonth, MonthlyExpensePendingItem, MonthlyExpenseType, UpsertMonthlyExpenseItemRequest } from "../../core/api/api.types";
-import { IsumiButtonComponent, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiTagComponent, IsumiTagTone, IsumiToastService, IsumiTooltipComponent } from "../../shared/ui";
+import { IsumiButtonComponent, IsumiDownloadService, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiTagComponent, IsumiTagTone, IsumiToastService, IsumiTooltipComponent } from "../../shared/ui";
 import { IsumiPageHeaderComponent } from "../../shared/ui/page-header.component";
 import { formatBrl, formatMoneyInput, normalizeDecimalInput, parseMoneyCents } from "../../shared/utils/money";
 import { environment } from "../../../environments/environment";
@@ -50,6 +50,9 @@ import {
   type MonthlyExpenseItemModalData,
   type MonthlyExpenseShortcutModalData
 } from "./monthly-expense-modals";
+
+const MAX_CSV_IMPORT_BYTES = 256 * 1024;
+const MAX_CSV_IMPORT_ROWS = 1_000;
 
 @Component({
   selector: "isumi-monthly-expenses",
@@ -97,6 +100,7 @@ export class MonthlyExpensesComponent implements OnInit {
   private readonly api = inject(MonthlyExpensesService);
   private readonly modal = inject(IsumiModalService);
   private readonly toast = inject(IsumiToastService);
+  private readonly download = inject(IsumiDownloadService);
   private readonly backToTopThreshold = 640;
   private currentDetailRequestId: string | null = null;
   private currentPendingRequestId: string | null = null;
@@ -484,13 +488,11 @@ export class MonthlyExpensesComponent implements OnInit {
 
     this.api.exportCsv(detail.month.id).subscribe({
       next: (csv) => {
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `gastos-${detail.month.year}-${String(detail.month.month).padStart(2, "0")}.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
+        this.download.downloadText(
+          `gastos-${detail.month.year}-${String(detail.month.month).padStart(2, "0")}.csv`,
+          csv,
+          "text/csv;charset=utf-8"
+        );
       },
       error: () => this.toast.error("Não foi possível exportar o CSV.", { id: "monthly-expense-csv-export-error" })
     });
@@ -505,10 +507,24 @@ export class MonthlyExpensesComponent implements OnInit {
       return;
     }
 
+    if (file.size > MAX_CSV_IMPORT_BYTES) {
+      input.value = "";
+      this.toast.error("O CSV deve ter no máximo 256 KB.", { id: "monthly-expense-csv-import-size-error" });
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
+      const csv = String(reader.result || "");
+      const rowCount = csv.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim().length > 0).length - 1;
+      if (rowCount > MAX_CSV_IMPORT_ROWS) {
+        input.value = "";
+        this.toast.error("O CSV deve ter no máximo 1.000 linhas.", { id: "monthly-expense-csv-import-row-limit-error" });
+        return;
+      }
+
       this.saving.set(true);
-      this.api.importCsv(detail.month.id, String(reader.result || "")).pipe(
+      this.api.importCsv(detail.month.id, csv).pipe(
         finalize(() => {
           this.saving.set(false);
           input.value = "";
