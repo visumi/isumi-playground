@@ -1,5 +1,6 @@
 import { jwtVerify, SignJWT } from "jose";
 import type { Client } from "@libsql/client/web";
+import { dispatchRoute, route, routeParam, type HttpRoute, type RouteContext } from "./http-router";
 import type { AuthUser, Env } from "./shared";
 import { createDatabaseClient, HttpError, requiredEnv } from "./shared";
 import {
@@ -36,6 +37,13 @@ interface RealtimeClaims {
   userId: string;
   name: string;
   picture: string | null;
+}
+
+interface TripRouteContext extends RouteContext {
+  env: Env;
+  db: Client;
+  user: AuthUser;
+  corsHeaders: Headers;
 }
 
 export async function handleTripRealtimeUpgrade(request: Request, env: Env): Promise<Response | null> {
@@ -75,42 +83,46 @@ export async function handleTripRequest(
   user: AuthUser,
   corsHeaders: Headers
 ): Promise<Response | null> {
-  const url = new URL(request.url);
+  return dispatchRoute(tripRoutes, {
+    request,
+    url: new URL(request.url),
+    env,
+    db,
+    user,
+    corsHeaders
+  });
+}
 
-  if (url.pathname === "/tools/trips") {
-    if (request.method === "GET") return json(await listTripRooms(db, user.uid), 200, corsHeaders);
-    if (request.method === "POST") {
-      const snapshot = await createTripRoom(db, user, await readJson<TripRoomInput>(request));
-      await notifyRoom(env, snapshot.room.id, snapshot, user.uid);
-      return json(snapshot, 201, corsHeaders);
-    }
-  }
-
-  const roomMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)$/);
-  if (roomMatch) {
-    const roomId = roomMatch[1];
-    if (request.method === "GET") {
-      const accepting = url.searchParams.get("accept") === "1";
-      const snapshot = accepting
-        ? await acceptTripRoom(db, user.uid, roomId)
-        : await getTripSnapshot(db, user.uid, roomId);
-      if (accepting) await notifyRoom(env, roomId, snapshot, user.uid);
-      return json(snapshot, 200, corsHeaders);
-    }
-    if (request.method === "PATCH") {
-      const snapshot = await updateTripRoom(db, user.uid, roomId, await readJson<TripRoomInput>(request));
-      await notifyRoom(env, roomId, snapshot, user.uid);
-      return json(snapshot, 200, corsHeaders);
-    }
-    if (request.method === "DELETE") {
-      await deleteTripRoom(db, user.uid, roomId);
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
-  }
-
-  const realtimeTicketMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)\/realtime-ticket$/);
-  if (realtimeTicketMatch && request.method === "POST") {
-    const roomId = realtimeTicketMatch[1];
+const tripRoutes: HttpRoute<TripRouteContext>[] = [
+  route("GET", /^\/tools\/trips$/, async ({ db, user, corsHeaders }) =>
+    json(await listTripRooms(db, user.uid), 200, corsHeaders)
+  ),
+  route("POST", /^\/tools\/trips$/, async ({ request, env, db, user, corsHeaders }) => {
+    const snapshot = await createTripRoom(db, user, await readJson<TripRoomInput>(request));
+    await notifyRoom(env, snapshot.room.id, snapshot, user.uid);
+    return json(snapshot, 201, corsHeaders);
+  }),
+  route("GET", /^\/tools\/trips\/(?<roomId>[^/]+)$/, async ({ url, env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    const accepting = url.searchParams.get("accept") === "1";
+    const snapshot = accepting
+      ? await acceptTripRoom(db, user.uid, roomId)
+      : await getTripSnapshot(db, user.uid, roomId);
+    if (accepting) await notifyRoom(env, roomId, snapshot, user.uid);
+    return json(snapshot, 200, corsHeaders);
+  }),
+  route("PATCH", /^\/tools\/trips\/(?<roomId>[^/]+)$/, async ({ request, env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    const snapshot = await updateTripRoom(db, user.uid, roomId, await readJson<TripRoomInput>(request));
+    await notifyRoom(env, roomId, snapshot, user.uid);
+    return json(snapshot, 200, corsHeaders);
+  }),
+  route("DELETE", /^\/tools\/trips\/(?<roomId>[^/]+)$/, async ({ db, user, corsHeaders, params }) => {
+    await deleteTripRoom(db, user.uid, routeParam(params, "roomId"));
+    return empty(204, corsHeaders);
+  }),
+  route("POST", /^\/tools\/trips\/(?<roomId>[^/]+)\/realtime-ticket$/, async ({ env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
     await assertTripMember(db, roomId, user.uid);
     const token = await new SignJWT({
       roomId,
@@ -126,104 +138,82 @@ export async function handleTripRequest(
       .setJti(crypto.randomUUID())
       .sign(realtimeSecret(env));
     return json({ token, expiresInSeconds: 60 }, 201, corsHeaders);
-  }
-
-  const placeMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)\/places(?:\/([^/]+))?$/);
-  if (placeMatch) {
-    const [, roomId, placeId] = placeMatch;
-    if (request.method === "POST" && !placeId) {
-      return snapshotResponse(
-        env,
-        roomId,
-        user.uid,
-        await createTripPlace(db, user.uid, roomId, await readJson<TripPlaceInput>(request)),
-        201,
-        corsHeaders
-      );
-    }
-    if (request.method === "PATCH" && placeId) {
-      return snapshotResponse(
-        env,
-        roomId,
-        user.uid,
-        await updateTripPlace(db, user.uid, roomId, placeId, await readJson<TripPlaceInput>(request)),
-        200,
-        corsHeaders
-      );
-    }
-    if (request.method === "DELETE" && placeId) {
-      await deleteTripPlace(db, user.uid, roomId, placeId);
-      await notifyRoom(env, roomId, await getTripSnapshot(db, user.uid, roomId), user.uid);
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
-  }
-
-  const itemMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)\/items(?:\/([^/]+))?$/);
-  if (itemMatch) {
-    const [, roomId, itemId] = itemMatch;
-    if (request.method === "POST" && !itemId) {
-      return snapshotResponse(env, roomId, user.uid, await createTripDayItem(db, user.uid, roomId, await readJson<TripDayItemInput>(request)), 201, corsHeaders);
-    }
-    if (request.method === "PATCH" && itemId) {
-      return snapshotResponse(env, roomId, user.uid, await moveTripDayItem(db, user.uid, roomId, itemId, await readJson<TripDayItemInput>(request)), 200, corsHeaders);
-    }
-    if (request.method === "DELETE" && itemId) {
-      await deleteTripDayItem(db, user.uid, roomId, itemId);
-      const snapshot = await getTripSnapshot(db, user.uid, roomId);
-      await notifyRoom(env, roomId, snapshot, user.uid);
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
-  }
-
-  const itemOrderMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)\/days\/([^/]+)\/items\/order$/);
-  if (itemOrderMatch && request.method === "PATCH") {
-    const [, roomId, dayId] = itemOrderMatch;
+  }),
+  route("POST", /^\/tools\/trips\/(?<roomId>[^/]+)\/places$/, async ({ request, env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    return snapshotResponse(env, roomId, user.uid, await createTripPlace(db, user.uid, roomId, await readJson<TripPlaceInput>(request)), 201, corsHeaders);
+  }),
+  route("PATCH", /^\/tools\/trips\/(?<roomId>[^/]+)\/places\/(?<placeId>[^/]+)$/, async ({ request, env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
     return snapshotResponse(
       env,
       roomId,
       user.uid,
-      await reorderTripDayItems(db, user.uid, roomId, dayId, await readJson<TripDayItemOrderInput>(request)),
+      await updateTripPlace(db, user.uid, roomId, routeParam(params, "placeId"), await readJson<TripPlaceInput>(request)),
       200,
       corsHeaders
     );
-  }
-
-  const routeMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)\/routes(?:\/([^/]+))?$/);
-  if (routeMatch) {
-    const [, roomId, routeId] = routeMatch;
-    if (request.method === "POST" && !routeId) {
-      return snapshotResponse(env, roomId, user.uid, await createTripRoute(db, user.uid, roomId, await readJson<TripRouteInput>(request)), 201, corsHeaders);
-    }
-    if (request.method === "PATCH" && routeId) {
-      return snapshotResponse(env, roomId, user.uid, await updateTripRoute(db, user.uid, roomId, routeId, await readJson<TripRouteInput>(request)), 200, corsHeaders);
-    }
-    if (request.method === "DELETE" && routeId) {
-      await deleteTripRoute(db, user.uid, roomId, routeId);
-      const snapshot = await getTripSnapshot(db, user.uid, roomId);
-      await notifyRoom(env, roomId, snapshot, user.uid);
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
-  }
-
-  const lodgingMatch = url.pathname.match(/^\/tools\/trips\/([^/]+)\/lodgings(?:\/([^/]+))?$/);
-  if (lodgingMatch) {
-    const [, roomId, lodgingId] = lodgingMatch;
-    if (request.method === "POST" && !lodgingId) {
-      return snapshotResponse(env, roomId, user.uid, await createTripLodging(db, user.uid, roomId, await readJson<TripLodgingInput>(request)), 201, corsHeaders);
-    }
-    if (request.method === "PATCH" && lodgingId) {
-      return snapshotResponse(env, roomId, user.uid, await updateTripLodging(db, user.uid, roomId, lodgingId, await readJson<TripLodgingInput>(request)), 200, corsHeaders);
-    }
-    if (request.method === "DELETE" && lodgingId) {
-      await deleteTripLodging(db, user.uid, roomId, lodgingId);
-      const snapshot = await getTripSnapshot(db, user.uid, roomId);
-      await notifyRoom(env, roomId, snapshot, user.uid);
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
-  }
-
-  return null;
-}
+  }),
+  route("DELETE", /^\/tools\/trips\/(?<roomId>[^/]+)\/places\/(?<placeId>[^/]+)$/, async ({ env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    await deleteTripPlace(db, user.uid, roomId, routeParam(params, "placeId"));
+    await notifyRoom(env, roomId, await getTripSnapshot(db, user.uid, roomId), user.uid);
+    return empty(204, corsHeaders);
+  }),
+  route("POST", /^\/tools\/trips\/(?<roomId>[^/]+)\/items$/, async ({ request, env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    return snapshotResponse(env, roomId, user.uid, await createTripDayItem(db, user.uid, roomId, await readJson<TripDayItemInput>(request)), 201, corsHeaders);
+  }),
+  route("PATCH", /^\/tools\/trips\/(?<roomId>[^/]+)\/items\/(?<itemId>[^/]+)$/, async ({ request, env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    return snapshotResponse(env, roomId, user.uid, await moveTripDayItem(db, user.uid, roomId, routeParam(params, "itemId"), await readJson<TripDayItemInput>(request)), 200, corsHeaders);
+  }),
+  route("DELETE", /^\/tools\/trips\/(?<roomId>[^/]+)\/items\/(?<itemId>[^/]+)$/, async ({ env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    await deleteTripDayItem(db, user.uid, roomId, routeParam(params, "itemId"));
+    await notifyRoom(env, roomId, await getTripSnapshot(db, user.uid, roomId), user.uid);
+    return empty(204, corsHeaders);
+  }),
+  route("PATCH", /^\/tools\/trips\/(?<roomId>[^/]+)\/days\/(?<dayId>[^/]+)\/items\/order$/, async ({ request, env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    return snapshotResponse(
+      env,
+      roomId,
+      user.uid,
+      await reorderTripDayItems(db, user.uid, roomId, routeParam(params, "dayId"), await readJson<TripDayItemOrderInput>(request)),
+      200,
+      corsHeaders
+    );
+  }),
+  route("POST", /^\/tools\/trips\/(?<roomId>[^/]+)\/routes$/, async ({ request, env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    return snapshotResponse(env, roomId, user.uid, await createTripRoute(db, user.uid, roomId, await readJson<TripRouteInput>(request)), 201, corsHeaders);
+  }),
+  route("PATCH", /^\/tools\/trips\/(?<roomId>[^/]+)\/routes\/(?<routeId>[^/]+)$/, async ({ request, env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    return snapshotResponse(env, roomId, user.uid, await updateTripRoute(db, user.uid, roomId, routeParam(params, "routeId"), await readJson<TripRouteInput>(request)), 200, corsHeaders);
+  }),
+  route("DELETE", /^\/tools\/trips\/(?<roomId>[^/]+)\/routes\/(?<routeId>[^/]+)$/, async ({ env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    await deleteTripRoute(db, user.uid, roomId, routeParam(params, "routeId"));
+    await notifyRoom(env, roomId, await getTripSnapshot(db, user.uid, roomId), user.uid);
+    return empty(204, corsHeaders);
+  }),
+  route("POST", /^\/tools\/trips\/(?<roomId>[^/]+)\/lodgings$/, async ({ request, env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    return snapshotResponse(env, roomId, user.uid, await createTripLodging(db, user.uid, roomId, await readJson<TripLodgingInput>(request)), 201, corsHeaders);
+  }),
+  route("PATCH", /^\/tools\/trips\/(?<roomId>[^/]+)\/lodgings\/(?<lodgingId>[^/]+)$/, async ({ request, env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    return snapshotResponse(env, roomId, user.uid, await updateTripLodging(db, user.uid, roomId, routeParam(params, "lodgingId"), await readJson<TripLodgingInput>(request)), 200, corsHeaders);
+  }),
+  route("DELETE", /^\/tools\/trips\/(?<roomId>[^/]+)\/lodgings\/(?<lodgingId>[^/]+)$/, async ({ env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    await deleteTripLodging(db, user.uid, roomId, routeParam(params, "lodgingId"));
+    await notifyRoom(env, roomId, await getTripSnapshot(db, user.uid, roomId), user.uid);
+    return empty(204, corsHeaders);
+  })
+];
 
 async function snapshotResponse(
   env: Env,
@@ -257,6 +247,10 @@ function json(body: unknown, status: number, headers: Headers): Response {
   const responseHeaders = new Headers(headers);
   responseHeaders.set("Content-Type", "application/json; charset=utf-8");
   return new Response(JSON.stringify(body), { status, headers: responseHeaders });
+}
+
+function empty(status: number, headers: Headers): Response {
+  return new Response(null, { status, headers });
 }
 
 export async function validateTripRealtimeTicketForTests(token: string, env: Env): Promise<RealtimeClaims> {

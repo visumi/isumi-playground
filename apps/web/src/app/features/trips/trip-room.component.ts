@@ -1,4 +1,4 @@
-﻿import { NgClass, NgComponentOutlet, NgTemplateOutlet } from "@angular/common";
+﻿import { NgComponentOutlet, NgTemplateOutlet } from "@angular/common";
 import {
   CdkDrag,
   CdkDragDrop,
@@ -34,8 +34,6 @@ import {
   LucideBus,
   LucideCalendarDays,
   LucideCar,
-  LucideChevronLeft,
-  LucideChevronRight,
   LucideClock3,
   LucideFiles,
   LucideFootprints,
@@ -55,7 +53,6 @@ import {
   LucidePin,
   LucidePlus,
   LucideRoute,
-  LucideRulerDimensionLine,
   LucideSave,
   LucideShoppingBag,
   LucideShuffle,
@@ -103,6 +100,7 @@ import {
 } from "./trip-general-map-modal.component";
 import { TripDayMapModalComponent, TripDayMapModalData } from "./trip-day-map-modal.component";
 import { TripDayMapPoint, TripMapPoint } from "./trip-day-map.component";
+import { TripDayTimelineComponent } from "./trip-day-timeline.component";
 import { TripRoomStore } from "./trip-room.store";
 
 type TrayDragData = { kind: "place"; place: TripPlace };
@@ -447,7 +445,6 @@ export class DeleteTripPlaceModalComponent {
   selector: "isumi-trip-room",
   standalone: true,
   imports: [
-    NgClass,
     NgComponentOutlet,
     FormsModule,
     CdkDrag,
@@ -472,8 +469,6 @@ export class DeleteTripPlaceModalComponent {
     LucideBus,
     LucideCalendarDays,
     LucideCar,
-    LucideChevronLeft,
-    LucideChevronRight,
     LucideClock3,
     LucideFiles,
     LucideFootprints,
@@ -491,14 +486,14 @@ export class DeleteTripPlaceModalComponent {
     LucidePin,
     LucidePlus,
     LucideRoute,
-    LucideRulerDimensionLine,
     LucideSave,
     LucideShuffle,
     LucideTrash2,
     LucideUsers,
     LucideWeightTilde,
     LucideWifiOff,
-    LucideX
+    LucideX,
+    TripDayTimelineComponent
   ],
   providers: [TripRoomStore],
   templateUrl: "./trip-room.component.html",
@@ -543,7 +538,6 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly deletingLodgingId = signal<string | null>(null);
   readonly savingPanel = signal(false);
   readonly focusedDayId = signal<string | null>(null);
-  readonly dayTimelineExpanded = signal(false);
   readonly dayAnimating = signal(false);
   readonly placeTab = signal<"unscheduled" | "scheduled">("unscheduled");
   readonly panel = signal<"place" | "route" | "lodging" | null>(null);
@@ -695,25 +689,6 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     return day.position + 1;
   }
 
-  dayTimelineGridTemplate(): string {
-    return `repeat(${Math.max(this.store.days().length, 1)}, minmax(7rem, 1fr))`;
-  }
-
-  dayTimelineMinWidth(): string {
-    return `max(100%, calc(${Math.max(this.store.days().length, 1)} * 7rem))`;
-  }
-
-  toggleDayTimeline(): void {
-    this.dayTimelineExpanded.update((expanded) => !expanded);
-  }
-
-  blurTimelineToggle(event: MouseEvent): void {
-    const target = event.currentTarget;
-    if (!(target instanceof HTMLElement)) return;
-    const button = target.querySelector("button");
-    button?.blur();
-  }
-
   placeDays(placeId: string): TripDay[] {
     const dayIds = new Set(
       (this.store.snapshot()?.items || []).filter((item) => item.placeId === placeId).map((item) => item.dayId)
@@ -725,23 +700,6 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     const dayIndex = this.store.days().findIndex((day) => day.id === dayId);
     if (dayIndex < 0 || dayIndex === this.focusedDayIndex()) return;
     void this.changeFocusedDay(dayIndex);
-  }
-
-  isFocusedDay(day: TripDay): boolean {
-    return this.focusedDay()?.id === day.id;
-  }
-
-  dayStopCount(day: TripDay): number {
-    return this.store.itemsForDay(day.id).length;
-  }
-
-  dayStopLabel(day: TripDay): string {
-    const stopCount = this.dayStopCount(day);
-    return stopCount === 1 ? "1 parada" : `${stopCount} paradas`;
-  }
-
-  dayNavigatorLabel(day: TripDay): string {
-    return `Ir para o dia ${this.dayNumber(day)}, ${this.formatDateOnlyLong(day.date)}, ${this.dayStopLabel(day)}`;
   }
 
   departureLodgingForDay(day: TripDay): TripLodging | null {

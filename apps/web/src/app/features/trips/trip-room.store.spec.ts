@@ -2,7 +2,7 @@ import { provideHttpClient } from "@angular/common/http";
 import { provideHttpClientTesting } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
 import { TripSnapshot } from "../../core/api/api.types";
-import { TripRoomStore } from "./trip-room.store";
+import { TripRoomStore, parseTripRealtimeEvent } from "./trip-room.store";
 
 describe("TripRoomStore", () => {
   function createSnapshot(): TripSnapshot {
@@ -208,6 +208,35 @@ describe("TripRoomStore", () => {
     expect(store.itemsForDay("day-1").map((item) => item.id)).toEqual(["first", "middle", "last"]);
     expect(store.itemsForDay("day-2").map((item) => item.id)).toEqual(["other-day"]);
     expect(store.pending()).toBe(0);
+  });
+
+  it("ignores invalid websocket frames", () => {
+    const store = configureStore();
+    store.setSnapshot(createSnapshot());
+
+    expect(() => (store as unknown as { handleMessage(raw: string): void }).handleMessage("{invalid")).not.toThrow();
+    expect(() => (store as unknown as { handleMessage(raw: string): void }).handleMessage(JSON.stringify({
+      type: "unknown_event",
+      snapshot: withRevision(createSnapshot(), 2)
+    }))).not.toThrow();
+
+    expect(store.snapshot()?.room.revision).toBe(1);
+  });
+
+  it("parses only known realtime event shapes", () => {
+    expect(parseTripRealtimeEvent(JSON.stringify({
+      type: "presence_update",
+      userId: "user-1",
+      selectedItemId: "item-1"
+    }))).toEqual({
+      type: "presence_update",
+      userId: "user-1",
+      selectedItemId: "item-1"
+    });
+
+    expect(parseTripRealtimeEvent("{invalid")).toBeNull();
+    expect(parseTripRealtimeEvent(JSON.stringify({ type: "presence_update", userId: "" }))).toBeNull();
+    expect(parseTripRealtimeEvent(JSON.stringify({ type: "unsupported" }))).toBeNull();
   });
 
   it("ignores websocket snapshots older than the current revision", () => {

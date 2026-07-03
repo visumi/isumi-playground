@@ -9,6 +9,13 @@ export interface TripPresence {
   picture: string | null;
 }
 
+type TripRealtimeEvent =
+  | { type: "snapshot"; snapshot: TripSnapshot }
+  | { type: "presence"; members: TripPresence[] }
+  | { type: "presence_update"; userId: string; selectedItemId: string | null }
+  | { type: "operation_ack"; operationId?: string }
+  | { type: "operation_error"; operationId?: string; error?: string; status?: number };
+
 @Injectable()
 export class TripRoomStore {
   private readonly trips = inject(TripsService);
@@ -192,31 +199,28 @@ export class TripRoomStore {
   }
 
   private handleMessage(raw: string): void {
-    const event = JSON.parse(raw) as {
-      type: string;
-      snapshot?: TripSnapshot;
-      members?: TripPresence[];
-      userId?: string;
-      selectedItemId?: string | null;
-      operationId?: string;
-      error?: string;
-      status?: number;
-    };
-    if (event.type === "snapshot" && event.snapshot) {
-      this.applyServerSnapshot(event.snapshot);
-    }
-    if (event.type === "presence" && event.members) this.presenceState.set(event.members);
-    if (event.type === "presence_update" && event.userId) {
-      this.editingState.update((state) => ({ ...state, [event.userId as string]: event.selectedItemId || null }));
-    }
-    if (event.type === "operation_ack") {
-      if (event.operationId) this.pendingOptimisticSnapshots.delete(event.operationId);
-      this.pendingState.update((count) => Math.max(0, count - 1));
-    }
-    if (event.type === "operation_error") {
-      this.pendingState.update((count) => Math.max(0, count - 1));
-      this.rollbackOptimisticMove(event.operationId);
-      if (event.status === 409 && this.roomId) void this.load(this.roomId);
+    const event = parseTripRealtimeEvent(raw);
+    if (!event) return;
+
+    switch (event.type) {
+      case "snapshot":
+        this.applyServerSnapshot(event.snapshot);
+        return;
+      case "presence":
+        this.presenceState.set(event.members);
+        return;
+      case "presence_update":
+        this.editingState.update((state) => ({ ...state, [event.userId]: event.selectedItemId }));
+        return;
+      case "operation_ack":
+        if (event.operationId) this.pendingOptimisticSnapshots.delete(event.operationId);
+        this.pendingState.update((count) => Math.max(0, count - 1));
+        return;
+      case "operation_error":
+        this.pendingState.update((count) => Math.max(0, count - 1));
+        this.rollbackOptimisticMove(event.operationId);
+        if (event.status === 409 && this.roomId) void this.load(this.roomId);
+        return;
     }
   }
 
@@ -313,4 +317,60 @@ export class TripRoomStore {
       }
     }, delay);
   }
+}
+
+export function parseTripRealtimeEvent(raw: string): TripRealtimeEvent | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+
+  if (!isRecord(parsed)) return null;
+
+  switch (parsed["type"]) {
+    case "snapshot":
+      return isRecord(parsed["snapshot"])
+        ? { type: "snapshot", snapshot: parsed["snapshot"] as unknown as TripSnapshot }
+        : null;
+    case "presence":
+      return Array.isArray(parsed["members"])
+        ? { type: "presence", members: parsed["members"].filter(isTripPresence) }
+        : null;
+    case "presence_update": {
+      const userId = readValidId(parsed["userId"]);
+      if (!userId) return null;
+      const selectedItemId = readValidId(parsed["selectedItemId"]);
+      return { type: "presence_update", userId, selectedItemId };
+    }
+    case "operation_ack":
+      return { type: "operation_ack", operationId: readValidId(parsed["operationId"]) || undefined };
+    case "operation_error":
+      return {
+        type: "operation_error",
+        operationId: readValidId(parsed["operationId"]) || undefined,
+        error: typeof parsed["error"] === "string" ? parsed["error"] : undefined,
+        status: typeof parsed["status"] === "number" && Number.isInteger(parsed["status"]) ? parsed["status"] : undefined
+      };
+    default:
+      return null;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readValidId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length > 0 && normalized.length <= 64 ? normalized : null;
+}
+
+function isTripPresence(value: unknown): value is TripPresence {
+  return isRecord(value)
+    && Boolean(readValidId(value["userId"]))
+    && typeof value["name"] === "string"
+    && (value["picture"] === null || typeof value["picture"] === "string");
 }
