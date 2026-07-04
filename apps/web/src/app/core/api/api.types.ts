@@ -249,6 +249,39 @@ export interface MonthlyExpenseFixedMigrationResponse {
   detail: MonthlyExpenseDetail;
 }
 
+export interface DashboardExpenseDebt {
+  roomId: string;
+  roomName: string;
+  amountCents: number;
+  toParticipantName: string;
+  updatedAt: string;
+}
+
+export interface DashboardMonthlySummary {
+  monthId: string;
+  year: number;
+  month: number;
+  variableLimitCents: number;
+  variableSpentCents: number;
+  variableRemainingCents: number;
+  monthTotalCents: number;
+}
+
+export interface DashboardUpcomingTrip {
+  roomId: string;
+  title: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  daysCount: number;
+}
+
+export interface DashboardSummary {
+  expenseDebts: DashboardExpenseDebt[];
+  monthly: DashboardMonthlySummary | null;
+  upcomingTrips: DashboardUpcomingTrip[];
+}
+
 export type TripPlaceCategory = "food" | "culture" | "nightlife" | "nature" | "shopping" | "other";
 export type TripTransportMode = "walk" | "car" | "transit" | "other";
 

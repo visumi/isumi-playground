@@ -30,6 +30,7 @@ import {
   type ExpensePaidSettlementInput,
   type ExpenseParticipantInput
 } from "./expense-rooms";
+import { getDashboardSummary } from "./dashboard";
 import {
   approveMonthlyExpensePendingItem,
   createMonthlyExpenseCategory,
@@ -133,6 +134,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
 
     await upsertUser(db, user);
+
+    if (request.method === "GET" && url.pathname === "/dashboard") {
+      return json(await getDashboardSummary(db, user), 200, corsHeaders);
+    }
 
     const tripResponse = await handleTripRequest(request, env, db, user, corsHeaders);
     if (tripResponse) {

@@ -4,12 +4,12 @@ import { ChangeDetectionStrategy, Component, input } from "@angular/core";
   selector: "isumi-page-header",
   standalone: true,
   template: `
-    <header class="flex items-end justify-between gap-6 border-b border-border pb-6 max-md:flex-col max-md:items-start">
-      <div>
+    <header class="flex items-end justify-between gap-6 border-b border-border pb-6 max-md:gap-4">
+      <div class="min-w-0">
         @if (eyebrow()) {
           <p class="mb-2 text-sm font-extrabold text-primary">{{ eyebrow() }}</p>
         }
-        <h1 class="m-0 text-[2.35rem] font-black leading-[1.04] tracking-[-0.035em] text-balance max-sm:text-[2rem]" [id]="titleId()">{{ title() }}</h1>
+        <h1 class="m-0 truncate text-[2.35rem] font-black leading-[1.04] tracking-[-0.035em] max-sm:text-[2rem]" [id]="titleId()">{{ title() }}</h1>
       </div>
 
       @if (description()) {
