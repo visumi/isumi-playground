@@ -24,7 +24,7 @@ export class DashboardSensitiveValueComponent {
     };
     const tones = {
       default: "text-foreground",
-      positive: "text-emerald-300",
+      positive: "text-primary-300",
       negative: "text-red-200"
     };
 
