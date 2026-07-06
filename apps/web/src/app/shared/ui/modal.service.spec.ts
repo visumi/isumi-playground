@@ -19,6 +19,11 @@ describe("IsumiModalService", () => {
     service = TestBed.inject(IsumiModalService);
   });
 
+  afterEach(() => {
+    document.body.removeAttribute("style");
+    document.documentElement.removeAttribute("style");
+  });
+
   it("opens a modal entry with data and an injectable modal ref", () => {
     const ref = service.open<ExampleModalComponent, { title: string }, string>(ExampleModalComponent, {
       data: { title: "Confirmar" },
@@ -54,6 +59,25 @@ describe("IsumiModalService", () => {
 
     expect(closedResult).toBe("salvo");
     expect(service.entries()).toEqual([]);
+  }));
+
+  it("locks page scroll while a modal is open and restores it after closing", fakeAsync(() => {
+    const scrollTo = spyOn(window, "scrollTo");
+    const ref = service.open<ExampleModalComponent, { title: string }, string>(ExampleModalComponent);
+
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.body.style.position).toBe("fixed");
+    expect(document.body.style.width).toBe("100%");
+
+    ref.close();
+    tick(220);
+
+    expect(document.documentElement.style.overflow).toBe("");
+    expect(document.body.style.overflow).toBe("");
+    expect(document.body.style.position).toBe("");
+    expect(document.body.style.width).toBe("");
+    expect(scrollTo).toHaveBeenCalledWith(0, jasmine.any(Number));
   }));
 
   it("keeps the modal open and exposes processing while submitting", fakeAsync(() => {

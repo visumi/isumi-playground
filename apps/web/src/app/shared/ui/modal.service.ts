@@ -1,3 +1,4 @@
+import { DOCUMENT } from "@angular/common";
 import { Injectable, InjectionToken, Injector, Signal, Type, computed, inject, signal } from "@angular/core";
 import { Observable, ReplaySubject } from "rxjs";
 
@@ -98,9 +99,19 @@ export class IsumiModalRef<TData = unknown, TResult = unknown> {
 @Injectable({ providedIn: "root" })
 export class IsumiModalService {
   private readonly closeAnimationMs = 220;
+  private readonly document = inject(DOCUMENT);
   private readonly parentInjector = inject(Injector);
   private readonly modalEntries = signal<IsumiModalEntry[]>([]);
   private nextId = 1;
+  private scrollLockState: {
+    scrollY: number;
+    bodyOverflow: string;
+    bodyPaddingRight: string;
+    bodyPosition: string;
+    bodyTop: string;
+    bodyWidth: string;
+    documentOverflow: string;
+  } | null = null;
 
   readonly entries = this.modalEntries.asReadonly();
   readonly hasOpenModals = computed(() => this.modalEntries().length > 0);
@@ -138,10 +149,22 @@ export class IsumiModalService {
       }
 
       setTimeout(() => {
-        this.modalEntries.update((entries) => entries.filter((entry) => entry.id !== id));
+        this.modalEntries.update((entries) => {
+          const nextEntries = entries.filter((entry) => entry.id !== id);
+
+          if (nextEntries.length === 0) {
+            this.unlockPageScroll();
+          }
+
+          return nextEntries;
+        });
         ref.finish(result);
       }, this.closeAnimationMs);
     });
+
+    if (this.modalEntries().length === 0) {
+      this.lockPageScroll();
+    }
 
     this.modalEntries.update((entries) => [
       ...entries,
@@ -170,5 +193,64 @@ export class IsumiModalService {
     for (const entry of [...this.modalEntries()].reverse()) {
       entry.ref.close(result);
     }
+  }
+
+  private lockPageScroll(): void {
+    if (this.scrollLockState) {
+      return;
+    }
+
+    const defaultView = this.document.defaultView;
+
+    if (!defaultView) {
+      return;
+    }
+
+    const body = this.document.body;
+    const documentElement = this.document.documentElement;
+    const scrollY = defaultView.scrollY;
+    const scrollbarWidth = Math.max(0, defaultView.innerWidth - documentElement.clientWidth);
+
+    this.scrollLockState = {
+      scrollY,
+      bodyOverflow: body.style.overflow,
+      bodyPaddingRight: body.style.paddingRight,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyWidth: body.style.width,
+      documentOverflow: documentElement.style.overflow
+    };
+
+    documentElement.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
+
+    if (scrollbarWidth > 0) {
+      body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+  }
+
+  private unlockPageScroll(): void {
+    const state = this.scrollLockState;
+
+    if (!state) {
+      return;
+    }
+
+    const defaultView = this.document.defaultView;
+    const body = this.document.body;
+    const documentElement = this.document.documentElement;
+
+    body.style.overflow = state.bodyOverflow;
+    body.style.paddingRight = state.bodyPaddingRight;
+    body.style.position = state.bodyPosition;
+    body.style.top = state.bodyTop;
+    body.style.width = state.bodyWidth;
+    documentElement.style.overflow = state.documentOverflow;
+    this.scrollLockState = null;
+
+    defaultView?.scrollTo(0, state.scrollY);
   }
 }

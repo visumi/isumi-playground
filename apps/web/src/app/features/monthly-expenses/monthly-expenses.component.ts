@@ -22,6 +22,7 @@ import {
   LucideSave,
   LucideSearch,
   LucideSettings2,
+  LucideTableOfContents,
   LucideTrash2,
   LucideCalendarRange,
   LucideUpload,
@@ -31,7 +32,7 @@ import {
 } from "@lucide/angular";
 import { MonthlyExpensesService } from "../../core/api/monthly-expenses.service";
 import { MonthlyExpenseCatalogItem, MonthlyExpenseDetail, MonthlyExpenseItem, MonthlyExpenseMonth, MonthlyExpensePendingItem, MonthlyExpenseType, UpsertMonthlyExpenseItemRequest } from "../../core/api/api.types";
-import { IsumiButtonComponent, IsumiDownloadService, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiTagComponent, IsumiTagTone, IsumiToastService, IsumiTooltipComponent } from "../../shared/ui";
+import { IsumiButtonComponent, IsumiDownloadService, IsumiEmptyStateComponent, IsumiFilterChipComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiTagComponent, IsumiTagTone, IsumiToastService, IsumiTooltipComponent } from "../../shared/ui";
 import { IsumiPageHeaderComponent } from "../../shared/ui/page-header.component";
 import { formatBrl, formatMoneyInput, normalizeDecimalInput, parseMoneyCents } from "../../shared/utils/money";
 import { environment } from "../../../environments/environment";
@@ -53,6 +54,9 @@ import {
 
 const MAX_CSV_IMPORT_BYTES = 256 * 1024;
 const MAX_CSV_IMPORT_ROWS = 1_000;
+const MOBILE_SWIPE_LIMIT_PX = 88;
+const MOBILE_SWIPE_THRESHOLD_PX = 56;
+const MOBILE_SWIPE_AXIS_LOCK_PX = 8;
 
 @Component({
   selector: "isumi-monthly-expenses",
@@ -61,6 +65,7 @@ const MAX_CSV_IMPORT_ROWS = 1_000;
     FormsModule,
     IsumiButtonComponent,
     IsumiEmptyStateComponent,
+    IsumiFilterChipComponent,
     IsumiInputDirective,
     IsumiPageHeaderComponent,
     IsumiSelectDirective,
@@ -89,6 +94,7 @@ const MAX_CSV_IMPORT_ROWS = 1_000;
     LucideSave,
     LucideSearch,
     LucideSettings2,
+    LucideTableOfContents,
     LucideTrash2,
     LucideUpload,
     LucideBlocks
@@ -122,7 +128,11 @@ export class MonthlyExpensesComponent implements OnInit {
   readonly categoryFilter = signal("ALL");
   readonly paymentFilter = signal("ALL");
   readonly csvErrors = signal<Array<{ line: number; message: string }>>([]);
+  readonly mobileActionsOpen = signal(false);
+  readonly mobileSwipeItemId = signal<string | null>(null);
+  readonly mobileSwipeOffset = signal(0);
   readonly shortcutEndpointUrl = `${environment.apiBaseUrl}/tools/monthly-expenses/apple-pay/pending`;
+  private mobileSwipeStart: { itemId: string; pointerId: number; x: number; y: number; lockedAxis: "x" | "y" | null } | null = null;
 
   readonly activeMonth = computed(() =>
     this.months().find((month) => month.year === this.selectedYear() && month.month === this.selectedMonth()) || null
@@ -478,6 +488,105 @@ export class MonthlyExpensesComponent implements OnInit {
       next: () => this.loadDetail(detail.month.id),
       error: () => this.toast.error("Não foi possível remover o gasto.", { id: "monthly-expense-item-delete-error" })
     });
+  }
+
+  setTypeFilter(type: MonthlyExpenseType | "ALL"): void {
+    this.typeFilter.set(type);
+    this.closeMobileExpenseAction();
+  }
+
+  toggleMobileActions(): void {
+    this.mobileActionsOpen.update((open) => !open);
+    this.closeMobileExpenseAction();
+  }
+
+  startMobileExpenseSwipe(event: PointerEvent, itemId: string): void {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    this.mobileSwipeStart = {
+      itemId,
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      lockedAxis: null
+    };
+
+    if (this.mobileSwipeItemId() !== itemId) {
+      this.mobileSwipeItemId.set(itemId);
+      this.mobileSwipeOffset.set(0);
+    }
+
+    (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+  }
+
+  moveMobileExpenseSwipe(event: PointerEvent, itemId: string): void {
+    const gesture = this.mobileSwipeStart;
+    if (!gesture || gesture.itemId !== itemId || gesture.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - gesture.x;
+    const deltaY = event.clientY - gesture.y;
+
+    if (!gesture.lockedAxis) {
+      if (Math.abs(deltaX) < MOBILE_SWIPE_AXIS_LOCK_PX && Math.abs(deltaY) < MOBILE_SWIPE_AXIS_LOCK_PX) {
+        return;
+      }
+
+      gesture.lockedAxis = Math.abs(deltaX) > Math.abs(deltaY) ? "x" : "y";
+    }
+
+    if (gesture.lockedAxis !== "x") {
+      return;
+    }
+
+    event.preventDefault();
+    this.mobileSwipeOffset.set(Math.max(-MOBILE_SWIPE_LIMIT_PX, Math.min(MOBILE_SWIPE_LIMIT_PX, deltaX)));
+  }
+
+  endMobileExpenseSwipe(event: PointerEvent, itemId: string): void {
+    const gesture = this.mobileSwipeStart;
+    if (!gesture || gesture.itemId !== itemId || gesture.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const offset = this.mobileSwipeOffset();
+    if (offset <= -MOBILE_SWIPE_THRESHOLD_PX) {
+      this.mobileSwipeOffset.set(-MOBILE_SWIPE_LIMIT_PX);
+    } else if (offset >= MOBILE_SWIPE_THRESHOLD_PX) {
+      this.mobileSwipeOffset.set(MOBILE_SWIPE_LIMIT_PX);
+    } else {
+      this.closeMobileExpenseAction();
+    }
+
+    this.mobileSwipeStart = null;
+    (event.currentTarget as HTMLElement | null)?.releasePointerCapture?.(event.pointerId);
+  }
+
+  cancelMobileExpenseSwipe(event: PointerEvent, itemId: string): void {
+    const gesture = this.mobileSwipeStart;
+    if (!gesture || gesture.itemId !== itemId || gesture.pointerId !== event.pointerId) {
+      return;
+    }
+
+    this.mobileSwipeStart = null;
+    this.closeMobileExpenseAction();
+  }
+
+  closeMobileExpenseAction(): void {
+    this.mobileSwipeStart = null;
+    this.mobileSwipeItemId.set(null);
+    this.mobileSwipeOffset.set(0);
+  }
+
+  mobileExpenseTransform(itemId: string): string {
+    return `translateX(${this.mobileSwipeItemId() === itemId ? this.mobileSwipeOffset() : 0}px)`;
+  }
+
+  isMobileExpenseSwiping(itemId: string): boolean {
+    return this.mobileSwipeStart?.itemId === itemId;
   }
 
   exportCsv(): void {

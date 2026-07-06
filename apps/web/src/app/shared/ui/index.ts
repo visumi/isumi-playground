@@ -6,6 +6,7 @@ export * from "./checkbox.component";
 export * from "./clipboard.service";
 export * from "./download.service";
 export * from "./empty-state.component";
+export * from "./filter-chip.component";
 export * from "./input.directive";
 export * from "./modal-host.component";
 export * from "./modal.service";
