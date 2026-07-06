@@ -1,40 +1,82 @@
 <section class="grid gap-6" aria-labelledby="dashboard-title">
-  <isumi-page-header eyebrow="Resumo" title="{{ auth.profile()?.name || 'Dashboard' }}" titleId="dashboard-title">
-    <div actions class="flex shrink-0 items-center justify-end gap-2">
-      <isumi-button variant="secondary" size="sm" iconOnly [ariaLabel]="valuesHidden() ? 'Mostrar valores' : 'Ocultar valores'" [ariaPressed]="valuesHidden()" (click)="toggleValues()">
-        @if (valuesHidden()) {
-          <svg icon lucideEyeOff class="size-4" aria-hidden="true"></svg>
-        } @else {
-          <svg icon lucideEye class="size-4" aria-hidden="true"></svg>
-        }
-      </isumi-button>
+  <isumi-page-header eyebrow="Bem-vindo" title="{{ auth.profile()?.name || 'Dashboard' }}" titleId="dashboard-title" />
 
-      <isumi-button variant="secondary" size="sm" iconOnly ariaLabel="Atualizar dashboard" [loading]="loading()" (click)="load()">
-        <svg icon lucideRefreshCw class="size-4" aria-hidden="true"></svg>
-        Atualizar dashboard
-      </isumi-button>
+  <section class="grid gap-3" aria-labelledby="dashboard-tools-title">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 max-sm:grid-cols-1">
+      <a
+        class="group relative grid min-h-[16rem] overflow-hidden rounded-lg bg-card p-5 text-card-foreground no-underline shadow-2xl shadow-black/10 transition-[background] duration-200 hover:bg-secondary/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        routerLink="/tools/expenses"
+      >
+        <div class="relative z-10 grid h-full content-between gap-8">
+          <div class="grid gap-5">
+            <div class="flex items-start justify-between gap-3">
+              <span class="grid size-10 place-items-center rounded-md bg-primary/15 text-primary transition-colors group-hover:bg-primary/25" aria-hidden="true">
+                <svg lucideScale class="size-5"></svg>
+              </span>
+            </div>
+
+            <div class="grid min-w-0 gap-2">
+              <h3 class="m-0 min-w-0 break-words text-[1.65rem] font-black leading-tight tracking-[-0.03em] text-balance">Dividir gastos</h3>
+              <p class="m-0 max-w-[32ch] leading-6 text-muted-foreground">Organize uma divisão com convidados.</p>
+            </div>
+          </div>
+
+          <strong class="inline-flex items-center gap-2 text-sm font-black text-foreground">
+            Abrir ferramenta
+            <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
+          </strong>
+        </div>
+      </a>
+
+      <a
+        class="group relative grid min-h-[16rem] overflow-hidden rounded-lg bg-card p-5 text-card-foreground no-underline shadow-2xl shadow-black/10 transition-[background] duration-200 hover:bg-secondary/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        routerLink="/tools/monthly-expenses"
+      >
+        <div class="relative z-10 grid h-full content-between gap-8">
+          <div class="grid gap-5">
+            <div class="flex items-start justify-between gap-3">
+              <span class="grid size-10 place-items-center rounded-md bg-primary/15 text-primary transition-colors group-hover:bg-primary/25" aria-hidden="true">
+                <svg lucideSheet class="size-5"></svg>
+              </span>
+            </div>
+
+            <div class="grid min-w-0 gap-2">
+              <h3 class="m-0 min-w-0 break-words text-[1.65rem] font-black leading-tight tracking-[-0.03em] text-balance">Gastos mensais</h3>
+              <p class="m-0 max-w-[32ch] leading-6 text-muted-foreground">Acompanhe entradas, limites e compras do mês.</p>
+            </div>
+          </div>
+
+          <strong class="inline-flex items-center gap-2 text-sm font-black text-foreground">
+            Abrir ferramenta
+            <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
+          </strong>
+        </div>
+      </a>
+
+      <a
+        class="group relative grid min-h-[16rem] overflow-hidden rounded-lg bg-card p-5 text-card-foreground no-underline shadow-2xl shadow-black/10 transition-[background] duration-200 hover:bg-secondary/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        routerLink="/tools/trips"
+      >
+        <div class="relative z-10 grid h-full content-between gap-8">
+          <div class="grid gap-5">
+            <div class="flex items-start justify-between gap-3">
+              <span class="grid size-10 place-items-center rounded-md bg-primary/15 text-primary transition-colors group-hover:bg-primary/25" aria-hidden="true">
+                <svg lucideRoute class="size-5"></svg>
+              </span>
+            </div>
+
+            <div class="grid min-w-0 gap-2">
+              <h3 class="m-0 min-w-0 break-words text-[1.65rem] font-black leading-tight tracking-[-0.03em] text-balance">Planejar viagem</h3>
+              <p class="m-0 max-w-[32ch] leading-6 text-muted-foreground">Monte roteiros compartilhados por dia.</p>
+            </div>
+          </div>
+
+          <strong class="inline-flex items-center gap-2 text-sm font-black text-foreground">
+            Abrir ferramenta
+            <svg lucideArrowRight class="size-4" aria-hidden="true"></svg>
+          </strong>
+        </div>
+      </a>
     </div>
-  </isumi-page-header>
-
-  @if (loading()) {
-    <isumi-dashboard-skeleton />
-  } @else if (error()) {
-    <section class="grid gap-4 rounded-lg bg-card p-5">
-      <div class="grid gap-1">
-        <h2 class="m-0 text-[1.2rem] font-black">Não foi possível carregar o resumo</h2>
-        <p class="m-0 text-sm leading-6 text-muted-foreground">Tente atualizar o dashboard. Suas ferramentas continuam disponíveis pelo menu lateral.</p>
-      </div>
-      <isumi-button variant="secondary" size="sm" (click)="load()">
-        <svg icon lucideRefreshCw class="size-4" aria-hidden="true"></svg>
-        Tentar novamente
-      </isumi-button>
-    </section>
-  } @else if (summary(); as state) {
-    <div class="grid grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)] items-stretch gap-5 max-lg:grid-cols-1">
-      <isumi-dashboard-expense-debts [debts]="state.expenseDebts" [hidden]="valuesHidden()" />
-      <isumi-dashboard-monthly-card [summary]="state.monthly" [hidden]="valuesHidden()" />
-    </div>
-
-    <isumi-dashboard-upcoming-trips [trips]="state.upcomingTrips" />
-  }
+  </section>
 </section>

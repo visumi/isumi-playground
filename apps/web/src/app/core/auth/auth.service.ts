@@ -107,10 +107,10 @@ export class AuthService {
         this.http.get<MeResponse>(`${environment.apiBaseUrl}/me`)
       );
       this.profileState.set(profile);
-      this.authErrorState.set(profile.allowed ? null : "Seu e-mail ainda nao esta autorizado.");
+      this.authErrorState.set(profile.allowed ? null : "Seu e-mail ainda não está autorizado.");
     } catch {
       this.profileState.set(null);
-      this.authErrorState.set("Não foi possível confirmar sua autorizacão agora.");
+      this.authErrorState.set("Não foi possível confirmar sua autorização agora.");
     }
   }
 }

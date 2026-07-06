@@ -165,7 +165,7 @@ function monthlyExpenseMigrationDb(initialMonths: MonthlyExpenseMonthRow[], init
 }
 
 describe("monthly expense calculations", () => {
-  it("calculates the monthly dashboard numbers", () => {
+  it("calculates the monthly summary numbers", () => {
     expect(calculateMonthlyExpenseSummary({
       incomeCents: 1276307,
       variableLimitCents: 350000,
