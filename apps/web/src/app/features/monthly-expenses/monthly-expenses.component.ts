@@ -24,6 +24,7 @@ import {
   LucideSettings2,
   LucideTableOfContents,
   LucideTrash2,
+  LucideTrophy,
   LucideCalendarRange,
   LucideUpload,
   LucideBrickWall,
@@ -32,7 +33,7 @@ import {
 } from "@lucide/angular";
 import { MonthlyExpensesService } from "../../core/api/monthly-expenses.service";
 import { MonthlyExpenseCatalogItem, MonthlyExpenseDetail, MonthlyExpenseItem, MonthlyExpenseMonth, MonthlyExpensePendingItem, MonthlyExpenseType, UpsertMonthlyExpenseItemRequest } from "../../core/api/api.types";
-import { IsumiButtonComponent, IsumiDownloadService, IsumiEmptyStateComponent, IsumiFilterChipComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiTagComponent, IsumiTagTone, IsumiToastService, IsumiTooltipComponent } from "../../shared/ui";
+import { IsumiButtonComponent, IsumiDownloadService, IsumiEmptyStateComponent, IsumiFilterChipComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiTabComponent, IsumiTagComponent, IsumiTagTone, IsumiToastService, IsumiTooltipComponent } from "../../shared/ui";
 import { IsumiPageHeaderComponent } from "../../shared/ui/page-header.component";
 import { formatBrl, formatMoneyInput, normalizeDecimalInput, parseMoneyCents } from "../../shared/utils/money";
 import { environment } from "../../../environments/environment";
@@ -57,6 +58,23 @@ const MAX_CSV_IMPORT_ROWS = 1_000;
 const MOBILE_SWIPE_LIMIT_PX = 88;
 const MOBILE_SWIPE_THRESHOLD_PX = 56;
 const MOBILE_SWIPE_AXIS_LOCK_PX = 8;
+const CATEGORY_INSIGHT_LIMIT = 5;
+const CATEGORY_OTHER_COLOR = "#71717a";
+const CATEGORY_CHART_PALETTE = ["#a78bfa", "#34d399", "#38bdf8", "#fbbf24", "#fb7185"];
+const CATEGORY_CHART_RADIUS = 42;
+const CATEGORY_CHART_CIRCUMFERENCE = 2 * Math.PI * CATEGORY_CHART_RADIUS;
+
+type MonthlyExpenseView = "list" | "insights";
+
+interface MonthlyExpenseCategoryInsight {
+  categoryId: string;
+  name: string;
+  color: string;
+  amountCents: number;
+  percent: number;
+  strokeDasharray: string;
+  strokeDashoffset: string;
+}
 
 @Component({
   selector: "isumi-monthly-expenses",
@@ -69,6 +87,7 @@ const MOBILE_SWIPE_AXIS_LOCK_PX = 8;
     IsumiInputDirective,
     IsumiPageHeaderComponent,
     IsumiSelectDirective,
+    IsumiTabComponent,
     IsumiTagComponent,
     IsumiTooltipComponent,
     UpperCasePipe,
@@ -96,6 +115,7 @@ const MOBILE_SWIPE_AXIS_LOCK_PX = 8;
     LucideSettings2,
     LucideTableOfContents,
     LucideTrash2,
+    LucideTrophy,
     LucideUpload,
     LucideBlocks
   ],
@@ -124,6 +144,7 @@ export class MonthlyExpensesComponent implements OnInit {
   readonly income = signal("");
   readonly variableLimit = signal("");
   readonly query = signal("");
+  readonly selectedView = signal<MonthlyExpenseView>("list");
   readonly typeFilter = signal<MonthlyExpenseType | "ALL">("ALL");
   readonly categoryFilter = signal("ALL");
   readonly paymentFilter = signal("ALL");
@@ -131,6 +152,8 @@ export class MonthlyExpensesComponent implements OnInit {
   readonly mobileActionsOpen = signal(false);
   readonly mobileSwipeItemId = signal<string | null>(null);
   readonly mobileSwipeOffset = signal(0);
+  readonly activeCategoryInsightId = signal<string | null>(null);
+  readonly chartRadius = CATEGORY_CHART_RADIUS;
   readonly shortcutEndpointUrl = `${environment.apiBaseUrl}/tools/monthly-expenses/apple-pay/pending`;
   private mobileSwipeStart: { itemId: string; pointerId: number; x: number; y: number; lockedAxis: "x" | "y" | null } | null = null;
 
@@ -173,6 +196,64 @@ export class MonthlyExpensesComponent implements OnInit {
       return matchesSearch && matchesType && matchesCategory && matchesPayment;
     });
   });
+  readonly categoryInsights = computed<MonthlyExpenseCategoryInsight[]>(() => {
+    const detail = this.detail();
+    const totalCents = detail?.summary.monthTotalCents || 0;
+    if (!detail || totalCents <= 0) {
+      return [];
+    }
+
+    const categoryMap = new Map<string, { name: string; color: string; amountCents: number }>();
+    for (const item of detail.items) {
+      const current = categoryMap.get(item.categoryId) || {
+        name: item.categoryName || "Categoria",
+        color: item.categoryColor,
+        amountCents: 0
+      };
+
+      current.amountCents += item.amountCents;
+      categoryMap.set(item.categoryId, current);
+    }
+
+    const sorted = [...categoryMap.entries()]
+      .map(([categoryId, item]) => ({ categoryId, ...item }))
+      .filter((item) => item.amountCents > 0)
+      .sort((a, b) => b.amountCents - a.amountCents || a.name.localeCompare(b.name, "pt-BR"));
+
+    const visible = sorted.length > CATEGORY_INSIGHT_LIMIT
+      ? [
+          ...sorted.slice(0, CATEGORY_INSIGHT_LIMIT - 1),
+          {
+            categoryId: "other",
+            name: "OUTROS",
+            color: CATEGORY_OTHER_COLOR,
+            amountCents: sorted.slice(CATEGORY_INSIGHT_LIMIT - 1).reduce((total, item) => total + item.amountCents, 0)
+          }
+        ]
+      : sorted;
+
+    const gap = visible.length > 1 ? 12 : 0;
+    const drawableCircumference = CATEGORY_CHART_CIRCUMFERENCE - gap * visible.length;
+    let cursor = 0;
+    return visible.map((item, index) => {
+      const rawPercent = item.amountCents / totalCents * 100;
+      const segmentLength = visible.length === 1 ? CATEGORY_CHART_CIRCUMFERENCE : Math.max(6, item.amountCents / totalCents * drawableCircumference);
+      const strokeDashoffset = -cursor;
+      cursor += segmentLength + gap;
+
+      return {
+        ...item,
+        color: item.categoryId === "other" ? CATEGORY_OTHER_COLOR : CATEGORY_CHART_PALETTE[index % CATEGORY_CHART_PALETTE.length],
+        percent: Math.round(rawPercent),
+        strokeDasharray: `${segmentLength} ${CATEGORY_CHART_CIRCUMFERENCE - segmentLength}`,
+        strokeDashoffset: `${strokeDashoffset}`
+      };
+    });
+  });
+  readonly topCategory = computed(() => this.categoryInsights()[0] || null);
+  readonly activeCategoryInsight = computed(() =>
+    this.categoryInsights().find((item) => item.categoryId === this.activeCategoryInsightId()) || null
+  );
   readonly hasMigratableFixedExpenses = computed(() =>
     (this.detail()?.items || []).some((item) =>
       item.expenseType === "FIXO" &&
@@ -493,6 +574,19 @@ export class MonthlyExpensesComponent implements OnInit {
   setTypeFilter(type: MonthlyExpenseType | "ALL"): void {
     this.typeFilter.set(type);
     this.closeMobileExpenseAction();
+  }
+
+  setSelectedView(view: MonthlyExpenseView): void {
+    this.selectedView.set(view);
+    this.closeMobileExpenseAction();
+  }
+
+  setActiveCategoryInsight(categoryId: string | null): void {
+    this.activeCategoryInsightId.set(categoryId);
+  }
+
+  categoryInsightRowBackground(color: string): string {
+    return `linear-gradient(90deg, color-mix(in srgb, ${color} 18%, transparent), rgb(255 255 255 / 0.03) 42%, rgb(255 255 255 / 0.015))`;
   }
 
   toggleMobileActions(): void {
