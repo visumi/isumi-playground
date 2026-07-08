@@ -115,8 +115,8 @@ type LeafletImport = typeof Leaflet | { default: typeof Leaflet };
   },
   template: `
       <div
-        class="relative h-full overflow-hidden rounded-lg bg-background"
-      [ngClass]="compact ? 'min-h-0' : 'min-h-[14rem] sm:min-h-[20rem]'">
+        class="relative h-full overflow-hidden bg-background"
+      [ngClass]="compact ? 'min-h-0 rounded-md' : 'min-h-[14rem] rounded-lg sm:min-h-[20rem]'">
       <div
         #mapContainer
         class="h-full w-full"

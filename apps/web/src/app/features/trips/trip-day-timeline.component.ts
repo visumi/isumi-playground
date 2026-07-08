@@ -42,6 +42,7 @@ function dateOnlyValue(date: string): Date {
           }
         </div>
         <div class="flex flex-wrap items-center justify-end gap-1">
+          @if (!alwaysExpanded()) {
           <isumi-tooltip [label]="expanded() ? 'Ocultar timeline' : 'Exibir timeline'">
             <isumi-button variant="secondary" size="sm" type="button" iconOnly
               [ariaExpanded]="expanded()"
@@ -53,6 +54,7 @@ function dateOnlyValue(date: string): Date {
               {{ expanded() ? "Ocultar timeline" : "Exibir timeline" }}
             </isumi-button>
           </isumi-tooltip>
+          }
           <isumi-button variant="secondary" size="sm" iconOnly ariaLabel="Mostrar dia anterior"
             [disabled]="!canShowPreviousDays() || dayAnimating()" (click)="previousDayRequested.emit()">
             <svg icon lucideChevronLeft class="size-4"></svg>
@@ -75,14 +77,14 @@ function dateOnlyValue(date: string): Date {
 
         <div id="trip-day-timeline"
           class="grid overflow-hidden transition-[grid-template-rows,opacity,transform] duration-200 ease-out motion-reduce:transform-none motion-reduce:transition-none"
-          [class.grid-rows-[1fr]]="expanded()"
-          [class.grid-rows-[0fr]]="!expanded()"
-          [class.translate-y-0]="expanded()"
-          [class.-translate-y-1]="!expanded()"
-          [class.opacity-100]="expanded()"
-          [class.opacity-0]="!expanded()"
-          [attr.aria-hidden]="!expanded()"
-          [attr.inert]="expanded() ? null : ''">
+          [class.grid-rows-[1fr]]="isExpanded()"
+          [class.grid-rows-[0fr]]="!isExpanded()"
+          [class.translate-y-0]="isExpanded()"
+          [class.-translate-y-1]="!isExpanded()"
+          [class.opacity-100]="isExpanded()"
+          [class.opacity-0]="!isExpanded()"
+          [attr.aria-hidden]="!isExpanded()"
+          [attr.inert]="isExpanded() ? null : ''">
           <div class="min-h-0 overflow-hidden">
             <div class="relative min-w-0 overflow-hidden rounded-md bg-background/45 px-2 py-2.5">
               <div class="min-w-0 overflow-x-auto pb-1 pt-0.5">
@@ -132,13 +134,15 @@ function dateOnlyValue(date: string): Date {
 })
 export class TripDayTimelineComponent {
   readonly days = input.required<TripDay[]>();
-  readonly items = input.required<TripDayItem[]>();
+  readonly items = input.required<ReadonlyArray<Pick<TripDayItem, "dayId">>>();
   readonly focusedDay = input.required<TripDay | null>();
   readonly dayAnimating = input(false);
+  readonly alwaysExpanded = input(false);
   readonly previousDayRequested = output<void>();
   readonly nextDayRequested = output<void>();
   readonly dayFocused = output<string>();
   readonly expanded = signal(false);
+  readonly isExpanded = computed(() => this.alwaysExpanded() || this.expanded());
   readonly focusedDayIndex = computed(() =>
     this.days().findIndex((day) => day.id === this.focusedDay()?.id)
   );

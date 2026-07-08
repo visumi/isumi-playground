@@ -26,7 +26,8 @@ import { TripDayMapComponent, TripMapPoint } from "./trip-day-map.component";
 export interface TripGeneralMapModalData {
   points: Signal<TripMapPoint[]>;
   days: TripDay[];
-  allocate: (allocation: TripGeneralMapAllocation) => Promise<void>;
+  allocate?: (allocation: TripGeneralMapAllocation) => Promise<void>;
+  readOnly?: boolean;
 }
 
 export interface TripGeneralMapAllocation {
@@ -93,7 +94,8 @@ const MAP_CATEGORY_VISUALS: Record<TripPlaceCategory, {
             (pointSelected)="togglePoint($event)" />
         </section>
 
-        <aside class="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-lg bg-secondary/55 max-sm:self-start max-sm:content-start max-sm:grid-rows-[auto_auto]">
+        <aside class="grid min-h-0 overflow-hidden rounded-lg bg-secondary/55 max-sm:self-start max-sm:content-start"
+          [ngClass]="readOnly() ? 'grid-rows-[auto_minmax(0,1fr)] max-sm:grid-rows-[auto_auto]' : 'grid-rows-[auto_auto_minmax(0,1fr)] max-sm:grid-rows-[auto_auto]'">
           <div class="border-b border-border/70 px-4 py-3">
             <strong class="inline-flex items-center gap-2 text-sm font-black">
               <span class="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
@@ -103,6 +105,7 @@ const MAP_CATEGORY_VISUALS: Record<TripPlaceCategory, {
             </strong>
           </div>
 
+          @if (!readOnly()) {
           <form class="grid gap-3 border-b border-border/70 px-4 py-3 max-sm:border-b-0" (submit)="submitAllocation($event)">
             <label class="grid gap-2">
               <span class="inline-flex items-center gap-2 text-xs font-extrabold text-muted-foreground">
@@ -135,14 +138,16 @@ const MAP_CATEGORY_VISUALS: Record<TripPlaceCategory, {
               </isumi-button>
             </div>
           </form>
+          }
 
-          <div class="min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 pt-3 max-sm:hidden">
+          <div class="min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 pt-3"
+            [ngClass]="readOnly() ? '' : 'max-sm:hidden'">
             @if (mapData.points().length > 0) {
             <ol class="grid gap-2">
               @for (entry of mapData.points(); track entry.id) {
               <li class="grid gap-3 rounded-md bg-background/70 px-3 py-2.5 transition-colors duration-150">
                 <div class="flex min-w-0 items-start gap-3">
-                  @if (entry.kind === "place" && entry.placeId) {
+                  @if (!readOnly() && entry.kind === "place" && entry.placeId) {
                   <isumi-checkbox class="mt-1" [checked]="isSelected(entry.placeId)"
                     [disabled]="busy()"
                     [ariaLabel]="selectionLabel(entry)"
@@ -198,6 +203,7 @@ const MAP_CATEGORY_VISUALS: Record<TripPlaceCategory, {
 export class TripGeneralMapModalComponent {
   readonly data = injectIsumiModalData<TripGeneralMapModalData>();
   readonly modalRef = injectIsumiModalRef<TripGeneralMapModalData, void>();
+  readonly readOnly = computed(() => !!this.data?.readOnly);
   readonly selectedDayId = signal(this.data?.days[0]?.id || "");
   readonly selectedPlaceIds = signal<string[]>([]);
   readonly allocating = signal(false);
@@ -222,6 +228,7 @@ export class TripGeneralMapModalComponent {
   }
 
   togglePlace(placeId: string, checked: boolean): void {
+    if (this.readOnly()) return;
     if (this.busy()) return;
     this.selectedPlaceIds.update((placeIds) =>
       checked
@@ -231,6 +238,7 @@ export class TripGeneralMapModalComponent {
   }
 
   togglePoint(point: TripMapPoint): void {
+    if (this.readOnly()) return;
     if (this.busy()) return;
     if (point.kind !== "place" || !point.placeId) return;
     this.togglePlace(point.placeId, !this.isSelected(point.placeId));
@@ -247,7 +255,7 @@ export class TripGeneralMapModalComponent {
 
     this.allocating.set(true);
     try {
-      await this.data?.allocate({ dayId, placeIds, itemIds });
+      await this.data?.allocate?.({ dayId, placeIds, itemIds });
       this.selectedPlaceIds.set([]);
     } finally {
       this.allocating.set(false);
@@ -260,7 +268,7 @@ export class TripGeneralMapModalComponent {
 
     this.removing.set(true);
     try {
-      await this.data?.allocate({ placeIds: [], itemIds: [], removeItemIds });
+      await this.data?.allocate?.({ placeIds: [], itemIds: [], removeItemIds });
       this.selectedPlaceIds.set([]);
     } finally {
       this.removing.set(false);

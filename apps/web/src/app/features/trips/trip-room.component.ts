@@ -262,9 +262,9 @@ export function tripDayMapMarkerClass(dayNumber: number): string {
 
 export function buildTripGeneralMapPoints(
   days: TripDay[],
-  places: TripPlace[],
-  items: TripDayItem[],
-  lodgings: TripLodging[]
+  places: ReadonlyArray<Pick<TripPlace, "id" | "name" | "address" | "category" | "latitude" | "longitude">>,
+  items: ReadonlyArray<Pick<TripDayItem, "id" | "placeId" | "dayId" | "position">>,
+  lodgings: ReadonlyArray<Pick<TripLodging, "id" | "name" | "address" | "latitude" | "longitude">>
 ): TripMapPoint[] {
   const daysById = new Map(days.map((day) => [day.id, day]));
   const placesById = new Map(places.map((place) => [place.id, place]));
