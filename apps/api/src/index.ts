@@ -63,7 +63,7 @@ import {
   type MonthlyExpenseShortcutPendingInput
 } from "./monthly-expenses";
 import { createDatabaseClient, Env, HttpError } from "./shared";
-import { handleTripRealtimeUpgrade, handleTripRequest } from "./trip-routes";
+import { handlePublicTripRequest, handleTripRealtimeUpgrade, handleTripRequest } from "./trip-routes";
 export { TripRoom } from "./trip-room";
 
 export { isEmailAllowed, normalizeEmail, resolveAccessDecision } from "./access";
@@ -118,6 +118,12 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const db = createDatabaseClient(env);
       const payload = await readJson<MonthlyExpenseShortcutPendingInput>(request);
       return json(await createMonthlyExpensePendingFromShortcut(db, request, payload), 201, corsHeaders);
+    }
+
+    const publicDb = createDatabaseClient(env);
+    const publicTripResponse = await handlePublicTripRequest(request, publicDb, corsHeaders);
+    if (publicTripResponse) {
+      return publicTripResponse;
     }
 
     const identity = await authenticate(request, env);

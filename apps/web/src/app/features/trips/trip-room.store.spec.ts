@@ -15,6 +15,7 @@ describe("TripRoomStore", () => {
         startDate: "2026-10-12",
         endDate: "2026-10-13",
         timezone: "UTC",
+        publicShareToken: "share-token",
         revision: 1,
         createdAt: "2026-01-01T00:00:00Z",
         updatedAt: "2026-01-01T00:00:00Z"
@@ -100,6 +101,7 @@ describe("TripRoomStore", () => {
         startDate: "2026-10-12",
         endDate: "2026-10-12",
         timezone: "UTC",
+        publicShareToken: "share-token",
         revision: 1,
         createdAt: "2026-01-01T00:00:00Z",
         updatedAt: "2026-01-01T00:00:00Z"
@@ -178,7 +180,6 @@ describe("TripRoomStore", () => {
         toLodgingId: null,
         transportMode: "walk",
         durationMinutes: 10,
-        notes: null,
         version: 1
       }]
     });

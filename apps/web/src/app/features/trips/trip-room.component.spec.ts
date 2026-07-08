@@ -323,6 +323,7 @@ describe("lodging day helpers", () => {
     startDate: "2026-10-10",
     endDate: "2026-10-20",
     timezone: "America/Sao_Paulo",
+    publicShareToken: "share-token",
     revision: 1,
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z"

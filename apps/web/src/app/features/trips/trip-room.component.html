@@ -13,6 +13,7 @@
         <div class="flex shrink-0 gap-1">
           <span class="size-10 rounded-sm bg-secondary"></span>
           <span class="size-10 rounded-sm bg-secondary"></span>
+          <span class="size-10 rounded-sm bg-secondary"></span>
         </div>
       </div>
 
@@ -196,6 +197,13 @@
               (click)="copyInviteUrl()">
               <svg icon lucideFiles class="size-4" aria-hidden="true"></svg>
               Copiar link de convite
+            </isumi-button>
+          </isumi-tooltip>
+          <isumi-tooltip label="Copiar visão pública">
+            <isumi-button variant="secondary" iconOnly type="button" ariaLabel="Copiar visão pública da viagem"
+              [loading]="sharingPublicLink()" (click)="copyPublicTripUrl()">
+              <svg icon lucideShare2 class="size-4" aria-hidden="true"></svg>
+              Copiar visão pública
             </isumi-button>
           </isumi-tooltip>
         </div>
@@ -1169,15 +1177,6 @@
                 placeholder="Minutos" required>
             </label>
 
-            <label class="grid gap-2">
-              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-                <svg lucideAsterisk class="size-4" aria-hidden="true"></svg>
-                Observação do trajeto
-              </span>
-              <textarea isumiInput name="routeNotes" rows="3" [ngModel]="routeNotes()"
-                (ngModelChange)="routeNotes.set($event)"
-                placeholder="Linha do metrô, ponto de encontro..."></textarea>
-            </label>
           </div>
 
           <footer class="flex justify-end gap-2 max-sm:grid">

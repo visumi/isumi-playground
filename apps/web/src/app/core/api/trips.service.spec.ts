@@ -37,8 +37,7 @@ describe("TripsService", () => {
       fromItemId: "item-1",
       toItemId: "item-2",
       transportMode: "walk",
-      durationMinutes: 15,
-      notes: "Seguir pela praça"
+      durationMinutes: 15
     }).subscribe();
 
     const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/routes");
@@ -52,7 +51,6 @@ describe("TripsService", () => {
     service.updateRoute("trip-1", "route-1", {
       transportMode: "transit",
       durationMinutes: 25,
-      notes: null,
       version: 4
     }).subscribe();
 
@@ -114,6 +112,20 @@ describe("TripsService", () => {
   it("accepts a room invite explicitly", () => {
     service.acceptRoom("trip-1").subscribe();
     const request = http.expectOne("http://localhost:8787/tools/trips/trip-1?accept=1");
+    expect(request.request.method).toBe("GET");
+    request.flush({});
+  });
+
+  it("ensures a public share token for a trip", () => {
+    service.ensurePublicShareToken("trip-1").subscribe();
+    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/public-share-token");
+    expect(request.request.method).toBe("POST");
+    request.flush({ publicShareToken: "share-token" });
+  });
+
+  it("loads a public trip snapshot by share token", () => {
+    service.publicSnapshot("share-token").subscribe();
+    const request = http.expectOne("http://localhost:8787/tools/trips/public/share-token");
     expect(request.request.method).toBe("GET");
     request.flush({});
   });

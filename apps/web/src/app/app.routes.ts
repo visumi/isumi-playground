@@ -26,6 +26,10 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: "trips/public/:shareToken",
+    loadComponent: () => import("./features/trips/trip-public-view.component").then((module) => module.TripPublicViewComponent)
+  },
+  {
     path: "",
     component: ShellComponent,
     canActivate: [authGuard],

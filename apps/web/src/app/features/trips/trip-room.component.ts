@@ -54,6 +54,7 @@ import {
   LucidePlus,
   LucideRoute,
   LucideSave,
+  LucideShare2,
   LucideShoppingBag,
   LucideShuffle,
   LucideTrash2,
@@ -496,6 +497,7 @@ export class DeleteTripPlaceModalComponent {
     LucidePlus,
     LucideRoute,
     LucideSave,
+    LucideShare2,
     LucideShuffle,
     LucideTrash2,
     LucideUsers,
@@ -546,6 +548,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly deletingRoom = signal(false);
   readonly deletingPlaceId = signal<string | null>(null);
   readonly deletingLodgingId = signal<string | null>(null);
+  readonly sharingPublicLink = signal(false);
   readonly savingPanel = signal(false);
   readonly focusedDayId = signal<string | null>(null);
   readonly dayAnimating = signal(false);
@@ -605,7 +608,6 @@ export class TripRoomComponent implements OnInit, OnDestroy {
 
   readonly routeTransportMode = signal<TripTransportMode | "">("");
   readonly routeDurationMinutes = signal<number | null>(null);
-  readonly routeNotes = signal("");
   readonly selectedRoute = computed(() => {
     const fromItemId = this.selectedRouteFromItemId();
     const toItemId = this.selectedRouteToItemId();
@@ -1235,7 +1237,6 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.selectedRouteToLodgingId.set(endpoints.toLodgingId);
     this.routeTransportMode.set(route?.transportMode || "");
     this.routeDurationMinutes.set(route?.durationMinutes || null);
-    this.routeNotes.set(route?.notes || "");
     this.openEditorModal("route");
   }
 
@@ -1257,8 +1258,7 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     const payload = {
       ...this.serializeRouteEndpoints({ fromItemId, fromLodgingId, toItemId, toLodgingId }),
       transportMode,
-      durationMinutes,
-      notes: this.routeNotes()
+      durationMinutes
     };
     this.savingPanel.set(true);
     try {
@@ -1404,6 +1404,22 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       this.toast.success("Link de convite copiado.");
     } catch {
       this.toast.error("Não foi possível copiar o link da sala.");
+    }
+  }
+
+  async copyPublicTripUrl(): Promise<void> {
+    if (this.sharingPublicLink()) return;
+    this.sharingPublicLink.set(true);
+
+    try {
+      const { publicShareToken } = await firstValueFrom(this.trips.ensurePublicShareToken(this.roomId()));
+      const path = this.router.serializeUrl(this.router.createUrlTree(["/trips/public", publicShareToken]));
+      await this.clipboard.copyText(`${window.location.origin}${path}`);
+      this.toast.success("Link público da viagem copiado.");
+    } catch {
+      this.toast.error("Não foi possível copiar o link público da viagem.");
+    } finally {
+      this.sharingPublicLink.set(false);
     }
   }
 

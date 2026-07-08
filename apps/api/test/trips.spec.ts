@@ -6,7 +6,9 @@ import {
   createTripPlace,
   createTripRoute,
   deleteTripPlace,
+  ensureTripPublicShareToken,
   enumerateTripDates,
+  getPublicTripSnapshot,
   lodgingPeriodsOverlap,
   reorderTripDayItems,
 } from "../src/trips";
@@ -314,5 +316,79 @@ describe("trip planner validation", () => {
     await expect(reorderTripDayItems(db, "user-1", "room-1", "day-1", {
       itemIds: ["item-a"]
     })).rejects.toThrowError("invalid_item_order");
+  });
+
+  it("returns a public trip snapshot without member identity or editing metadata", async () => {
+    const db = {
+      execute: vi.fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: "room-1",
+            owner_user_id: "owner-1",
+            title: "Buenos Aires",
+            destination: "Argentina",
+            start_date: "2026-10-12",
+            end_date: "2026-10-16",
+            timezone: "America/Argentina/Buenos_Aires",
+            revision: 4,
+            created_at: "2026-01-01 00:00:00",
+            updated_at: "2026-01-02 00:00:00"
+          }]
+        })
+        .mockResolvedValueOnce({ rows: [{ total: 2 }] })
+        .mockResolvedValueOnce({ rows: [{ id: "day-1", date: "2026-10-12", position: 0 }] })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: "place-1",
+            name: "Café Tortoni",
+            category: "food",
+            address: "Av. de Mayo",
+            notes: "Reserva feita",
+            latitude: -34.6089,
+            longitude: -58.3781
+          }]
+        })
+        .mockResolvedValueOnce({ rows: [{ id: "item-1", day_id: "day-1", place_id: "place-1", position: 0 }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+    } as unknown as Client;
+
+    const snapshot = await getPublicTripSnapshot(db, "share-token");
+
+    expect(snapshot.membersCount).toBe(2);
+    expect(snapshot.room).toEqual({
+      id: "room-1",
+      title: "Buenos Aires",
+      destination: "Argentina",
+      startDate: "2026-10-12",
+      endDate: "2026-10-16",
+      timezone: "America/Argentina/Buenos_Aires",
+      revision: 4,
+      updatedAt: "2026-01-02T00:00:00Z"
+    });
+    expect("currentMemberRole" in snapshot).toBe(false);
+    expect("members" in snapshot).toBe(false);
+    expect("ownerUserId" in snapshot.room).toBe(false);
+    expect("createdByUserId" in snapshot.places[0]).toBe(false);
+    expect("version" in snapshot.items[0]).toBe(false);
+  });
+
+  it("rejects an unknown public trip token", async () => {
+    const db = {
+      execute: vi.fn().mockResolvedValueOnce({ rows: [] })
+    } as unknown as Client;
+
+    await expect(getPublicTripSnapshot(db, "missing-token")).rejects.toThrowError("not_found");
+  });
+
+  it("returns an existing public share token for trip members", async () => {
+    const db = {
+      execute: vi.fn()
+        .mockResolvedValueOnce({ rows: [{ role: "member" }] })
+        .mockResolvedValueOnce({ rows: [{ public_share_token: "share-token" }] })
+    } as unknown as Client;
+
+    await expect(ensureTripPublicShareToken(db, "user-1", "room-1"))
+      .resolves.toEqual({ publicShareToken: "share-token" });
   });
 });

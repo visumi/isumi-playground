@@ -2,7 +2,7 @@ import { jwtVerify, SignJWT } from "jose";
 import type { Client } from "@libsql/client/web";
 import { dispatchRoute, route, routeParam, type HttpRoute, type RouteContext } from "./http-router";
 import type { AuthUser, Env } from "./shared";
-import { createDatabaseClient, HttpError, requiredEnv } from "./shared";
+import { HttpError, requiredEnv } from "./shared";
 import {
   acceptTripRoom,
   assertTripMember,
@@ -16,6 +16,8 @@ import {
   deleteTripPlace,
   deleteTripRoute,
   deleteTripRoom,
+  ensureTripPublicShareToken,
+  getPublicTripSnapshot,
   getTripSnapshot,
   listTripRooms,
   moveTripDayItem,
@@ -43,6 +45,11 @@ interface TripRouteContext extends RouteContext {
   env: Env;
   db: Client;
   user: AuthUser;
+  corsHeaders: Headers;
+}
+
+interface PublicTripRouteContext extends RouteContext {
+  db: Client;
   corsHeaders: Headers;
 }
 
@@ -93,6 +100,25 @@ export async function handleTripRequest(
   });
 }
 
+export async function handlePublicTripRequest(
+  request: Request,
+  db: Client,
+  corsHeaders: Headers
+): Promise<Response | null> {
+  return dispatchRoute(publicTripRoutes, {
+    request,
+    url: new URL(request.url),
+    db,
+    corsHeaders
+  });
+}
+
+const publicTripRoutes: HttpRoute<PublicTripRouteContext>[] = [
+  route("GET", /^\/tools\/trips\/public\/(?<shareToken>[^/]+)$/, async ({ db, corsHeaders, params }) =>
+    json(await getPublicTripSnapshot(db, routeParam(params, "shareToken")), 200, corsHeaders)
+  )
+];
+
 const tripRoutes: HttpRoute<TripRouteContext>[] = [
   route("GET", /^\/tools\/trips$/, async ({ db, user, corsHeaders }) =>
     json(await listTripRooms(db, user.uid), 200, corsHeaders)
@@ -139,6 +165,9 @@ const tripRoutes: HttpRoute<TripRouteContext>[] = [
       .sign(realtimeSecret(env));
     return json({ token, expiresInSeconds: 60 }, 201, corsHeaders);
   }),
+  route("POST", /^\/tools\/trips\/(?<roomId>[^/]+)\/public-share-token$/, async ({ db, user, corsHeaders, params }) =>
+    json(await ensureTripPublicShareToken(db, user.uid, routeParam(params, "roomId")), 200, corsHeaders)
+  ),
   route("POST", /^\/tools\/trips\/(?<roomId>[^/]+)\/places$/, async ({ request, env, db, user, corsHeaders, params }) => {
     const roomId = routeParam(params, "roomId");
     return snapshotResponse(env, roomId, user.uid, await createTripPlace(db, user.uid, roomId, await readJson<TripPlaceInput>(request)), 201, corsHeaders);

@@ -260,6 +260,7 @@ export interface TripRoom {
   startDate: string;
   endDate: string;
   timezone: string;
+  publicShareToken: string | null;
   revision: number;
   createdAt: string;
   updatedAt: string;
@@ -321,7 +322,6 @@ export interface TripRoute {
   toLodgingId: string | null;
   transportMode: TripTransportMode;
   durationMinutes: number;
-  notes: string | null;
   version: number;
 }
 
@@ -346,6 +346,32 @@ export interface TripSnapshot {
   items: TripDayItem[];
   routes: TripRoute[];
   lodgings: TripLodging[];
+}
+
+export interface PublicTripRoom {
+  id: string;
+  title: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  timezone: string;
+  revision: number;
+  updatedAt: string;
+}
+
+export type PublicTripPlace = Omit<TripPlace, "createdByUserId" | "version" | "createdAt" | "updatedAt" | "geocodedAddress" | "geocodedAt" | "geocodingStatus">;
+export type PublicTripDayItem = Omit<TripDayItem, "version">;
+export type PublicTripRoute = Omit<TripRoute, "version">;
+export type PublicTripLodging = Omit<TripLodging, "version">;
+
+export interface PublicTripSnapshot {
+  room: PublicTripRoom;
+  membersCount: number;
+  days: TripDay[];
+  places: PublicTripPlace[];
+  items: PublicTripDayItem[];
+  routes: PublicTripRoute[];
+  lodgings: PublicTripLodging[];
 }
 
 export interface CreateTripRequest {
@@ -382,7 +408,6 @@ export interface UpsertTripRouteRequest {
   toLodgingId?: string;
   transportMode: TripTransportMode;
   durationMinutes: number;
-  notes?: string | null;
   version?: number;
 }
 

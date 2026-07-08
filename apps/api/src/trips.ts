@@ -39,7 +39,6 @@ export interface TripRouteInput {
   toLodgingId?: string;
   transportMode?: TripTransportMode;
   durationMinutes?: number;
-  notes?: string | null;
   version?: number;
 }
 
@@ -71,6 +70,7 @@ interface TripRoomRow extends Row {
   start_date: string;
   end_date: string;
   timezone: string;
+  public_share_token?: string | null;
   revision: number;
   created_at: string;
   updated_at: string;
@@ -119,6 +119,7 @@ export async function listTripRooms(db: Client, userId: string) {
 
 export async function createTripRoom(db: Client, user: AuthUser, payload: TripRoomInput) {
   const roomId = crypto.randomUUID();
+  const publicShareToken = generateTripPublicShareToken();
   const title = text(payload.title, "Nova viagem", 120);
   const destination = text(payload.destination, "Destino a definir", 160);
   const startDate = date(payload.startDate, "start_date");
@@ -133,10 +134,10 @@ export async function createTripRoom(db: Client, user: AuthUser, payload: TripRo
     {
       sql: `
         INSERT INTO trip_rooms
-          (id, owner_user_id, title, destination, start_date, end_date, timezone)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+          (id, owner_user_id, title, destination, start_date, end_date, timezone, public_share_token)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      args: [roomId, user.uid, title, destination, startDate, endDate, timezone]
+      args: [roomId, user.uid, title, destination, startDate, endDate, timezone, publicShareToken]
     },
     {
       sql: "INSERT INTO trip_members (room_id, user_id, role) VALUES (?, ?, 'owner')",
@@ -159,7 +160,7 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
   const member = await assertTripMember(db, roomId, userId);
   const roomResult = await db.execute({
     sql: `
-      SELECT id, owner_user_id, title, destination, start_date, end_date, timezone,
+      SELECT id, owner_user_id, title, destination, start_date, end_date, timezone, public_share_token,
              revision, created_at, updated_at
       FROM trip_rooms WHERE id = ? LIMIT 1
     `,
@@ -197,7 +198,7 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
     db.execute({
       sql: `
         SELECT id, from_item_id, from_lodging_id, to_item_id, to_lodging_id,
-               transport_mode, duration_minutes, notes, version
+               transport_mode, duration_minutes, version
         FROM trip_routes WHERE room_id = ? ORDER BY created_at, id
       `,
       args: [roomId]
@@ -252,7 +253,6 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       toLodgingId: row.to_lodging_id ? String(row.to_lodging_id) : null,
       transportMode: String(row.transport_mode),
       durationMinutes: Number(row.duration_minutes),
-      notes: row.notes ? String(row.notes) : null,
       version: Number(row.version)
     })),
     lodgings: lodgings.rows.map((row) => ({
@@ -267,6 +267,133 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       version: Number(row.version)
     }))
   };
+}
+
+export async function getPublicTripSnapshot(db: Client, publicShareToken: string) {
+  const token = requiredText(publicShareToken, "not_found", 96);
+  const roomResult = await db.execute({
+    sql: `
+      SELECT id, owner_user_id, title, destination, start_date, end_date, timezone,
+             revision, created_at, updated_at
+      FROM trip_rooms WHERE public_share_token = ? LIMIT 1
+    `,
+    args: [token]
+  });
+  const room = roomResult.rows[0] as TripRoomRow | undefined;
+  if (!room) throw new HttpError(404, "not_found");
+
+  const [members, days, places, items, routes, lodgings] = await Promise.all([
+    db.execute({ sql: "SELECT COUNT(*) AS total FROM trip_members WHERE room_id = ?", args: [room.id] }),
+    db.execute({ sql: "SELECT id, date, position FROM trip_days WHERE room_id = ? ORDER BY position", args: [room.id] }),
+    db.execute({
+      sql: `
+        SELECT id, name, category, address, notes, latitude, longitude
+        FROM trip_places WHERE room_id = ? ORDER BY created_at, id
+      `,
+      args: [room.id]
+    }),
+    db.execute({
+      sql: `
+        SELECT id, day_id, place_id, position
+        FROM trip_day_items WHERE room_id = ? ORDER BY day_id, position
+      `,
+      args: [room.id]
+    }),
+    db.execute({
+      sql: `
+        SELECT id, from_item_id, from_lodging_id, to_item_id, to_lodging_id,
+               transport_mode, duration_minutes
+        FROM trip_routes WHERE room_id = ? ORDER BY created_at, id
+      `,
+      args: [room.id]
+    }),
+    db.execute({
+      sql: `
+        SELECT id, name, address, check_in_date, check_out_date, notes,
+               latitude, longitude
+        FROM trip_lodgings WHERE room_id = ? ORDER BY check_in_date
+      `,
+      args: [room.id]
+    })
+  ]);
+
+  return {
+    room: {
+      id: room.id,
+      title: room.title,
+      destination: room.destination,
+      startDate: room.start_date,
+      endDate: room.end_date,
+      timezone: room.timezone,
+      revision: Number(room.revision),
+      updatedAt: toUtcIsoTimestamp(room.updated_at)
+    },
+    membersCount: Number(members.rows[0]?.total || 0),
+    days: days.rows.map((row) => ({
+      id: String(row.id),
+      date: String(row.date),
+      position: Number(row.position)
+    })),
+    places: places.rows.map((row) => ({
+      id: String(row.id),
+      name: String(row.name),
+      category: String(row.category),
+      address: row.address ? String(row.address) : null,
+      notes: row.notes ? String(row.notes) : null,
+      latitude: row.latitude === null || row.latitude === undefined ? null : Number(row.latitude),
+      longitude: row.longitude === null || row.longitude === undefined ? null : Number(row.longitude)
+    })),
+    items: items.rows.map((row) => ({
+      id: String(row.id),
+      dayId: String(row.day_id),
+      placeId: String(row.place_id),
+      position: Number(row.position)
+    })),
+    routes: routes.rows.map((row) => ({
+      id: String(row.id),
+      fromItemId: row.from_item_id ? String(row.from_item_id) : null,
+      fromLodgingId: row.from_lodging_id ? String(row.from_lodging_id) : null,
+      toItemId: row.to_item_id ? String(row.to_item_id) : null,
+      toLodgingId: row.to_lodging_id ? String(row.to_lodging_id) : null,
+      transportMode: String(row.transport_mode),
+      durationMinutes: Number(row.duration_minutes)
+    })),
+    lodgings: lodgings.rows.map((row) => ({
+      id: String(row.id),
+      name: String(row.name),
+      address: row.address ? String(row.address) : null,
+      checkInDate: String(row.check_in_date),
+      checkOutDate: String(row.check_out_date),
+      notes: row.notes ? String(row.notes) : null,
+      latitude: row.latitude === null || row.latitude === undefined ? null : Number(row.latitude),
+      longitude: row.longitude === null || row.longitude === undefined ? null : Number(row.longitude)
+    }))
+  };
+}
+
+export async function ensureTripPublicShareToken(db: Client, userId: string, roomId: string): Promise<{ publicShareToken: string }> {
+  await assertTripMember(db, roomId, userId);
+  const current = await db.execute({
+    sql: "SELECT public_share_token FROM trip_rooms WHERE id = ? LIMIT 1",
+    args: [roomId]
+  });
+  const row = current.rows[0];
+  if (!row) throw new HttpError(404, "not_found");
+  if (row.public_share_token) return { publicShareToken: String(row.public_share_token) };
+
+  const publicShareToken = generateTripPublicShareToken();
+  await db.execute({
+    sql: "UPDATE trip_rooms SET public_share_token = ? WHERE id = ? AND public_share_token IS NULL",
+    args: [publicShareToken, roomId]
+  });
+
+  const updated = await db.execute({
+    sql: "SELECT public_share_token FROM trip_rooms WHERE id = ? LIMIT 1",
+    args: [roomId]
+  });
+  const token = updated.rows[0]?.public_share_token;
+  if (!token) throw new HttpError(500, "public_share_token_unavailable");
+  return { publicShareToken: String(token) };
 }
 
 export async function acceptTripRoom(db: Client, userId: string, roomId: string) {
@@ -516,8 +643,8 @@ export async function createTripRoute(db: Client, userId: string, roomId: string
       sql: `
         INSERT INTO trip_routes
           (id, room_id, from_item_id, from_lodging_id, to_item_id, to_lodging_id,
-           transport_mode, duration_minutes, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           transport_mode, duration_minutes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
         crypto.randomUUID(),
@@ -527,8 +654,7 @@ export async function createTripRoute(db: Client, userId: string, roomId: string
         toItemId,
         toLodgingId,
         requiredTransportMode(payload.transportMode),
-        integer(payload.durationMinutes, "invalid_route_duration", 1, 1440),
-        nullableText(payload.notes, 500)
+        integer(payload.durationMinutes, "invalid_route_duration", 1, 1440)
       ]
     },
     touchRoom(roomId)
@@ -564,14 +690,13 @@ export async function updateTripRoute(
   const version = integer(payload.version, "missing_entity_version", 1, Number.MAX_SAFE_INTEGER);
   const result = await db.execute({
     sql: `
-      UPDATE trip_routes SET transport_mode = ?, duration_minutes = ?, notes = ?,
+      UPDATE trip_routes SET transport_mode = ?, duration_minutes = ?,
         version = version + 1, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND room_id = ? AND version = ?
     `,
     args: [
       requiredTransportMode(payload.transportMode),
       integer(payload.durationMinutes, "invalid_route_duration", 1, 1440),
-      nullableText(payload.notes, 500),
       routeId,
       roomId,
       version
@@ -822,10 +947,17 @@ function mapRoom(row: TripRoomRow) {
     startDate: row.start_date,
     endDate: row.end_date,
     timezone: row.timezone,
+    publicShareToken: row.public_share_token ? String(row.public_share_token) : null,
     revision: Number(row.revision),
     createdAt: toUtcIsoTimestamp(row.created_at),
     updatedAt: toUtcIsoTimestamp(row.updated_at)
   };
+}
+
+function generateTripPublicShareToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function mapTripMember(row: Row) {

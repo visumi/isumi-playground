@@ -5,6 +5,7 @@ import { environment } from "../../../environments/environment";
 import {
   CreateTripLodgingRequest,
   CreateTripRequest,
+  PublicTripSnapshot,
   TripRoomSummary,
   TripSnapshot,
   UpdateTripLodgingRequest,
@@ -107,5 +108,16 @@ export class TripsService {
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     url.searchParams.set("ticket", ticket);
     return url.toString();
+  }
+
+  ensurePublicShareToken(roomId: string): Observable<{ publicShareToken: string }> {
+    return this.http.post<{ publicShareToken: string }>(
+      `${this.baseUrl}/${roomId}/public-share-token`,
+      {}
+    );
+  }
+
+  publicSnapshot(shareToken: string): Observable<PublicTripSnapshot> {
+    return this.http.get<PublicTripSnapshot>(`${this.baseUrl}/public/${shareToken}`);
   }
 }
