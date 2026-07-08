@@ -1546,41 +1546,15 @@ export class TripRoomComponent implements OnInit, OnDestroy {
       .filter((item): item is TripDayItem => !!item);
     if (places.length === 0 && itemsToMove.length === 0 && itemsToRemove.length === 0) return;
 
-    let successCount = 0;
-    let failureCount = 0;
-    this.store.beginSnapshotBatch();
-    try {
-      for (const place of places) {
-        if (await this.store.addItem(allocation.dayId!, place.id)) {
-          successCount += 1;
-        } else {
-          failureCount += 1;
-        }
-      }
+    const successCount = places.length + itemsToMove.length + itemsToRemove.length;
+    const updated = await this.store.bulkUpdateItems({
+      dayId: allocation.dayId,
+      placeIds: places.map((place) => place.id),
+      itemIds: itemsToMove.map((item) => item.id),
+      removeItemIds: itemsToRemove.map((item) => item.id)
+    });
 
-      for (const item of itemsToMove) {
-        if (await this.store.moveItemWithRest(item, allocation.dayId!)) {
-          successCount += 1;
-        } else {
-          failureCount += 1;
-        }
-      }
-
-      for (const item of itemsToRemove) {
-        if (await this.store.removeItem(item.id)) {
-          successCount += 1;
-        } else {
-          failureCount += 1;
-        }
-      }
-      if (itemsToRemove.length > 0 && successCount > 0) {
-        await this.reload();
-      }
-    } finally {
-      this.store.endSnapshotBatch();
-    }
-
-    if (failureCount === 0) {
+    if (updated) {
       if (itemsToRemove.length > 0 && places.length === 0 && itemsToMove.length === 0) {
         this.toast.success(successCount === 1 ? "Lugar removido do roteiro." : "Lugares removidos do roteiro.");
         return;
@@ -1590,10 +1564,6 @@ export class TripRoomComponent implements OnInit, OnDestroy {
         return;
       }
       this.toast.success(successCount === 1 ? "Lugar alocado no dia." : "Lugares alocados no dia.");
-      return;
-    }
-    if (successCount > 0) {
-      this.toast.error("Alguns lugares não foram atualizados.");
       return;
     }
     this.toast.error("Não foi possível atualizar os lugares.");

@@ -1,3 +1,4 @@
+import { NgClass } from "@angular/common";
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -54,17 +55,73 @@ const LODGING_MARKER_ICON = `
   </svg>
 `;
 
+const CATEGORY_MARKER_ICONS: Record<TripPlaceCategory, string> = {
+  food: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+      <path d="M7 2v20" />
+      <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Z" />
+      <path d="M21 15v7" />
+    </svg>
+  `,
+  culture: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="3" x2="21" y1="22" y2="22" />
+      <line x1="6" x2="6" y1="18" y2="11" />
+      <line x1="10" x2="10" y1="18" y2="11" />
+      <line x1="14" x2="14" y1="18" y2="11" />
+      <line x1="18" x2="18" y1="18" y2="11" />
+      <polygon points="12 2 20 7 4 7" />
+    </svg>
+  `,
+  nightlife: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 3a6 6 0 0 0 9 7.5 9 9 0 1 1-9-7.5Z" />
+      <path d="M19 3v4" />
+      <path d="M21 5h-4" />
+    </svg>
+  `,
+  nature: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.83V10a3 3 0 0 1 6 0Z" />
+      <path d="M7 16v6" />
+      <path d="M13 19v3" />
+      <path d="M12 19h8.3a3.7 3.7 0 0 0 1.7-7 5 5 0 0 0-9.7-1.5" />
+    </svg>
+  `,
+  shopping: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+      <path d="M3 6h18" />
+      <path d="M16 10a4 4 0 0 1-8 0" />
+    </svg>
+  `,
+  other: `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M20 10c0 4.99-5.5 10.74-7.35 12.48a1 1 0 0 1-1.3 0C9.5 20.74 4 14.99 4 10a8 8 0 0 1 16 0" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  `
+};
+
 type LeafletImport = typeof Leaflet | { default: typeof Leaflet };
 
 @Component({
   selector: "isumi-trip-day-map",
   standalone: true,
+  imports: [NgClass],
   host: {
-    class: "block h-full min-h-[14rem] sm:min-h-[20rem]"
+    class: "block h-full"
   },
   template: `
-    <div class="relative h-full min-h-[14rem] overflow-hidden rounded-lg bg-background sm:min-h-[20rem]">
-      <div #mapContainer class="h-full min-h-[14rem] w-full sm:min-h-[20rem]" aria-label="Mapa dos lugares do dia"></div>
+      <div
+        class="relative h-full overflow-hidden rounded-lg bg-background"
+      [ngClass]="compact ? 'min-h-0' : 'min-h-[14rem] sm:min-h-[20rem]'">
+      <div
+        #mapContainer
+        class="h-full w-full"
+        [ngClass]="compact ? 'min-h-0' : 'min-h-[14rem] sm:min-h-[20rem]'"
+        aria-label="Mapa dos lugares do dia"></div>
       @if (points.length === 0) {
       <div class="absolute inset-0 grid place-items-center bg-background/90 px-5 text-center">
         <div>
@@ -82,6 +139,8 @@ type LeafletImport = typeof Leaflet | { default: typeof Leaflet };
 export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input({ required: true }) points: TripMapPoint[] = [];
   @Input() highlightedPlaceIds: string[] = [];
+  @Input() compact = false;
+  @Input() interactive = true;
   @Output() placeSelected = new EventEmitter<string>();
   @Output() pointSelected = new EventEmitter<TripMapPoint>();
   @ViewChild("mapContainer") private mapContainer?: ElementRef<HTMLElement>;
@@ -98,8 +157,14 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
     this.leaflet = resolveLeafletModule(await import("leaflet"));
     const container = this.mapContainer!.nativeElement;
     this.map = this.leaflet.map(container, {
-      zoomControl: true,
-      attributionControl: true
+      zoomControl: !this.compact,
+      attributionControl: !this.compact,
+      dragging: this.interactive,
+      scrollWheelZoom: this.interactive,
+      doubleClickZoom: this.interactive,
+      boxZoom: this.interactive,
+      keyboard: this.interactive,
+      touchZoom: this.interactive
     });
     this.leaflet.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap",
@@ -148,34 +213,46 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
         ? "trip-map-marker--lodging"
         : point.markerClass || CATEGORY_MARKER_CLASSES[point.category || "other"];
       const markerClasses = ["trip-map-marker", markerClass];
+      if (this.compact) {
+        markerClasses.push("trip-map-marker--compact");
+      }
       if (point.placeId && this.highlightedPlaceIds.includes(point.placeId)) {
         markerClasses.push("trip-map-marker--selected");
       }
-      const markerContent = point.kind === "lodging" ? LODGING_MARKER_ICON : `<span>${this.markerLabel(point)}</span>`;
+      const markerContent = this.compact ? "" : this.markerContent(point);
       const markerSubtitle = point.subtitle
         || (point.kind === "lodging" ? "Hospedagem" : `Parada ${point.position || ""}`.trim());
+      const iconSize: Leaflet.PointTuple = this.compact
+        ? [18, 18]
+        : point.kind === "lodging" ? [36, 36] : [32, 32];
+      const iconAnchor: Leaflet.PointTuple = this.compact
+        ? [9, 18]
+        : point.kind === "lodging" ? [18, 36] : [16, 32];
+      const popupAnchor: Leaflet.PointTuple = [0, this.compact ? -16 : point.kind === "lodging" ? -34 : -30];
       const marker = this.leaflet.marker(position, {
         icon: this.leaflet.divIcon({
           className: "",
           html: `<span class="${markerClasses.join(" ")}">${markerContent}</span>`,
-          iconSize: point.kind === "lodging" ? [36, 36] : [32, 32],
-          iconAnchor: point.kind === "lodging" ? [18, 36] : [16, 32],
-          popupAnchor: [0, point.kind === "lodging" ? -34 : -30]
+          iconSize,
+          iconAnchor,
+          popupAnchor
         })
       });
-      const popup = this.leaflet.popup({
-        autoPan: false,
-        closeButton: false,
-        offset: [0, point.kind === "lodging" ? -34 : -30]
-      }).setContent(this.popupContent(point, markerSubtitle));
-      marker
-        .on("mouseover", () => popup.setLatLng(marker.getLatLng()).openOn(this.map!))
-        .on("mouseout", () => this.map?.closePopup(popup));
-      if (point.kind === "place" && point.placeId) {
-        marker.on("click", () => {
-          this.placeSelected.emit(point.placeId);
-          this.pointSelected.emit(point);
-        });
+      if (this.interactive) {
+        const popup = this.leaflet.popup({
+          autoPan: false,
+          closeButton: false,
+          offset: popupAnchor
+        }).setContent(this.popupContent(point, markerSubtitle));
+        marker
+          .on("mouseover", () => popup.setLatLng(marker.getLatLng()).openOn(this.map!))
+          .on("mouseout", () => this.map?.closePopup(popup));
+        if (point.kind === "place" && point.placeId) {
+          marker.on("click", () => {
+            this.placeSelected.emit(point.placeId);
+            this.pointSelected.emit(point);
+          });
+        }
       }
       marker.addTo(this.markerLayer);
       const markerElement = marker.getElement()?.querySelector<HTMLElement>(".trip-map-marker");
@@ -195,7 +272,8 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
     } else if (coordinates.length === 1) {
       this.map.setView(coordinates[0], 15);
     } else {
-      this.map.fitBounds(this.leaflet.latLngBounds(coordinates), { padding: [28, 28], maxZoom: 15 });
+      const padding: Leaflet.PointTuple = this.compact ? [18, 18] : [28, 28];
+      this.map.fitBounds(this.leaflet.latLngBounds(coordinates), { padding, maxZoom: this.compact ? 14 : 15 });
     }
   }
 
@@ -216,6 +294,12 @@ export class TripDayMapComponent implements AfterViewInit, OnChanges, OnDestroy 
 
   private markerLabel(point: TripMapPoint): string {
     return point.markerLabel || String(point.dayNumber || point.position || "");
+  }
+
+  private markerContent(point: TripMapPoint): string {
+    if (point.kind === "lodging") return LODGING_MARKER_ICON;
+    if (point.status === "unscheduled") return CATEGORY_MARKER_ICONS[point.category || "other"];
+    return `<span>${this.markerLabel(point)}</span>`;
   }
 
   private popupContent(point: TripMapPoint, subtitle: string): string {

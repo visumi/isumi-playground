@@ -10,6 +10,7 @@ import {
   LucideLandmark,
   LucideLink,
   LucideMapPin,
+  LucideMapPinned,
   LucideMoonStar,
   LucideShieldCheck,
   LucideShoppingBag,
@@ -28,7 +29,8 @@ import {
   TripTransportMode
 } from "../../core/api/api.types";
 import { TripsService } from "../../core/api/trips.service";
-import { IsumiEmptyStateComponent, IsumiTagComponent } from "../../shared/ui";
+import { IsumiButtonComponent, IsumiClipboardService, IsumiEmptyStateComponent, IsumiTagComponent, IsumiToastService } from "../../shared/ui";
+import { TripMiniMapComponent, TripMiniMapPoint } from "./trip-mini-map.component";
 
 const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
@@ -50,6 +52,11 @@ interface ObservationTextSegment {
   href?: string;
 }
 
+interface CoordinatePair {
+  latitude: number;
+  longitude: number;
+}
+
 const PLACE_CATEGORY_VISUALS: Record<TripPlaceCategory, {
   label: string;
   icon: Type<unknown>;
@@ -67,6 +74,17 @@ function dateOnlyValue(date: string): Date {
   return new Date(`${date.slice(0, 10)}T12:00:00Z`);
 }
 
+function googleMapsUrlForAddress(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address.trim())}`;
+}
+
+function hasValidCoordinates<T extends { latitude: number | null; longitude: number | null }>(point: T): point is T & CoordinatePair {
+  return point.latitude !== null
+    && point.longitude !== null
+    && Number.isFinite(point.latitude)
+    && Number.isFinite(point.longitude);
+}
+
 @Component({
   selector: "isumi-trip-public-view",
   standalone: true,
@@ -82,8 +100,11 @@ function dateOnlyValue(date: string): Date {
     LucideFootprints,
     LucideLink,
     LucideMapPin,
+    LucideMapPinned,
     LucideShieldCheck,
-    LucideShuffle
+    LucideShuffle,
+    IsumiButtonComponent,
+    TripMiniMapComponent
   ],
   template: `
     <section class="min-h-screen bg-background px-4 py-6 text-foreground sm:px-6 lg:px-8">
@@ -167,46 +188,64 @@ function dateOnlyValue(date: string): Date {
           <main class="grid min-w-0 gap-4" aria-label="Roteiro público da viagem">
             @for (day of days(); track day.id) {
             <section class="overflow-hidden rounded-lg bg-card" [attr.aria-labelledby]="'public-day-' + day.id">
-                <header class="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4">
-                  <div class="flex min-w-0 items-center gap-3">
-                    <span class="grid size-10 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
+                @let mapPoints = mapPointsForDay(day);
+                <header class="flex flex-wrap items-start justify-between gap-4 border-b border-dashed border-border px-4 py-4">
+                  <div class="flex min-w-0 items-start gap-3.5">
+                    <span class="grid size-10 shrink-0 place-items-center rounded-md bg-primary text-base font-black text-primary-foreground">
                       {{ day.position + 1 }}
                     </span>
-                    <div class="min-w-0">
-                      <h2 [id]="'public-day-' + day.id" class="m-0 text-lg font-black">
-                        Dia {{ day.position + 1 }}
-                      </h2>
-                      <p class="m-0 mt-1 text-sm text-muted-foreground">{{ formatDateLong(day.date) }}</p>
+                    <div class="grid min-w-0 gap-0.5">
+                      <div class="grid min-w-0 gap-0.5">
+                        <h2 [id]="'public-day-' + day.id" class="m-0 text-xl font-black leading-none tracking-normal">
+                          Dia {{ day.position + 1 }}
+                        </h2>
+                        <p class="m-0 text-sm leading-5 text-muted-foreground">{{ formatDateLong(day.date) }}</p>
+                      </div>
                     </div>
                   </div>
-                  <isumi-tag tone="secondary">{{ itemsForDay(day.id).length }} paradas</isumi-tag>
+                  <isumi-tag tone="primary" size="small">{{ itemsForDay(day.id).length }} paradas</isumi-tag>
                 </header>
 
                 <div class="grid gap-3 px-4 py-4">
                   @if (departureLodgingForDay(day); as lodging) {
                   <section class="grid gap-0" aria-label="Hospedagem de partida">
-                    <article class="grid w-full rounded-lg bg-secondary/65 p-3 text-secondary-foreground">
-                      <div class="flex min-w-0 items-start gap-3">
-                        <span class="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
-                          <svg lucideBedDouble class="size-4" aria-hidden="true"></svg>
-                        </span>
-                        <div class="min-w-0">
-                          <strong class="block break-words text-[0.9375rem] font-extrabold leading-5 text-foreground/85">
-                            {{ lodging.name }}
-                          </strong>
-                          <span class="mt-0.5 block text-xs font-semibold leading-5 text-muted-foreground">
-                            {{ formatDateOnly(lodging.checkInDate) }} → {{ formatDateOnly(lodging.checkOutDate) }}
+                    <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_10rem] lg:grid-cols-[minmax(0,1fr)_11rem]">
+                      <article class="grid w-full rounded-lg bg-secondary/65 p-3 text-secondary-foreground">
+                        <div class="flex min-w-0 items-start gap-3">
+                          <span class="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+                            <svg lucideBedDouble class="size-4" aria-hidden="true"></svg>
                           </span>
+                          <div class="min-w-0 flex-1">
+                            <strong class="block break-words text-[0.9375rem] font-extrabold leading-5 text-foreground/85">
+                              {{ lodging.name }}
+                            </strong>
+                            <span class="mt-0.5 block text-xs font-semibold leading-5 text-muted-foreground">
+                              {{ formatDateOnly(lodging.checkInDate) }} → {{ formatDateOnly(lodging.checkOutDate) }}
+                            </span>
+                          </div>
+                          @if (lodging.address) {
+                          <isumi-button class="shrink-0" variant="ghost" size="sm" iconOnly ariaLabel="Copiar link do mapa"
+                            (click)="copyPlaceAddress(lodging.address)">
+                            <svg icon lucideMapPinned class="size-4"></svg>
+                            Copiar link do mapa
+                          </isumi-button>
+                          }
                         </div>
-                      </div>
 
-                      @if (lodging.address) {
-                      <p class="m-0 mt-1.5 flex min-w-0 items-start gap-1.5 text-xs leading-5 text-muted-foreground">
-                        <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0 text-foreground/45" aria-hidden="true"></svg>
-                        <span class="min-w-0 break-words">{{ lodging.address }}</span>
-                      </p>
+                        @if (lodging.address) {
+                        <p class="m-0 mt-1.5 flex min-w-0 items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+                          <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0 text-foreground/45" aria-hidden="true"></svg>
+                          <span class="min-w-0 break-words">{{ lodging.address }}</span>
+                        </p>
+                        }
+                      </article>
+
+                      @if (mapPoints.length > 0) {
+                      <aside class="order-first h-24 min-w-0 overflow-hidden md:order-none">
+                        <isumi-trip-mini-map [points]="mapPoints" />
+                      </aside>
                       }
-                    </article>
+                    </div>
 
                     @if (itemsForDay(day.id)[0]) {
                     @let lodgingRoute = routeBeforeItem(day, 0);
@@ -244,33 +283,34 @@ function dateOnlyValue(date: string): Date {
 
                     @if (placeById(item.placeId); as place) {
                     <article class="relative min-w-0 overflow-hidden rounded-lg bg-secondary/85 text-secondary-foreground">
-                      <div class="grid min-w-0 gap-3 p-3.5">
+                      <div class="grid min-w-0 gap-2 p-3.5 md:gap-3">
                         <div class="flex min-w-0 items-start gap-3">
                           <span class="grid size-11 shrink-0 place-items-center rounded-md [&_svg]:size-5" [class]="categoryVisual(place.category).classes" aria-hidden="true">
                             <ng-container *ngComponentOutlet="categoryVisual(place.category).icon" />
                           </span>
 
                           <div class="min-w-0 flex-1">
-                            <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                            <div class="grid min-w-0 gap-1">
                               <strong class="min-w-0 truncate text-[0.9375rem] font-extrabold leading-5">
                                 {{ place.name }}
                               </strong>
-                              <span class="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[0.625rem] font-extrabold leading-4" [class]="categoryVisual(place.category).classes">
+                              <span class="inline-flex w-fit shrink-0 items-center justify-self-start rounded-full px-2 py-0.5 text-[0.625rem] font-extrabold leading-4" [class]="categoryVisual(place.category).classes">
                                 {{ categoryLabel(place.category) }}
                               </span>
                             </div>
-
-                            @if (place.address) {
-                            <span class="mt-1.5 flex min-w-0 items-start gap-1.5 text-xs leading-5 text-muted-foreground max-md:hidden">
-                              <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0 text-foreground/55" aria-hidden="true"></svg>
-                              <span class="min-w-0 break-words">{{ place.address }}</span>
-                            </span>
-                            }
                           </div>
+
+                          @if (place.address) {
+                          <isumi-button class="shrink-0" variant="ghost" size="sm" iconOnly ariaLabel="Copiar link do mapa"
+                            (click)="copyPlaceAddress(place.address)">
+                            <svg icon lucideMapPinned class="size-4"></svg>
+                            Copiar link do mapa
+                          </isumi-button>
+                          }
                         </div>
 
                         @if (place.address) {
-                        <span class="ml-14 hidden min-w-0 items-start gap-1.5 text-xs leading-5 text-muted-foreground max-md:flex">
+                        <span class="flex min-w-0 items-start gap-1.5 text-xs leading-5 text-muted-foreground">
                           <svg lucideMapPin class="mt-0.5 size-3.5 shrink-0 text-foreground/55" aria-hidden="true"></svg>
                           <span class="min-w-0 break-words">{{ place.address }}</span>
                         </span>
@@ -305,25 +345,25 @@ function dateOnlyValue(date: string): Date {
 
                   @if (arrivalLodgingForDay(day); as lodging) {
                   <section class="grid gap-0" aria-label="Hospedagem de chegada">
-                    @if (routeToArrivalLodging(day, lodging); as route) {
+                    @let route = routeToArrivalLodging(day, lodging);
                     <div class="relative mx-4 mb-3 mt-3 flex min-h-11 items-center gap-2.5 rounded-md px-3 pl-10 text-left text-xs font-bold text-muted-foreground">
                       <span class="pointer-events-none absolute -bottom-3 -top-8 left-[1.375rem] w-px -translate-x-1/2 bg-border" aria-hidden="true"></span>
-                      @switch (route.transportMode) {
+                      @switch (route?.transportMode) {
                       @case ("walk") { <svg lucideFootprints class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground" aria-hidden="true"></svg> }
                       @case ("car") { <svg lucideCar class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground" aria-hidden="true"></svg> }
                       @case ("transit") { <svg lucideBus class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground" aria-hidden="true"></svg> }
                       @case ("other") { <svg lucideShuffle class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground" aria-hidden="true"></svg> }
+                      @default { <svg lucideLink class="absolute left-2.5 z-10 box-content size-4 rounded-full bg-card p-1 text-muted-foreground" aria-hidden="true"></svg> }
                       }
                       <span>{{ routeDisplayLabel(route) }}</span>
                     </div>
-                    }
 
                     <article class="grid w-full rounded-lg bg-secondary/65 p-3 text-secondary-foreground">
                       <div class="flex min-w-0 items-start gap-3">
                         <span class="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
                           <svg lucideBedDouble class="size-4" aria-hidden="true"></svg>
                         </span>
-                        <div class="min-w-0">
+                        <div class="min-w-0 flex-1">
                           <strong class="block break-words text-[0.9375rem] font-extrabold leading-5 text-foreground/85">
                             {{ lodging.name }}
                           </strong>
@@ -331,6 +371,13 @@ function dateOnlyValue(date: string): Date {
                             {{ formatDateOnly(lodging.checkInDate) }} → {{ formatDateOnly(lodging.checkOutDate) }}
                           </span>
                         </div>
+                        @if (lodging.address) {
+                        <isumi-button class="shrink-0" variant="ghost" size="sm" iconOnly ariaLabel="Copiar link do mapa"
+                          (click)="copyPlaceAddress(lodging.address)">
+                          <svg icon lucideMapPinned class="size-4"></svg>
+                          Copiar link do mapa
+                        </isumi-button>
+                        }
                       </div>
 
                         @if (lodging.address) {
@@ -355,6 +402,8 @@ function dateOnlyValue(date: string): Date {
 })
 export class TripPublicViewComponent implements OnInit {
   private readonly trips = inject(TripsService);
+  private readonly clipboard = inject(IsumiClipboardService);
+  private readonly toast = inject(IsumiToastService);
 
   readonly shareToken = input.required<string>();
   readonly loading = signal(true);
@@ -435,6 +484,54 @@ export class TripPublicViewComponent implements OnInit {
     return route ? `${this.transportLabel(route.transportMode)} · ${route.durationMinutes} min` : "Trajeto não informado";
   }
 
+  mapPointsForDay(day: TripDay): TripMiniMapPoint[] {
+    const lodging = this.departureLodgingForDay(day);
+    const lodgingPoint: TripMiniMapPoint[] = lodging && hasValidCoordinates(lodging)
+      ? [{
+          kind: "lodging",
+          id: `lodging-${lodging.id}`,
+          name: lodging.name,
+          address: lodging.address || "Endereço não informado",
+          markerLabel: "H",
+          position: 0,
+          latitude: lodging.latitude,
+          longitude: lodging.longitude
+        }]
+      : [];
+    const arrival = this.arrivalLodgingForDay(day);
+    const arrivalPoint: TripMiniMapPoint[] = arrival && hasValidCoordinates(arrival)
+      ? [{
+          kind: "lodging",
+          id: `lodging-${arrival.id}`,
+          name: arrival.name,
+          address: arrival.address || "Endereço não informado",
+          markerLabel: "H",
+          position: this.itemsForDay(day.id).length + 1,
+          latitude: arrival.latitude,
+          longitude: arrival.longitude
+        }]
+      : [];
+    const placePoints = this.itemsForDay(day.id)
+      .map((item, index): TripMiniMapPoint | null => {
+        const place = this.placeById(item.placeId);
+        if (!place || !hasValidCoordinates(place)) return null;
+        return {
+          kind: "place",
+          id: item.id,
+          placeId: place.id,
+          name: place.name,
+          address: place.address || "Endereço não informado",
+          category: place.category,
+          markerLabel: String(index + 1),
+          position: index + 1,
+          latitude: place.latitude,
+          longitude: place.longitude
+        };
+      })
+      .filter((point): point is TripMiniMapPoint => point !== null);
+    return [...lodgingPoint, ...placePoints, ...arrivalPoint];
+  }
+
   categoryLabel(category: TripPlaceCategory): string {
     return PLACE_CATEGORY_VISUALS[category].label;
   }
@@ -476,6 +573,27 @@ export class TripPublicViewComponent implements OnInit {
     return segments.length > 0 ? segments : [{ text }];
   }
 
+  async copyPlaceAddress(address: string): Promise<void> {
+    const normalizedAddress = address.trim();
+    if (!normalizedAddress) return;
+
+    const mapUrl = this.googleMapsUrl(normalizedAddress);
+
+    try {
+      await this.clipboard.copyText(mapUrl);
+      this.toast.success(this.shouldOfferGoogleMapsOpen()
+        ? "Link copiado. Abrindo o Google Maps..."
+        : "Link do mapa copiado.");
+      this.openGoogleMapsOnMobile(mapUrl);
+    } catch {
+      this.toast.error("Não foi possível copiar o link do mapa.");
+    }
+  }
+
+  googleMapsUrl(address: string): string {
+    return googleMapsUrlForAddress(address);
+  }
+
   private routeForEndpoints(
     fromItemId: string | null,
     fromLodgingId: string | null,
@@ -488,5 +606,16 @@ export class TripPublicViewComponent implements OnInit {
       && route.toItemId === toItemId
       && route.toLodgingId === toLodgingId
     ) || null;
+  }
+
+  private openGoogleMapsOnMobile(mapUrl: string): void {
+    if (!this.shouldOfferGoogleMapsOpen()) return;
+    window.setTimeout(() => {
+      window.location.href = mapUrl;
+    }, 250);
+  }
+
+  private shouldOfferGoogleMapsOpen(): boolean {
+    return window.matchMedia("(pointer: coarse)").matches && window.matchMedia("(max-width: 768px)").matches;
   }
 }

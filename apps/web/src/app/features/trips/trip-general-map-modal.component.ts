@@ -1,15 +1,19 @@
-import { DatePipe, NgClass } from "@angular/common";
-import { ChangeDetectionStrategy, Component, Signal, computed, signal } from "@angular/core";
+import { DatePipe, NgClass, NgComponentOutlet } from "@angular/common";
+import { ChangeDetectionStrategy, Component, Signal, Type, computed, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import {
   LucideBedDouble,
   LucideCalendarDays,
-  LucideHourglass,
+  LucideLandmark,
   LucideMap,
   LucideMapPin,
+  LucideMoonStar,
+  LucideShoppingBag,
+  LucideTrees,
+  LucideUtensils,
   LucideX
 } from "@lucide/angular";
-import { TripDay } from "../../core/api/api.types";
+import { TripDay, TripPlaceCategory } from "../../core/api/api.types";
 import {
   IsumiButtonComponent,
   IsumiCheckboxComponent,
@@ -32,6 +36,17 @@ export interface TripGeneralMapAllocation {
   removeItemIds?: string[];
 }
 
+const MAP_CATEGORY_VISUALS: Record<TripPlaceCategory, {
+  icon: Type<unknown>;
+}> = {
+  food: { icon: LucideUtensils },
+  culture: { icon: LucideLandmark },
+  nightlife: { icon: LucideMoonStar },
+  nature: { icon: LucideTrees },
+  shopping: { icon: LucideShoppingBag },
+  other: { icon: LucideMapPin }
+};
+
 @Component({
   selector: "isumi-trip-general-map-modal",
   standalone: true,
@@ -39,12 +54,12 @@ export interface TripGeneralMapAllocation {
     DatePipe,
     FormsModule,
     NgClass,
+    NgComponentOutlet,
     IsumiButtonComponent,
     IsumiCheckboxComponent,
     IsumiSelectDirective,
     LucideBedDouble,
     LucideCalendarDays,
-    LucideHourglass,
     LucideMap,
     LucideMapPin,
     LucideX,
@@ -143,7 +158,9 @@ export interface TripGeneralMapAllocation {
                     } @else if (entry.status === "scheduled") {
                     {{ entry.dayNumber }}
                     } @else {
-                    <svg lucideHourglass class="size-4" aria-hidden="true"></svg>
+                    <span class="grid size-4 place-items-center [&_svg]:size-4" aria-hidden="true">
+                      <ng-container *ngComponentOutlet="categoryVisual(entry.category).icon" />
+                    </span>
                     }
                   </span>
 
@@ -272,6 +289,10 @@ export class TripGeneralMapModalComponent {
     if (entry.kind === "lodging") return "bg-primary/15 text-primary";
     if (entry.status === "unscheduled") return "bg-muted text-muted-foreground";
     return this.dayBadgeClasses(entry.dayNumber || 1);
+  }
+
+  categoryVisual(category?: TripPlaceCategory): { icon: Type<unknown> } {
+    return MAP_CATEGORY_VISUALS[category || "other"];
   }
 
   private dayBadgeClasses(dayNumber: number): string {

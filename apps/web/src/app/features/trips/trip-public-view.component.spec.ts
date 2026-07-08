@@ -57,9 +57,46 @@ describe("TripPublicViewComponent", () => {
     expect(trips.publicSnapshot).toHaveBeenCalledOnceWith("share-token");
     expect(text).toContain("Férias em Buenos Aires");
     expect(text).toContain("Café Tortoni");
-    expect(text).toContain("Somente visualização");
     expect(text).not.toContain("Editar");
     expect(text).not.toContain("Excluir");
+  });
+
+  it("shows a missing route between same-day lodging changes", () => {
+    trips.publicSnapshot.and.returnValue(of({
+      ...snapshot,
+      items: [],
+      lodgings: [
+        {
+          id: "lodging-1",
+          name: "Hotel Centro",
+          address: "Rua Um, 10",
+          checkInDate: "2026-10-11",
+          checkOutDate: "2026-10-12",
+          notes: null,
+          latitude: null,
+          longitude: null
+        },
+        {
+          id: "lodging-2",
+          name: "Pousada Norte",
+          address: "Rua Dois, 20",
+          checkInDate: "2026-10-12",
+          checkOutDate: "2026-10-13",
+          notes: null,
+          latitude: null,
+          longitude: null
+        }
+      ]
+    }));
+
+    fixture = TestBed.createComponent(TripPublicViewComponent);
+    fixture.componentRef.setInput("shareToken", "share-token");
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain("Hotel Centro");
+    expect(text).toContain("Pousada Norte");
+    expect(text).toContain("Trajeto não informado");
   });
 
   it("shows an unavailable state when the public link fails", () => {

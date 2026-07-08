@@ -32,6 +32,13 @@ export interface TripDayItemOrderInput {
   itemIds?: string[];
 }
 
+export interface TripDayItemBulkInput {
+  dayId?: string;
+  placeIds?: string[];
+  itemIds?: string[];
+  removeItemIds?: string[];
+}
+
 export interface TripRouteInput {
   fromItemId?: string;
   fromLodgingId?: string;
@@ -569,6 +576,106 @@ export async function createTripDayItem(db: Client, userId: string, roomId: stri
     cleanupInvalidTripRouteStatements(roomId),
     touchRoom(roomId)
   ]);
+  return getTripSnapshot(db, userId, roomId);
+}
+
+export async function bulkUpdateTripDayItems(db: Client, userId: string, roomId: string, payload: TripDayItemBulkInput) {
+  await assertTripMember(db, roomId, userId);
+  const dayId = optionalText(payload.dayId, 64);
+  const placeIds = uniqueTextArray(payload.placeIds, "invalid_bulk_places", 64);
+  const itemIds = uniqueTextArray(payload.itemIds, "invalid_bulk_items", 64);
+  const removeItemIds = uniqueTextArray(payload.removeItemIds, "invalid_bulk_items", 64);
+  const changedItemIds = new Set([...itemIds, ...removeItemIds]);
+  if (changedItemIds.size !== itemIds.length + removeItemIds.length) throw new HttpError(400, "invalid_bulk_items");
+  if ((placeIds.length > 0 || itemIds.length > 0) && !dayId) throw new HttpError(400, "missing_day");
+  if (placeIds.length === 0 && itemIds.length === 0 && removeItemIds.length === 0) {
+    throw new HttpError(400, "empty_bulk_items");
+  }
+
+  if (dayId) {
+    const day = await db.execute({ sql: "SELECT id FROM trip_days WHERE id = ? AND room_id = ?", args: [dayId, roomId] });
+    if (day.rows.length === 0) throw new HttpError(400, "invalid_day");
+  }
+
+  if (placeIds.length > 0) {
+    const places = await db.execute({
+      sql: `SELECT id FROM trip_places WHERE room_id = ? AND id IN (${placeIds.map(() => "?").join(", ")})`,
+      args: [roomId, ...placeIds]
+    });
+    if (places.rows.length !== placeIds.length) throw new HttpError(400, "invalid_place");
+  }
+
+  const existingScheduledPlaceIds = placeIds.length > 0
+    ? await db.execute({
+      sql: `SELECT DISTINCT place_id FROM trip_day_items WHERE room_id = ? AND place_id IN (${placeIds.map(() => "?").join(", ")})`,
+      args: [roomId, ...placeIds]
+    })
+    : { rows: [] };
+  const scheduledPlaceIds = new Set(existingScheduledPlaceIds.rows.map((row) => String(row.place_id)));
+  const placeIdsToCreate = placeIds.filter((placeId) => !scheduledPlaceIds.has(placeId));
+
+  const itemsToChange = changedItemIds.size > 0
+    ? await db.execute({
+      sql: `SELECT id, day_id FROM trip_day_items WHERE room_id = ? AND id IN (${[...changedItemIds].map(() => "?").join(", ")})`,
+      args: [roomId, ...changedItemIds]
+    })
+    : { rows: [] };
+  if (itemsToChange.rows.length !== changedItemIds.size) throw new HttpError(400, "invalid_item");
+
+  const itemsById = new Map(itemsToChange.rows.map((row) => [String(row.id), String(row.day_id)]));
+  const itemIdsToMove = dayId ? itemIds.filter((itemId) => itemsById.get(itemId) !== dayId) : [];
+  const affectedDayIds = new Set<string>();
+  for (const itemId of [...itemIdsToMove, ...removeItemIds]) {
+    const sourceDayId = itemsById.get(itemId);
+    if (sourceDayId) affectedDayIds.add(sourceDayId);
+  }
+  if (dayId && (itemIdsToMove.length > 0 || placeIdsToCreate.length > 0)) affectedDayIds.add(dayId);
+
+  const statements: InStatement[] = [];
+  if (removeItemIds.length > 0) {
+    const placeholders = removeItemIds.map(() => "?").join(", ");
+    statements.push(
+      {
+        sql: `DELETE FROM trip_routes WHERE room_id = ? AND (from_item_id IN (${placeholders}) OR to_item_id IN (${placeholders}))`,
+        args: [roomId, ...removeItemIds, ...removeItemIds]
+      },
+      {
+        sql: `DELETE FROM trip_day_items WHERE room_id = ? AND id IN (${placeholders})`,
+        args: [roomId, ...removeItemIds]
+      }
+    );
+  }
+
+  let targetPosition = dayId && (itemIdsToMove.length > 0 || placeIdsToCreate.length > 0)
+    ? await nextPosition(db, dayId)
+    : 0;
+  for (const itemId of itemIdsToMove) {
+    statements.push({
+      sql: "UPDATE trip_day_items SET day_id = ?, position = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND room_id = ?",
+      args: [dayId, targetPosition, itemId, roomId]
+    });
+    targetPosition += 1;
+  }
+  for (const placeId of placeIdsToCreate) {
+    statements.push({
+      sql: `
+        INSERT INTO trip_day_items
+          (id, room_id, day_id, place_id, position)
+        VALUES (?, ?, ?, ?, ?)
+      `,
+      args: [crypto.randomUUID(), roomId, dayId, placeId, targetPosition]
+    });
+    targetPosition += 1;
+  }
+
+  if (statements.length > 0) {
+    await executeStatementsAtomically(db, [
+      ...statements,
+      ...[...affectedDayIds].flatMap((affectedDayId) => normalizeDayPositionsStatements(affectedDayId)),
+      cleanupInvalidTripRouteStatements(roomId),
+      touchRoom(roomId)
+    ]);
+  }
   return getTripSnapshot(db, userId, roomId);
 }
 
@@ -1296,4 +1403,16 @@ function requiredTransportMode(value: unknown): TripTransportMode {
 function optionalText(value: unknown, max: number): string | null {
   const normalized = typeof value === "string" ? value.trim() : "";
   return normalized ? normalized.slice(0, max) : null;
+}
+
+function uniqueTextArray(value: unknown, error: string, max: number): string[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) throw new HttpError(400, error);
+  const items = value.map((item) => {
+    const normalized = typeof item === "string" ? item.trim() : "";
+    if (!normalized) throw new HttpError(400, error);
+    return normalized.slice(0, max);
+  });
+  if (new Set(items).size !== items.length) throw new HttpError(400, error);
+  return items;
 }

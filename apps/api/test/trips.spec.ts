@@ -2,6 +2,7 @@ import type { Client } from "@libsql/client/web";
 import { describe, expect, it, vi } from "vitest";
 import {
   applyTripMoveOperation,
+  bulkUpdateTripDayItems,
   createTripLodging,
   createTripPlace,
   createTripRoute,
@@ -303,6 +304,41 @@ describe("trip planner validation", () => {
     expect(statements.slice(0, 3).map((statement) => statement.args[1])).toEqual(["item-b", "item-c", "item-a"]);
     expect(statements.find((statement) => statement.sql.includes("DELETE FROM trip_routes"))?.sql)
       .toContain("destination.position = origin.position + 1");
+  });
+
+  it("updates trip day items in bulk with one transaction", async () => {
+    let statements: Array<{ sql: string; args: unknown[] }> = [];
+    const db = {
+      execute: vi.fn()
+        .mockResolvedValueOnce({ rows: [{ role: "member" }] })
+        .mockResolvedValueOnce({ rows: [{ id: "day-2" }] })
+        .mockResolvedValueOnce({ rows: [{ id: "place-3" }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [
+          { id: "item-1", day_id: "day-1" },
+          { id: "item-2", day_id: "day-1" }
+        ] })
+        .mockResolvedValueOnce({ rows: [{ next_position: 2 }] }),
+      batch: vi.fn().mockImplementation(async (nextStatements: Array<{ sql: string; args: unknown[] }>) => {
+        statements = nextStatements;
+        throw new Error("stop_after_bulk_items_batch");
+      })
+    } as unknown as Client;
+
+    await expect(bulkUpdateTripDayItems(db, "user-1", "room-1", {
+      dayId: "day-2",
+      placeIds: ["place-3"],
+      itemIds: ["item-1"],
+      removeItemIds: ["item-2"]
+    })).rejects.toThrowError("stop_after_bulk_items_batch");
+
+    expect(db.batch).toHaveBeenCalledTimes(1);
+    expect(statements.some((statement) => statement.sql.includes("DELETE FROM trip_day_items"))).toBe(true);
+    expect(statements.some((statement) => statement.sql.includes("UPDATE trip_day_items SET day_id = ?"))).toBe(true);
+    expect(statements.some((statement) => statement.sql.includes("INSERT INTO trip_day_items"))).toBe(true);
+    expect(statements.filter((statement) => statement.sql.includes("SELECT COUNT(*) - 1")).map((statement) => statement.args[0]))
+      .toEqual(expect.arrayContaining(["day-1", "day-2"]));
+    expect(statements.at(-1)?.sql).toContain("UPDATE trip_rooms SET revision = revision + 1");
   });
 
   it("rejects item orders that do not match the whole day", async () => {

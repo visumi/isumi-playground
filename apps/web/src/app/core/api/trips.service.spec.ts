@@ -84,6 +84,25 @@ describe("TripsService", () => {
     request.flush({});
   });
 
+  it("updates itinerary items in bulk", () => {
+    service.bulkUpdateItems("trip-1", {
+      dayId: "day-2",
+      placeIds: ["place-1"],
+      itemIds: ["item-1"],
+      removeItemIds: ["item-2"]
+    }).subscribe();
+
+    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/items/bulk");
+    expect(request.request.method).toBe("POST");
+    expect(request.request.body).toEqual({
+      dayId: "day-2",
+      placeIds: ["place-1"],
+      itemIds: ["item-1"],
+      removeItemIds: ["item-2"]
+    });
+    request.flush({});
+  });
+
   it("requests a short-lived realtime ticket", () => {
     service.realtimeTicket("trip-1").subscribe();
     const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/realtime-ticket");

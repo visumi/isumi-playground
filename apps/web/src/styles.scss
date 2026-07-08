@@ -401,6 +401,31 @@ body {
   font-size: 0.8rem;
 }
 
+.trip-map-marker--compact {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgb(255 255 255 / 0.96);
+  border-radius: 999px 999px 999px 0.1875rem;
+  box-shadow: 0 2px 5px rgb(0 0 0 / 0.32);
+  color: transparent;
+  font-size: 0;
+}
+
+.trip-map-marker--compact::before {
+  content: none;
+}
+
+.trip-map-marker--compact > * {
+  display: none;
+}
+
+.trip-map-marker--compact.trip-map-marker--lodging {
+  width: 1.125rem;
+  height: 1.125rem;
+  border-color: rgb(255 255 255 / 0.98);
+  box-shadow: 0 0 0 2px rgb(147 51 234 / 0.2), 0 2px 5px rgb(0 0 0 / 0.34);
+}
+
 .trip-map-marker--unscheduled {
   background: var(--color-muted);
   color: var(--color-muted-foreground);
@@ -411,8 +436,7 @@ body {
 }
 
 .trip-map-marker--unscheduled::before {
-  inset: 0.48rem;
-  background: rgb(255 255 255 / 0.1);
+  content: none;
 }
 
 .trip-map-marker--unscheduled > * {

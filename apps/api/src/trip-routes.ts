@@ -6,6 +6,7 @@ import { HttpError, requiredEnv } from "./shared";
 import {
   acceptTripRoom,
   assertTripMember,
+  bulkUpdateTripDayItems,
   createTripDayItem,
   createTripLodging,
   createTripPlace,
@@ -27,6 +28,7 @@ import {
   updateTripRoute,
   updateTripRoom,
   type TripDayItemOrderInput,
+  type TripDayItemBulkInput,
   type TripDayItemInput,
   type TripLodgingInput,
   type TripPlaceInput,
@@ -192,6 +194,17 @@ const tripRoutes: HttpRoute<TripRouteContext>[] = [
   route("POST", /^\/tools\/trips\/(?<roomId>[^/]+)\/items$/, async ({ request, env, db, user, corsHeaders, params }) => {
     const roomId = routeParam(params, "roomId");
     return snapshotResponse(env, roomId, user.uid, await createTripDayItem(db, user.uid, roomId, await readJson<TripDayItemInput>(request)), 201, corsHeaders);
+  }),
+  route("POST", /^\/tools\/trips\/(?<roomId>[^/]+)\/items\/bulk$/, async ({ request, env, db, user, corsHeaders, params }) => {
+    const roomId = routeParam(params, "roomId");
+    return snapshotResponse(
+      env,
+      roomId,
+      user.uid,
+      await bulkUpdateTripDayItems(db, user.uid, roomId, await readJson<TripDayItemBulkInput>(request)),
+      200,
+      corsHeaders
+    );
   }),
   route("PATCH", /^\/tools\/trips\/(?<roomId>[^/]+)\/items\/(?<itemId>[^/]+)$/, async ({ request, env, db, user, corsHeaders, params }) => {
     const roomId = routeParam(params, "roomId");

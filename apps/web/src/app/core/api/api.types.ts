@@ -401,6 +401,13 @@ export interface UpsertTripDayItemRequest {
   placeId?: string;
 }
 
+export interface BulkUpdateTripDayItemsRequest {
+  dayId?: string;
+  placeIds?: string[];
+  itemIds?: string[];
+  removeItemIds?: string[];
+}
+
 export interface UpsertTripRouteRequest {
   fromItemId?: string;
   fromLodgingId?: string;

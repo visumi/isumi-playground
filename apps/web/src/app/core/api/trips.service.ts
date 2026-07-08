@@ -3,6 +3,7 @@ import { Injectable, inject } from "@angular/core";
 import { Observable } from "rxjs";
 import { environment } from "../../../environments/environment";
 import {
+  BulkUpdateTripDayItemsRequest,
   CreateTripLodgingRequest,
   CreateTripRequest,
   PublicTripSnapshot,
@@ -62,6 +63,10 @@ export class TripsService {
 
   deleteItem(roomId: string, itemId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${roomId}/items/${itemId}`);
+  }
+
+  bulkUpdateItems(roomId: string, payload: BulkUpdateTripDayItemsRequest): Observable<TripSnapshot> {
+    return this.http.post<TripSnapshot>(`${this.baseUrl}/${roomId}/items/bulk`, payload);
   }
 
   reorderDayItems(roomId: string, dayId: string, payload: UpdateTripDayItemOrderRequest): Observable<TripSnapshot> {

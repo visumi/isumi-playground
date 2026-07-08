@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from "@angular/core";
 import { firstValueFrom } from "rxjs";
-import { TripDayItem, TripSnapshot } from "../../core/api/api.types";
+import { BulkUpdateTripDayItemsRequest, TripDayItem, TripSnapshot } from "../../core/api/api.types";
 import { TripsService } from "../../core/api/trips.service";
 
 export interface TripPresence {
@@ -167,6 +167,17 @@ export class TripRoomStore {
       return true;
     } catch {
       this.restoreSnapshot(rollbackSnapshot);
+      return false;
+    }
+  }
+
+  async bulkUpdateItems(payload: BulkUpdateTripDayItemsRequest): Promise<boolean> {
+    if (!this.roomId) return false;
+
+    try {
+      this.setSnapshot(await firstValueFrom(this.trips.bulkUpdateItems(this.roomId, payload)));
+      return true;
+    } catch {
       return false;
     }
   }
