@@ -576,6 +576,7 @@
           </span>
           Insights
         </h2>
+        <p class="m-0 mt-1 text-sm text-muted-foreground">Veja como os gastos do mês se distribuem por categoria.</p>
       </div>
 
       <isumi-tag class="shrink-0" tone="primary">
@@ -589,26 +590,6 @@
       <svg icon lucideBrushCleaning class="size-5" aria-hidden="true"></svg>
     </isumi-empty-state>
     } @else {
-    @if (topCategory(); as top) {
-    <article
-      class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 rounded-lg bg-secondary/65 p-4 max-sm:grid-cols-[auto_minmax(0,1fr)_auto] max-sm:gap-x-3 max-sm:gap-y-3 max-sm:p-3.5">
-      <span class="grid size-8 shrink-0 place-items-center rounded-md bg-background/65"
-        [style.color]="top.color">
-        <svg lucideTrophy class="size-4" aria-hidden="true"></svg>
-      </span>
-
-      <div class="min-w-0">
-        <span class="block text-xs font-extrabold text-muted-foreground">Maior categoria</span>
-        <strong class="mt-1 block truncate text-xl leading-tight max-sm:text-lg">{{ top.name }}</strong>
-      </div>
-
-      <strong class="grid justify-items-end gap-1 text-right text-xl tabular-nums max-sm:col-start-3 max-sm:row-start-1 max-sm:self-start max-sm:gap-3 max-sm:text-lg">
-        <span class="max-sm:row-start-2">{{ money(top.amountCents) }}</span>
-        <span class="text-sm font-extrabold text-muted-foreground max-sm:row-start-1 max-sm:text-xs max-sm:leading-tight">{{ top.percent }}% do total do mês</span>
-      </strong>
-    </article>
-    }
-
     <section
       class="grid grid-cols-[minmax(15rem,0.9fr)_minmax(0,1.1fr)] gap-5 rounded-lg bg-background/35 p-5 max-lg:grid-cols-1 max-sm:p-4"
       aria-label="Gastos por categoria">
@@ -621,10 +602,12 @@
             @for (category of categoryInsights(); track category.categoryId) {
             <circle cx="50" cy="50" [attr.r]="chartRadius" fill="none" [attr.stroke]="category.color"
               stroke-width="9" stroke-linecap="round"
-              class="origin-center -rotate-90 cursor-pointer opacity-90 transition-[opacity,stroke-width] duration-200 ease-out hover:opacity-100 hover:[stroke-width:10.5] focus:opacity-100 focus:[stroke-width:10.5] focus:outline-none motion-reduce:transition-none"
+              class="monthly-expense-category-segment origin-center -rotate-90 cursor-pointer opacity-90 transition-[opacity,stroke-width] duration-200 ease-out hover:opacity-100 hover:[stroke-width:10.5] focus:opacity-100 focus:[stroke-width:10.5] focus:outline-none motion-reduce:transition-none"
               [class.opacity-35]="activeCategoryInsightId() !== null && activeCategoryInsightId() !== category.categoryId"
               [attr.stroke-dasharray]="category.strokeDasharray"
               [attr.stroke-dashoffset]="category.strokeDashoffset"
+              [style.--monthly-expense-chart-dasharray]="category.strokeDasharray"
+              [style.animationDelay.ms]="category.delayMs"
               [attr.aria-label]="category.name + ': ' + category.percent + '% do total, ' + money(category.amountCents)"
               tabindex="0"
               (mouseenter)="setActiveCategoryInsight(category.categoryId)"
@@ -635,7 +618,7 @@
           </svg>
 
           <div
-            class="pointer-events-none absolute inset-[21%] grid place-items-center rounded-full bg-card/95 text-center transition-[transform,background-color] duration-200 ease-out group-hover/chart:bg-card motion-reduce:transition-none">
+            class="monthly-expense-chart-center pointer-events-none absolute inset-[21%] grid place-items-center rounded-full bg-card/95 text-center transition-[transform,background-color] duration-200 ease-out group-hover/chart:bg-card motion-reduce:transition-none">
             @if (activeCategoryInsight(); as activeCategory) {
             <span class="grid max-w-[9rem] justify-items-center gap-1.5 px-3">
               <span class="size-2.5 rounded-sm" [style.background]="activeCategory.color" aria-hidden="true"></span>
@@ -711,6 +694,12 @@
       }
     </div>
   </section>
+
+  <div class="grid grid-cols-2 items-center gap-3 rounded-lg bg-card p-1.5 max-sm:gap-2"
+    aria-label="Carregando abas de gastos mensais">
+    <span class="h-10 animate-pulse rounded-sm bg-zinc-800/90"></span>
+    <span class="h-10 animate-pulse rounded-sm bg-zinc-800/90"></span>
+  </div>
 
   <section class="grid gap-4 rounded-lg bg-card p-5 max-sm:gap-3 max-sm:p-4" aria-labelledby="expenses-list-loading-title">
     <div class="flex items-start justify-between gap-4 max-lg:flex-col max-sm:gap-3">

@@ -24,7 +24,6 @@ import {
   LucideSettings2,
   LucideTableOfContents,
   LucideTrash2,
-  LucideTrophy,
   LucideCalendarRange,
   LucideUpload,
   LucideBrickWall,
@@ -74,6 +73,7 @@ interface MonthlyExpenseCategoryInsight {
   percent: number;
   strokeDasharray: string;
   strokeDashoffset: string;
+  delayMs: number;
 }
 
 @Component({
@@ -115,7 +115,6 @@ interface MonthlyExpenseCategoryInsight {
     LucideSettings2,
     LucideTableOfContents,
     LucideTrash2,
-    LucideTrophy,
     LucideUpload,
     LucideBlocks
   ],
@@ -246,11 +245,11 @@ export class MonthlyExpensesComponent implements OnInit {
         color: item.categoryId === "other" ? CATEGORY_OTHER_COLOR : CATEGORY_CHART_PALETTE[index % CATEGORY_CHART_PALETTE.length],
         percent: Math.round(rawPercent),
         strokeDasharray: `${segmentLength} ${CATEGORY_CHART_CIRCUMFERENCE - segmentLength}`,
-        strokeDashoffset: `${strokeDashoffset}`
+        strokeDashoffset: `${strokeDashoffset}`,
+        delayMs: 90 + index * 70
       };
     });
   });
-  readonly topCategory = computed(() => this.categoryInsights()[0] || null);
   readonly activeCategoryInsight = computed(() =>
     this.categoryInsights().find((item) => item.categoryId === this.activeCategoryInsightId()) || null
   );
