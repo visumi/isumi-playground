@@ -88,14 +88,14 @@ const MAP_CATEGORY_VISUALS: Record<TripPlaceCategory, {
         </isumi-button>
       </header>
 
-      <div class="grid min-h-0 grid-cols-[minmax(0,1fr)_minmax(19rem,26rem)] gap-4 max-lg:grid-cols-1 max-lg:grid-rows-[minmax(18rem,1fr)_minmax(16rem,0.95fr)] max-sm:grid-rows-[minmax(16rem,1fr)_auto] max-sm:pb-4">
+      <div class="grid min-h-0 grid-cols-[minmax(0,1fr)_minmax(19rem,26rem)] gap-4 max-lg:grid-cols-1 max-lg:grid-rows-[minmax(18rem,1fr)_minmax(16rem,0.95fr)] max-sm:grid-rows-[minmax(16rem,1fr)_minmax(13rem,0.85fr)] max-sm:pb-4">
         <section class="min-h-0 overflow-hidden rounded-lg bg-background">
           <isumi-trip-day-map [points]="mapData.points()" [highlightedPlaceIds]="selectedPlaceIds()"
             (pointSelected)="togglePoint($event)" />
         </section>
 
-        <aside class="grid min-h-0 overflow-hidden rounded-lg bg-secondary/55 max-sm:self-start max-sm:content-start"
-          [ngClass]="readOnly() ? 'grid-rows-[auto_minmax(0,1fr)] max-sm:grid-rows-[auto_auto]' : 'grid-rows-[auto_auto_minmax(0,1fr)] max-sm:grid-rows-[auto_auto]'">
+        <aside class="grid min-h-0 overflow-hidden rounded-lg bg-secondary/55"
+          [ngClass]="readOnly() ? 'grid-rows-[auto_minmax(0,1fr)]' : 'grid-rows-[auto_auto_minmax(0,1fr)] max-sm:grid-rows-[auto_auto]'">
           <div class="border-b border-border/70 px-4 py-3">
             <strong class="inline-flex items-center gap-2 text-sm font-black">
               <span class="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
