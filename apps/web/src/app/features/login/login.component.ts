@@ -2,10 +2,12 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { ActivatedRoute } from "@angular/router";
 import { AuthService } from "../../core/auth/auth.service";
 import { IsumiToastService } from "../../shared/ui";
+import { LoginVeilComponent } from "./login-veil.component";
 
 @Component({
   selector: "isumi-login",
   standalone: true,
+  imports: [LoginVeilComponent],
   templateUrl: "./login.component.html",
   changeDetection: ChangeDetectionStrategy.OnPush
 })
