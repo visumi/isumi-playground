@@ -50,7 +50,7 @@ export class TripRoomStore {
   itemsForDay(dayId: string): TripDayItem[] {
     return (this.snapshotState()?.items || [])
       .filter((item) => item.dayId === dayId)
-      .sort((a, b) => a.position - b.position);
+      .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
   }
 
   async load(roomId: string): Promise<void> {

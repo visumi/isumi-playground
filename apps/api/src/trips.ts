@@ -197,7 +197,7 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
     db.execute({
       sql: `
         SELECT id, day_id, place_id, position, version
-        FROM trip_day_items WHERE room_id = ? ORDER BY day_id, position
+        FROM trip_day_items WHERE room_id = ? ORDER BY day_id, position, id
       `,
       args: [roomId]
     }),
@@ -300,7 +300,7 @@ export async function getPublicTripSnapshot(db: Client, publicShareToken: string
     db.execute({
       sql: `
         SELECT id, day_id, place_id, position
-        FROM trip_day_items WHERE room_id = ? ORDER BY day_id, position
+        FROM trip_day_items WHERE room_id = ? ORDER BY day_id, position, id
       `,
       args: [room.id]
     }),
@@ -1109,9 +1109,25 @@ function cleanupInvalidTripRouteStatements(roomId: string): InStatement {
             FROM trip_day_items origin
             INNER JOIN trip_day_items destination
               ON destination.day_id = origin.day_id
-             AND destination.position = origin.position + 1
+             AND (
+               destination.position > origin.position
+               OR (destination.position = origin.position AND destination.id > origin.id)
+             )
             WHERE origin.id = trip_routes.from_item_id
               AND destination.id = trip_routes.to_item_id
+              AND NOT EXISTS (
+                SELECT 1
+                FROM trip_day_items between_items
+                WHERE between_items.day_id = origin.day_id
+                  AND (
+                    between_items.position > origin.position
+                    OR (between_items.position = origin.position AND between_items.id > origin.id)
+                  )
+                  AND (
+                    between_items.position < destination.position
+                    OR (between_items.position = destination.position AND between_items.id < destination.id)
+                  )
+              )
           )
         )
         OR (
@@ -1210,9 +1226,25 @@ async function assertAdjacentItems(
       FROM trip_day_items origin
       INNER JOIN trip_day_items destination
         ON destination.day_id = origin.day_id
-       AND destination.position = origin.position + 1
+       AND (
+         destination.position > origin.position
+         OR (destination.position = origin.position AND destination.id > origin.id)
+       )
       WHERE origin.id = ? AND destination.id = ?
         AND origin.room_id = ? AND destination.room_id = ?
+        AND NOT EXISTS (
+          SELECT 1
+          FROM trip_day_items between_items
+          WHERE between_items.day_id = origin.day_id
+            AND (
+              between_items.position > origin.position
+              OR (between_items.position = origin.position AND between_items.id > origin.id)
+            )
+            AND (
+              between_items.position < destination.position
+              OR (between_items.position = destination.position AND between_items.id < destination.id)
+            )
+        )
       LIMIT 1
     `,
     args: [fromItemId, toItemId, roomId, roomId]

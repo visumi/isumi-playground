@@ -170,7 +170,8 @@ describe("trip planner validation", () => {
     })).rejects.toThrowError("stop_after_move_batch");
 
     const cleanup = statements.find((statement) => statement.sql.includes("DELETE FROM trip_routes"));
-    expect(cleanup?.sql).toContain("destination.position = origin.position + 1");
+    expect(cleanup?.sql).toContain("destination.position > origin.position");
+    expect(cleanup?.sql).toContain("between_items");
     expect(cleanup?.sql).toContain("origin.id = trip_routes.from_item_id");
     expect(cleanup?.sql).toContain("destination.id = trip_routes.to_item_id");
     expect(cleanup?.sql).toContain("trip_routes.to_lodging_id");
@@ -284,7 +285,7 @@ describe("trip planner validation", () => {
     expect(statements.slice(0, 3).map((statement) => statement.args[0])).toEqual([0, 1, 2]);
     expect(statements.slice(0, 3).map((statement) => statement.args[1])).toEqual(["item-b", "item-c", "item-a"]);
     expect(statements.find((statement) => statement.sql.includes("DELETE FROM trip_routes"))?.sql)
-      .toContain("destination.position = origin.position + 1");
+      .toContain("between_items");
   });
 
   it("updates trip day items in bulk with one transaction", async () => {
