@@ -48,24 +48,8 @@ describe("trip planner validation", () => {
     await expect(createTripRoute(db, "user-1", "room-1", {
       fromItemId: "item-1",
       toItemId: "item-2",
-      transportMode: "walk",
-      durationMinutes: 10
+      transportMode: "walk"
     })).rejects.toThrowError("route_items_not_adjacent");
-  });
-
-  it("requires a valid route duration", async () => {
-    const db = {
-      execute: vi.fn()
-        .mockResolvedValueOnce({ rows: [{ role: "member" }] })
-        .mockResolvedValueOnce({ rows: [{ 1: 1 }] })
-    } as unknown as Client;
-
-    await expect(createTripRoute(db, "user-1", "room-1", {
-      fromItemId: "item-1",
-      toItemId: "item-2",
-      transportMode: "walk",
-      durationMinutes: 0
-    })).rejects.toThrowError("invalid_route_duration");
   });
 
   it("allows lodging routes on the check-out day", async () => {
@@ -84,8 +68,7 @@ describe("trip planner validation", () => {
     await expect(createTripRoute(db, "user-1", "room-1", {
       fromLodgingId: "lodging-1",
       toItemId: "item-1",
-      transportMode: "walk",
-      durationMinutes: 12
+      transportMode: "walk"
     })).rejects.toThrowError("stop_after_route_batch");
 
     const lodgingRouteCheck = String(execute.mock.calls[1][0].sql);
@@ -109,8 +92,7 @@ describe("trip planner validation", () => {
     await expect(createTripRoute(db, "user-1", "room-1", {
       fromItemId: "item-last",
       toLodgingId: "lodging-new",
-      transportMode: "car",
-      durationMinutes: 18
+      transportMode: "car"
     })).rejects.toThrowError("stop_after_arrival_route_batch");
 
     const arrivalRouteCheck = String(execute.mock.calls[1][0].sql);
@@ -136,8 +118,7 @@ describe("trip planner validation", () => {
     await expect(createTripRoute(db, "user-1", "room-1", {
       fromLodgingId: "lodging-old",
       toLodgingId: "lodging-new",
-      transportMode: "transit",
-      durationMinutes: 35
+      transportMode: "transit"
     })).rejects.toThrowError("stop_after_lodging_transfer_batch");
 
     const transferRouteCheck = String(execute.mock.calls[1][0].sql);

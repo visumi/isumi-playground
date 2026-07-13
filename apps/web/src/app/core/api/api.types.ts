@@ -321,7 +321,6 @@ export interface TripRoute {
   toItemId: string | null;
   toLodgingId: string | null;
   transportMode: TripTransportMode;
-  durationMinutes: number;
   version: number;
 }
 
@@ -414,7 +413,6 @@ export interface UpsertTripRouteRequest {
   toItemId?: string;
   toLodgingId?: string;
   transportMode: TripTransportMode;
-  durationMinutes: number;
   version?: number;
 }
 

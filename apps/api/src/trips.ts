@@ -45,7 +45,6 @@ export interface TripRouteInput {
   toItemId?: string;
   toLodgingId?: string;
   transportMode?: TripTransportMode;
-  durationMinutes?: number;
   version?: number;
 }
 
@@ -205,7 +204,7 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
     db.execute({
       sql: `
         SELECT id, from_item_id, from_lodging_id, to_item_id, to_lodging_id,
-               transport_mode, duration_minutes, version
+               transport_mode, version
         FROM trip_routes WHERE room_id = ? ORDER BY created_at, id
       `,
       args: [roomId]
@@ -259,7 +258,6 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
       toItemId: row.to_item_id ? String(row.to_item_id) : null,
       toLodgingId: row.to_lodging_id ? String(row.to_lodging_id) : null,
       transportMode: String(row.transport_mode),
-      durationMinutes: Number(row.duration_minutes),
       version: Number(row.version)
     })),
     lodgings: lodgings.rows.map((row) => ({
@@ -309,7 +307,7 @@ export async function getPublicTripSnapshot(db: Client, publicShareToken: string
     db.execute({
       sql: `
         SELECT id, from_item_id, from_lodging_id, to_item_id, to_lodging_id,
-               transport_mode, duration_minutes
+               transport_mode
         FROM trip_routes WHERE room_id = ? ORDER BY created_at, id
       `,
       args: [room.id]
@@ -362,8 +360,7 @@ export async function getPublicTripSnapshot(db: Client, publicShareToken: string
       fromLodgingId: row.from_lodging_id ? String(row.from_lodging_id) : null,
       toItemId: row.to_item_id ? String(row.to_item_id) : null,
       toLodgingId: row.to_lodging_id ? String(row.to_lodging_id) : null,
-      transportMode: String(row.transport_mode),
-      durationMinutes: Number(row.duration_minutes)
+      transportMode: String(row.transport_mode)
     })),
     lodgings: lodgings.rows.map((row) => ({
       id: String(row.id),
@@ -750,8 +747,8 @@ export async function createTripRoute(db: Client, userId: string, roomId: string
       sql: `
         INSERT INTO trip_routes
           (id, room_id, from_item_id, from_lodging_id, to_item_id, to_lodging_id,
-           transport_mode, duration_minutes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           transport_mode)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
         crypto.randomUUID(),
@@ -760,8 +757,7 @@ export async function createTripRoute(db: Client, userId: string, roomId: string
         fromLodgingId,
         toItemId,
         toLodgingId,
-        requiredTransportMode(payload.transportMode),
-        integer(payload.durationMinutes, "invalid_route_duration", 1, 1440)
+        requiredTransportMode(payload.transportMode)
       ]
     },
     touchRoom(roomId)
@@ -797,13 +793,12 @@ export async function updateTripRoute(
   const version = integer(payload.version, "missing_entity_version", 1, Number.MAX_SAFE_INTEGER);
   const result = await db.execute({
     sql: `
-      UPDATE trip_routes SET transport_mode = ?, duration_minutes = ?,
+      UPDATE trip_routes SET transport_mode = ?,
         version = version + 1, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND room_id = ? AND version = ?
     `,
     args: [
       requiredTransportMode(payload.transportMode),
-      integer(payload.durationMinutes, "invalid_route_duration", 1, 1440),
       routeId,
       roomId,
       version

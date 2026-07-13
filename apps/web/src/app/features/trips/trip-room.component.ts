@@ -34,7 +34,6 @@ import {
   LucideBus,
   LucideCalendarDays,
   LucideCar,
-  LucideClock3,
   LucideFiles,
   LucideFootprints,
   LucideGripVertical,
@@ -479,7 +478,6 @@ export class DeleteTripPlaceModalComponent {
     LucideBus,
     LucideCalendarDays,
     LucideCar,
-    LucideClock3,
     LucideFiles,
     LucideFootprints,
     LucideGripVertical,
@@ -607,7 +605,6 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   readonly dayOrderMenuDayId = signal<string | null>(null);
 
   readonly routeTransportMode = signal<TripTransportMode | "">("");
-  readonly routeDurationMinutes = signal<number | null>(null);
   readonly selectedRoute = computed(() => {
     const fromItemId = this.selectedRouteFromItemId();
     const toItemId = this.selectedRouteToItemId();
@@ -1236,7 +1233,6 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     this.selectedRouteToItemId.set(endpoints.toItemId);
     this.selectedRouteToLodgingId.set(endpoints.toLodgingId);
     this.routeTransportMode.set(route?.transportMode || "");
-    this.routeDurationMinutes.set(route?.durationMinutes || null);
     this.openEditorModal("route");
   }
 
@@ -1246,19 +1242,16 @@ export class TripRoomComponent implements OnInit, OnDestroy {
     const toItemId = this.selectedRouteToItemId();
     const toLodgingId = this.selectedRouteToLodgingId();
     const transportMode = this.routeTransportMode();
-    const durationMinutes = Number(this.routeDurationMinutes());
     if (
       (!fromItemId && !fromLodgingId)
       || (!toItemId && !toLodgingId)
       || !transportMode
-      || !durationMinutes
       || this.savingPanel()
     ) return;
     const selected = this.selectedRoute();
     const payload = {
       ...this.serializeRouteEndpoints({ fromItemId, fromLodgingId, toItemId, toLodgingId }),
-      transportMode,
-      durationMinutes
+      transportMode
     };
     this.savingPanel.set(true);
     try {

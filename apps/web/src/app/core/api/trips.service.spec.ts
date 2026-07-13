@@ -36,8 +36,7 @@ describe("TripsService", () => {
     service.createRoute("trip-1", {
       fromItemId: "item-1",
       toItemId: "item-2",
-      transportMode: "walk",
-      durationMinutes: 15
+      transportMode: "walk"
     }).subscribe();
 
     const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/routes");
@@ -50,7 +49,6 @@ describe("TripsService", () => {
   it("updates a route with optimistic concurrency", () => {
     service.updateRoute("trip-1", "route-1", {
       transportMode: "transit",
-      durationMinutes: 25,
       version: 4
     }).subscribe();
 

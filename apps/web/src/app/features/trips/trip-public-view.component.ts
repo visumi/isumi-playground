@@ -823,7 +823,7 @@ export class TripPublicViewComponent implements OnInit {
   }
 
   routeDisplayLabel(route: PublicTripRoute | null): string {
-    return route ? `${this.transportLabel(route.transportMode)} · ${route.durationMinutes} min` : "Trajeto não informado";
+    return route ? this.transportLabel(route.transportMode) : "Trajeto não informado";
   }
 
   mapPointsForDay(day: TripDay): TripMiniMapPoint[] {

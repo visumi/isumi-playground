@@ -694,9 +694,7 @@
                 aria-hidden="true"></svg> }
               }
               <span>
-                {{ lodgingRoute
-                  ? transportLabel(lodgingRoute.transportMode) + " · " + lodgingRoute.durationMinutes + " min"
-                  : "Definir trajeto até a primeira parada" }}
+                {{ lodgingRoute ? transportLabel(lodgingRoute.transportMode) : "Definir trajeto até a primeira parada" }}
               </span>
             </button>
             }
@@ -772,9 +770,7 @@
               }
               }
               <span>
-                {{ route
-                  ? transportLabel(route.transportMode) + " · " + route.durationMinutes + " min"
-                  : "Definir trajeto" }}
+                {{ route ? transportLabel(route.transportMode) : "Definir trajeto" }}
               </span>
             </button>
             }
@@ -965,9 +961,7 @@
                 aria-hidden="true"></svg> }
               }
               <span>
-                {{ arrivalRoute
-                  ? transportLabel(arrivalRoute.transportMode) + " · " + arrivalRoute.durationMinutes + " min"
-                  : "Definir trajeto até a hospedagem" }}
+                {{ arrivalRoute ? transportLabel(arrivalRoute.transportMode) : "Definir trajeto até a hospedagem" }}
               </span>
             </button>
             } @else if (departureLodgingForDay(day); as departureLodging) {
@@ -996,9 +990,7 @@
                 aria-hidden="true"></svg> }
               }
               <span>
-                {{ transferRoute
-                  ? transportLabel(transferRoute.transportMode) + " · " + transferRoute.durationMinutes + " min"
-                  : "Definir trajeto até a hospedagem" }}
+                {{ transferRoute ? transportLabel(transferRoute.transportMode) : "Definir trajeto até a hospedagem" }}
               </span>
             </button>
             }
@@ -1165,16 +1157,6 @@
                 <option value="transit">Transporte público</option>
                 <option value="other">Outro</option>
               </select>
-            </label>
-
-            <label class="grid gap-2">
-              <span class="inline-flex items-center gap-2 text-sm font-extrabold text-muted-foreground">
-                <svg lucideClock3 class="size-4" aria-hidden="true"></svg>
-                Duração do trajeto
-              </span>
-              <input isumiInput type="number" min="1" max="1440" name="routeDurationMinutes"
-                [ngModel]="routeDurationMinutes()" (ngModelChange)="routeDurationMinutes.set($event)"
-                placeholder="Minutos" required>
             </label>
 
           </div>

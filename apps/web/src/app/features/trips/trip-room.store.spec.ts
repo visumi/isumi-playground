@@ -179,7 +179,6 @@ describe("TripRoomStore", () => {
         toItemId: "middle",
         toLodgingId: null,
         transportMode: "walk",
-        durationMinutes: 10,
         version: 1
       }]
     });
