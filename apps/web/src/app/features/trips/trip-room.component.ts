@@ -720,11 +720,8 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   }
 
   canOrderDayByProximity(day: TripDay): boolean {
-    const lodging = this.departureLodgingForDay(day);
     const items = this.store.itemsForDay(day.id);
-    return !!lodging
-      && hasValidCoordinates(lodging)
-      && items.length >= 2
+    return items.length >= 2
       && items.every((item) => {
         const place = this.placeById(item.placeId);
         return !!place && hasValidCoordinates(place);
@@ -945,16 +942,21 @@ export class TripRoomComponent implements OnInit, OnDestroy {
   async orderDayByProximity(day: TripDay, mode: TripDayOrderMode = this.dayOrderMode()): Promise<void> {
     if (!this.canOrderDayByProximity(day) || this.sortingDayId()) return;
     const lodging = this.departureLodgingForDay(day);
-    if (!lodging || !hasValidCoordinates(lodging)) return;
+    const items = this.store.itemsForDay(day.id);
+    const referenceItem = lodging && hasValidCoordinates(lodging) ? null : items[0];
+    const referencePlace = referenceItem ? this.placeById(referenceItem.placeId) : null;
+    const start = lodging && hasValidCoordinates(lodging) ? lodging : referencePlace;
+    if (!start || !hasValidCoordinates(start)) return;
 
     this.dayOrderMode.set(mode);
     this.closeDayOrderMenu();
 
     const orderedItemIds = this.orderItemsFrom(
-      { latitude: lodging.latitude, longitude: lodging.longitude },
-      this.store.itemsForDay(day.id),
+      { latitude: start.latitude, longitude: start.longitude },
+      referenceItem ? items.slice(1) : items,
       mode
     ).map((item) => item.id);
+    if (referenceItem) orderedItemIds.unshift(referenceItem.id);
 
     this.sortingDayId.set(day.id);
     try {
