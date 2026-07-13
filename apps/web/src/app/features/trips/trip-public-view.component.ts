@@ -8,16 +8,17 @@ import {
   LucideCalendarDays,
   LucideCar,
   LucideFootprints,
+  LucideLandPlot,
   LucideLandmark,
   LucideLink,
   LucideMap,
   LucideMapPin,
   LucideMapPinned,
   LucideMoonStar,
-  LucideRulerDimensionLine,
   LucideShieldCheck,
   LucideShoppingBag,
   LucideShuffle,
+  LucideTimeline,
   LucideTrees,
   LucideUtensils
 } from "@lucide/angular";
@@ -34,6 +35,7 @@ import {
 import { TripsService } from "../../core/api/trips.service";
 import { IsumiButtonComponent, IsumiClipboardService, IsumiEmptyStateComponent, IsumiModalService, IsumiTagComponent, IsumiToastService, IsumiTooltipComponent } from "../../shared/ui";
 import { TripDayTimelineComponent } from "./trip-day-timeline.component";
+import { TripDayMapModalComponent, TripDayMapModalData } from "./trip-day-map-modal.component";
 import { TripGeneralMapModalComponent, TripGeneralMapModalData } from "./trip-general-map-modal.component";
 import { TripMiniMapComponent, TripMiniMapPoint } from "./trip-mini-map.component";
 import { buildTripGeneralMapPoints } from "./trip-room.component";
@@ -104,13 +106,14 @@ function hasValidCoordinates<T extends { latitude: number | null; longitude: num
     LucideCalendarDays,
     LucideCar,
     LucideFootprints,
+    LucideLandPlot,
     LucideLink,
     LucideMap,
     LucideMapPin,
     LucideMapPinned,
-    LucideRulerDimensionLine,
     LucideShieldCheck,
     LucideShuffle,
+    LucideTimeline,
     LucideArrowUp,
     IsumiButtonComponent,
     IsumiTooltipComponent,
@@ -222,7 +225,7 @@ function hasValidCoordinates<T extends { latitude: number | null; longitude: num
           <svg icon lucideShieldCheck class="size-5"></svg>
         </isumi-empty-state>
         } @else if (snapshot(); as trip) {
-        <div class="grid gap-5">
+        <div class="public-trip-content grid gap-5">
           <section class="overflow-visible rounded-lg bg-card">
             <div class="grid gap-5 p-5 sm:p-6">
               <div class="flex flex-wrap items-start justify-between gap-5">
@@ -242,14 +245,14 @@ function hasValidCoordinates<T extends { latitude: number | null; longitude: num
                   </p>
                 </div>
                 <div class="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
-                  <isumi-tooltip [label]="timelineVisible() ? 'Ocultar timeline' : 'Exibir timeline'">
+                  <isumi-tooltip [label]="viewMode() === 'overview' ? 'Exibir dia a dia' : 'Exibir visão geral'">
                   <isumi-button variant="secondary" size="sm" iconOnly type="button"
-                    [ariaExpanded]="timelineVisible()"
-                    ariaControls="public-trip-timeline"
-                    [ariaLabel]="timelineVisible() ? 'Ocultar timeline da viagem' : 'Exibir timeline da viagem'"
-                    (click)="toggleTimeline()">
-                    <svg icon lucideRulerDimensionLine class="size-4" aria-hidden="true"></svg>
-                    {{ timelineVisible() ? "Ocultar timeline" : "Exibir timeline" }}
+                    [ariaLabel]="viewMode() === 'overview' ? 'Exibir um dia por vez' : 'Exibir todos os dias da viagem'"
+                    (click)="toggleViewMode()">
+                    <svg icon lucideLandPlot class="size-4" [class.hidden]="viewMode() !== 'overview'" aria-hidden="true"></svg>
+                    Dia a dia
+                    <svg icon lucideTimeline class="size-4" [class.hidden]="viewMode() !== 'day'" aria-hidden="true"></svg>
+                    Visão geral
                   </isumi-button>
                   </isumi-tooltip>
                   <isumi-tooltip [label]="generalMapAddressCount() > 0 ? 'Visualizar mapa geral' : 'Adicione coordenadas para ver o mapa geral'">
@@ -299,28 +302,20 @@ function hasValidCoordinates<T extends { latitude: number | null; longitude: num
           </section>
           }
 
-          @if (timelineRendered()) {
-          <div id="public-trip-timeline"
-            class="public-trip-timeline-shell"
-            [class.public-trip-timeline-shell--visible]="timelineVisible()"
-            [class.public-trip-timeline-shell--after-pending]="pendingPlaces().length > 0 && timelineVisible()"
-            [attr.aria-hidden]="!timelineVisible()"
-            [attr.inert]="timelineVisible() ? null : ''">
-            <div class="min-h-0 overflow-hidden">
-              <isumi-trip-day-timeline
-                [days]="days()"
-                [items]="trip.items"
-                [focusedDay]="focusedDay()"
-                [alwaysExpanded]="true"
-                (previousDayRequested)="scrollToPreviousDay()"
-                (nextDayRequested)="scrollToNextDay()"
+          <div class="public-trip-view-stage grid gap-5" [class.public-trip-view-stage--transitioning]="viewTransitioning()">
+            @if (viewMode() === 'day') {
+            <isumi-trip-day-timeline
+              [days]="days()"
+              [items]="trip.items"
+              [focusedDay]="focusedDay()"
+              [alwaysExpanded]="true"
+              (previousDayRequested)="scrollToPreviousDay()"
+              (nextDayRequested)="scrollToNextDay()"
               (dayFocused)="scrollToDay($event)" />
-            </div>
-          </div>
-          }
+            }
 
-          <main class="grid min-w-0 gap-4" aria-label="Roteiro público da viagem">
-            @for (day of days(); track day.id) {
+            <main class="grid min-w-0 gap-4" aria-label="Roteiro público da viagem">
+            @for (day of displayedDays(); track day.id) {
             <section class="overflow-visible rounded-lg bg-card" [id]="dayElementId(day.id)" [attr.aria-labelledby]="'public-day-' + day.id">
                 @let mapPoints = mapPointsForDay(day);
                 <header class="flex flex-wrap items-start justify-between gap-4 border-b border-dashed border-border px-4 py-4">
@@ -392,7 +387,11 @@ function hasValidCoordinates<T extends { latitude: number | null; longitude: num
 
                       @if (mapPoints.length > 0) {
                       <aside class="order-first min-h-24 min-w-0 overflow-hidden md:order-none">
-                        <isumi-trip-mini-map [points]="mapPoints" />
+                        <button class="block h-full w-full cursor-pointer rounded-md bg-transparent p-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+                          type="button" [attr.aria-label]="'Visualizar mapa do dia ' + (day.position + 1)"
+                          (click)="openDayMap(day)">
+                          <isumi-trip-mini-map [points]="mapPoints" />
+                        </button>
                       </aside>
                       }
                     </div>
@@ -560,7 +559,8 @@ function hasValidCoordinates<T extends { latitude: number | null; longitude: num
                 </div>
             </section>
             }
-          </main>
+            </main>
+          </div>
         </div>
         }
       </div>
@@ -613,35 +613,45 @@ function hasValidCoordinates<T extends { latitude: number | null; longitude: num
         radial-gradient(ellipse at center, transparent 0%, transparent 54%, rgb(8 7 12 / 0.52) 100%);
     }
 
-    .public-trip-timeline-shell {
-      display: grid;
-      grid-template-rows: 0fr;
-      opacity: 0;
-      transform: translateY(-0.5rem);
-      transition:
-        grid-template-rows 240ms cubic-bezier(0.22, 1, 0.36, 1),
-        opacity 180ms ease-out,
-        transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
-      pointer-events: none;
+    .public-trip-content {
+      animation: public-trip-content-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
     }
 
-    .public-trip-timeline-shell--visible {
-      grid-template-rows: 1fr;
-      opacity: 1;
-      transform: translateY(0);
-      pointer-events: auto;
+    .public-trip-view-stage--transitioning {
+      animation: public-trip-view-swap 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
     }
 
-    .public-trip-timeline-shell--after-pending {
-      margin-top: -0.5rem;
+    @keyframes public-trip-content-enter {
+      from {
+        opacity: 0;
+        transform: translateY(0.875rem);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes public-trip-view-swap {
+      from {
+        opacity: 0.72;
+        transform: translateY(0.5rem);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .public-trip-timeline-shell {
-        transform: none;
-        transition: opacity 80ms linear;
+      .public-trip-content,
+      .public-trip-view-stage--transitioning {
+        animation: none;
       }
     }
+
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -657,8 +667,8 @@ export class TripPublicViewComponent implements OnInit {
   readonly error = signal(false);
   readonly snapshot = signal<PublicTripSnapshot | null>(null);
   readonly focusedDayId = signal<string | null>(null);
-  readonly timelineVisible = signal(false);
-  readonly timelineRendered = signal(false);
+  readonly viewMode = signal<"overview" | "day">("overview");
+  readonly viewTransitioning = signal(false);
   readonly showBackToTop = signal(false);
   readonly days = computed(() => [...(this.snapshot()?.days || [])].sort((first, second) => first.position - second.position));
   readonly focusedDay = computed(() =>
@@ -667,6 +677,10 @@ export class TripPublicViewComponent implements OnInit {
   readonly focusedDayIndex = computed(() =>
     this.days().findIndex((day) => day.id === this.focusedDay()?.id)
   );
+  readonly displayedDays = computed(() => {
+    const focusedDay = this.focusedDay();
+    return this.viewMode() === "overview" || !focusedDay ? this.days() : [focusedDay];
+  });
   readonly generalMapPoints = computed(() => buildTripGeneralMapPoints(
     this.days(),
     this.snapshot()?.places || [],
@@ -703,21 +717,20 @@ export class TripPublicViewComponent implements OnInit {
     this.updateBackToTopVisibility();
   }
 
-  toggleTimeline(): void {
-    if (this.timelineVisible()) {
-      this.timelineVisible.set(false);
-      window.setTimeout(() => {
-        if (!this.timelineVisible()) {
-          this.timelineRendered.set(false);
-        }
-      }, 240);
-    } else {
-      this.timelineRendered.set(true);
-      window.requestAnimationFrame(() => this.timelineVisible.set(true));
-    }
-    if (!this.focusedDayId()) {
-      this.focusedDayId.set(this.days()[0]?.id || null);
-    }
+  setViewMode(mode: "overview" | "day"): void {
+    if (this.viewMode() === mode) return;
+
+    this.viewTransitioning.set(false);
+    this.viewMode.set(mode);
+    if (!this.focusedDayId()) this.focusedDayId.set(this.days()[0]?.id || null);
+    window.requestAnimationFrame(() => {
+      this.viewTransitioning.set(true);
+      if (mode === "overview" && this.focusedDayId()) this.scrollToDay(this.focusedDayId()!);
+    });
+  }
+
+  toggleViewMode(): void {
+    this.setViewMode(this.viewMode() === "overview" ? "day" : "overview");
   }
 
   scrollToPreviousDay(): void {
@@ -760,6 +773,21 @@ export class TripPublicViewComponent implements OnInit {
         },
         ariaLabel: "Mapa geral da viagem",
         panelClass: "sm:!w-[min(calc(100vw-2rem),82rem)]"
+      }
+    );
+  }
+
+  openDayMap(day: TripDay): void {
+    this.modal.open<TripDayMapModalComponent, TripDayMapModalData, void>(
+      TripDayMapModalComponent,
+      {
+        data: {
+          dayNumber: day.position + 1,
+          date: day.date,
+          points: this.mapPointsForDay(day)
+        },
+        ariaLabel: `Mapa do dia ${day.position + 1}`,
+        panelClass: "sm:!w-[min(calc(100vw-2rem),76rem)]"
       }
     );
   }
