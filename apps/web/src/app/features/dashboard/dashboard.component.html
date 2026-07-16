@@ -1,45 +1,6 @@
 <section class="grid gap-6" aria-labelledby="dashboard-title">
   <isumi-page-header eyebrow="Bem-vindo" title="{{ auth.profile()?.name || 'Dashboard' }}" titleId="dashboard-title" />
 
-  <section class="overflow-hidden rounded-lg bg-card text-card-foreground shadow-2xl shadow-black/10"
-    aria-labelledby="dashboard-news-title">
-    <div class="grid gap-6 p-5 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)] md:p-6">
-      <div class="grid content-between gap-8">
-        <div class="grid gap-4">
-          <span class="grid size-10 place-items-center rounded-md bg-primary/15 text-primary" aria-hidden="true">
-            <svg lucideSparkles class="size-5"></svg>
-          </span>
-
-          <div class="grid gap-2">
-            <h2 id="dashboard-news-title" class="m-0 text-2xl font-black leading-tight tracking-[-0.03em] text-balance">
-              Novidades do Playground</h2>
-            <p class="m-0 max-w-[34ch] leading-6 text-muted-foreground">Changelog curto das mudanças publicadas nesta
-              versão.</p>
-          </div>
-        </div>
-
-        <span
-          class="w-fit rounded-md bg-secondary px-2.5 py-1 font-mono text-xs font-bold text-secondary-foreground">v{{
-          appVersion }}</span>
-      </div>
-
-      <div class="rounded-md bg-black p-4 font-mono text-white">
-        <ul class="grid gap-3 text-sm leading-6 text-white/85" aria-label="Changelog da versão atual">
-          <li
-            class="grid gap-1 border-t border-white/10 pt-3 first:border-t-0 first:pt-0 sm:grid-cols-[7ch_minmax(0,1fr)] sm:gap-4">
-            <span class="font-bold text-white">+</span>
-            <span>BETA da tela pública de Planejar viagem.</span>
-          </li>
-          <li
-            class="grid gap-1 border-t border-white/10 pt-3 first:border-t-0 first:pt-0 sm:grid-cols-[7ch_minmax(0,1fr)] sm:gap-4">
-            <span class="font-bold text-white">WIP</span>
-            <span>Melhorias no Mapa geral no Planejar viagem.</span>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
   <section class="grid gap-3" aria-labelledby="dashboard-tools-title">
     <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 max-sm:grid-cols-1">
       <a class="group relative grid min-h-[16rem] overflow-hidden rounded-lg bg-card p-5 text-card-foreground no-underline shadow-2xl shadow-black/10 transition-[background] duration-200 hover:bg-secondary/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"

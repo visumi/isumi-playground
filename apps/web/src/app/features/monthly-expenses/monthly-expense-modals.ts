@@ -24,7 +24,7 @@ import {
 import { finalize } from "rxjs";
 import { MonthlyExpensesService } from "../../core/api/monthly-expenses.service";
 import { MonthlyExpenseCatalogItem, MonthlyExpenseIngestTokenStatus, MonthlyExpenseItem, MonthlyExpenseType, UpsertMonthlyExpenseItemRequest } from "../../core/api/api.types";
-import { IsumiButtonComponent, IsumiClipboardService, IsumiInputDirective, IsumiSelectDirective, IsumiTagComponent, IsumiTagTone, IsumiToastService, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
+import { IsumiButtonComponent, IsumiClipboardService, IsumiInputDirective, IsumiSelectDirective, IsumiTabComponent, IsumiTagComponent, IsumiTagTone, IsumiToastService, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
 import { formatMoneyInput, normalizeDecimalInput, parseMoneyCents } from "../../shared/utils/money";
 
 export type CatalogKind = "category" | "payment";
@@ -105,6 +105,7 @@ export const CATALOG_PALETTE: CatalogPaletteOption[] = [
     FormsModule,
     IsumiButtonComponent,
     IsumiInputDirective,
+    IsumiTabComponent,
     IsumiTagComponent,
     LucideArchive,
     LucideCreditCard,
@@ -115,16 +116,16 @@ export const CATALOG_PALETTE: CatalogPaletteOption[] = [
     LucideX
   ],
   template: `
-    <div class="flex max-h-[calc(min(720px,calc(100dvh-32px))-40px)] min-h-0 flex-col gap-5 overflow-hidden max-sm:max-h-[calc(100dvh-112px)]">
+    <div class="flex max-h-[calc(min(720px,calc(100dvh-32px))-40px)] min-h-0 flex-col gap-6 overflow-hidden max-sm:max-h-[calc(100dvh-112px)] max-sm:gap-5">
       <header class="flex items-start justify-between gap-4">
         <div class="min-w-0">
-          <h2 class="m-0 inline-flex items-center gap-2 text-[1.2rem] font-black">
+          <h2 class="m-0 inline-flex items-center gap-2 text-[1.3rem] font-black tracking-[-0.02em]">
             <span class="grid size-8 place-items-center rounded-md bg-primary/15 text-primary">
               <svg lucideSettings2 class="size-4" aria-hidden="true"></svg>
             </span>
             Categorias e pagamentos
           </h2>
-          <p class="m-0 mt-1 text-sm text-muted-foreground">Dê cor e nome aos atalhos que aparecem nos novos gastos.</p>
+          <p class="m-0 mt-1.5 max-w-[34rem] text-sm leading-5 text-muted-foreground">Dê cor e nome aos atalhos que aparecem nos novos gastos.</p>
         </div>
         <isumi-button class="max-sm:hidden" variant="ghost" size="sm" iconOnly ariaLabel="Fechar modal" (click)="modalRef.close()">
           <svg icon lucideX class="size-4" aria-hidden="true"></svg>
@@ -132,34 +133,38 @@ export const CATALOG_PALETTE: CatalogPaletteOption[] = [
         </isumi-button>
       </header>
 
-      <form class="grid gap-4 rounded-lg bg-secondary/55 p-3.5" (ngSubmit)="saveCatalogItem()">
+      <form class="grid gap-4 rounded-lg border border-border/70 bg-background/45 p-4 max-sm:p-3.5" (ngSubmit)="saveCatalogItem()">
         <div class="grid gap-3">
           <div class="grid gap-1.5" role="group" aria-labelledby="catalog-kind-label">
-            <span id="catalog-kind-label" class="min-h-5 text-sm font-extrabold leading-5 text-muted-foreground">Tipo</span>
-            <div class="grid h-12 grid-cols-2 gap-1 rounded-md bg-background p-1">
-              <isumi-button type="button" size="md" fullWidth [variant]="catalogKind() === 'category' ? 'primary' : 'ghost'" [ariaPressed]="catalogKind() === 'category'" (click)="setCatalogKind('category')">
-                <svg icon lucideTags class="size-4" aria-hidden="true"></svg>
-                Categoria
-              </isumi-button>
-              <isumi-button type="button" size="md" fullWidth [variant]="catalogKind() === 'payment' ? 'primary' : 'ghost'" [ariaPressed]="catalogKind() === 'payment'" (click)="setCatalogKind('payment')">
-                <svg icon lucideCreditCard class="size-4" aria-hidden="true"></svg>
-                Pagamento
-              </isumi-button>
+            <span id="catalog-kind-label" class="min-h-5 text-xs font-extrabold leading-5 text-muted-foreground">Tipo do cadastro</span>
+            <div class="grid grid-cols-2 items-center gap-3 rounded-lg bg-card p-1.5 max-sm:gap-2" role="tablist" aria-label="Tipo de cadastro">
+              <isumi-tab fullWidth [selected]="catalogKind() === 'category'" (click)="setCatalogKind('category')">
+                <span class="inline-flex items-center gap-2">
+                  <svg icon lucideTags class="size-4" aria-hidden="true"></svg>
+                  Categoria
+                </span>
+              </isumi-tab>
+              <isumi-tab fullWidth [selected]="catalogKind() === 'payment'" (click)="setCatalogKind('payment')">
+                <span class="inline-flex items-center gap-2">
+                  <svg icon lucideCreditCard class="size-4" aria-hidden="true"></svg>
+                  Pagamento
+                </span>
+              </isumi-tab>
             </div>
           </div>
         </div>
 
         <div class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-3 gap-y-3 max-sm:grid-cols-1">
-          <label class="grid gap-2">
-            <span class="text-sm font-extrabold text-muted-foreground">Nome</span>
+          <label class="grid gap-1.5">
+            <span class="text-xs font-extrabold text-muted-foreground">Nome</span>
             <input isumiInput name="catalogName" [ngModel]="catalogName()" (ngModelChange)="catalogName.set($event.slice(0, 80))" maxlength="80" required [placeholder]="catalogKind() === 'category' ? 'Mercado, casa, lazer...' : 'Banco, dinheiro, VR...'">
           </label>
-          <div class="grid gap-2" role="radiogroup" aria-label="Escolher cor">
-            <span class="inline-flex items-center gap-1.5 text-sm font-extrabold text-muted-foreground">
-              <svg lucidePalette class="size-4" aria-hidden="true"></svg>
+          <div class="grid gap-1.5" role="radiogroup" aria-label="Escolher cor">
+            <span class="inline-flex items-center gap-1.5 text-xs font-extrabold text-muted-foreground">
+              <svg lucidePalette class="size-3.5" aria-hidden="true"></svg>
               Cor
             </span>
-            <div class="grid grid-cols-10 gap-2 rounded-md bg-zinc-950/50 border-input border p-2 max-sm:grid-cols-5">
+            <div class="grid grid-cols-10 gap-2 max-sm:grid-cols-5">
               @for (option of catalogPalette; track option.color) {
                 <button
                   type="button"
@@ -173,26 +178,27 @@ export const CATALOG_PALETTE: CatalogPaletteOption[] = [
               }
             </div>
           </div>
-          <isumi-button class="sm:col-span-2" fullWidth type="submit" size="lg" [loading]="saving()">
+          <isumi-button class="sm:col-span-2" fullWidth type="submit" size="md" [loading]="saving()">
             <svg icon lucidePlus class="size-4" aria-hidden="true"></svg>
             Criar
           </isumi-button>
         </div>
       </form>
 
-      <div class="grid min-h-0 grid-cols-2 gap-4 overflow-hidden max-md:grid-cols-1">
-        <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
-          <div class="flex items-center justify-between gap-3">
-            <h3 class="m-0 text-base font-black">Categorias</h3>
+      <div class="grid min-h-0 overflow-hidden">
+        @if (catalogKind() === 'category') {
+        <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 rounded-lg bg-secondary/45 p-3">
+          <div class="flex items-center justify-between gap-3 px-1">
+            <h3 class="m-0 text-[0.95rem] font-black">Categorias</h3>
             <isumi-tag tone="secondary">{{ (data?.activeCategories() || []).length }} ativas</isumi-tag>
           </div>
 
-          <div class="grid min-h-0 content-start gap-2 overflow-y-auto overscroll-contain">
+          <div class="grid min-h-0 content-start divide-y divide-border/60 overflow-y-auto overscroll-contain rounded-md bg-background/30 px-3">
             @for (category of data?.categories() || []; track category.id) {
-              <div class="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="category.archived">
-                <span class="inline-flex min-w-0 items-center gap-2">
-                  <i class="size-3 rounded-full" [style.background]="category.color"></i>
-                  <strong class="truncate">{{ category.name }}</strong>
+              <div class="grid min-h-13 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2" [class.opacity-45]="category.archived">
+                <span class="inline-flex min-w-0 items-center gap-2.5">
+                  <i class="size-2.5 shrink-0 rounded-full" [style.background]="category.color"></i>
+                  <strong class="truncate text-sm">{{ category.name }}</strong>
                 </span>
                 @if (!category.archived) {
                   <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Arquivar categoria" (click)="data?.archiveCatalog('category', category)">
@@ -202,24 +208,24 @@ export const CATALOG_PALETTE: CatalogPaletteOption[] = [
                 }
               </div>
             } @empty {
-              <div class="flex min-h-14 items-center rounded-lg bg-secondary/60 px-3 py-2.5 text-sm font-semibold text-muted-foreground">
+              <div class="flex min-h-24 items-center px-1 text-sm leading-5 text-muted-foreground">
                 Comece com algo como Mercado, Casa ou Lazer.
               </div>
             }
           </div>
         </section>
-
-        <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
-          <div class="flex items-center justify-between gap-3">
-            <h3 class="m-0 text-base font-black">Pagamentos</h3>
+        } @else {
+        <section class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2.5 rounded-lg bg-secondary/45 p-3">
+          <div class="flex items-center justify-between gap-3 px-1">
+            <h3 class="m-0 text-[0.95rem] font-black">Pagamentos</h3>
             <isumi-tag tone="secondary">{{ (data?.activePaymentMethods() || []).length }} ativos</isumi-tag>
           </div>
-          <div class="grid min-h-0 content-start gap-2 overflow-y-auto overscroll-contain">
+          <div class="grid min-h-0 content-start divide-y divide-border/60 overflow-y-auto overscroll-contain rounded-md bg-background/30 px-3">
             @for (method of data?.paymentMethods() || []; track method.id) {
-            <div class="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-secondary px-3 py-2.5" [class.opacity-50]="method.archived">
-              <span class="inline-flex min-w-0 items-center gap-2">
-                <i class="size-3 rounded-full" [style.background]="method.color"></i>
-                <strong class="truncate">{{ method.name }}</strong>
+            <div class="grid min-h-13 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2" [class.opacity-45]="method.archived">
+              <span class="inline-flex min-w-0 items-center gap-2.5">
+                <i class="size-2.5 shrink-0 rounded-full" [style.background]="method.color"></i>
+                <strong class="truncate text-sm">{{ method.name }}</strong>
               </span>
               @if (!method.archived) {
                 <isumi-button variant="ghost" size="sm" iconOnly ariaLabel="Arquivar pagamento" (click)="data?.archiveCatalog('payment', method)">
@@ -229,12 +235,13 @@ export const CATALOG_PALETTE: CatalogPaletteOption[] = [
               }
             </div>
           } @empty {
-            <div class="flex min-h-14 items-center rounded-lg bg-secondary/60 px-3 py-2.5 text-sm font-semibold text-muted-foreground">
+            <div class="flex min-h-24 items-center px-1 text-sm leading-5 text-muted-foreground">
               Adicione cartão, dinheiro ou conta principal.
             </div>
           }
           </div>
         </section>
+        }
       </div>
     </div>
   `,
@@ -264,10 +271,10 @@ export class MonthlyExpenseCatalogModalComponent {
 
   paletteOptionClasses(option: CatalogPaletteOption): string {
     const selected = this.catalogColor() === option.color
-      ? "ring-2 ring-white ring-offset-2 ring-offset-background"
-      : "ring-1 ring-white/10 hover:ring-white/35";
+      ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+      : "ring-1 ring-white/10 hover:ring-white/40";
 
-    return `size-8 cursor-pointer justify-self-center rounded-md ${option.swatchClass} ${selected} transition-[box-shadow,transform] duration-150 active:scale-95`;
+    return `size-7 cursor-pointer justify-self-center rounded-full ${option.swatchClass} ${selected} transition-shadow duration-150 focus-visible:outline-none`;
   }
 
   saveCatalogItem(): void {
