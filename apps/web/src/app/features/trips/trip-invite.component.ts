@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from "@angular/core";
 import { Router } from "@angular/router";
 import { LucideArrowRight, LucideRoute, LucideShieldCheck } from "@lucide/angular";
 import { TripsService } from "../../core/api/trips.service";
@@ -34,11 +34,17 @@ import { IsumiButtonComponent, IsumiToastService } from "../../shared/ui";
               </div>
             </div>
 
-            <div class="flex items-center justify-between gap-4 rounded-md bg-secondary px-4 py-3 max-sm:grid max-sm:gap-2">
+            <div class="grid gap-3 rounded-md bg-secondary px-4 py-3">
+              <div class="flex items-center justify-between gap-4 max-sm:grid max-sm:gap-2">
+                <span class="text-sm font-extrabold text-muted-foreground">Nome da sala</span>
+                <span class="min-w-0 truncate text-right font-bold text-foreground max-sm:text-left">{{ roomTitle() || "Carregando..." }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-4 border-t border-border pt-3 max-sm:grid max-sm:gap-2">
               <span class="text-sm font-extrabold text-muted-foreground">ID da sala</span>
               <code class="min-w-0 truncate rounded-sm bg-background px-2.5 py-1.5 font-mono text-sm font-bold text-foreground">
                 {{ shortRoomId() }}
               </code>
+              </div>
             </div>
 
             <div class="grid gap-3">
@@ -59,17 +65,24 @@ import { IsumiButtonComponent, IsumiToastService } from "../../shared/ui";
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TripInviteComponent {
+export class TripInviteComponent implements OnInit {
   private readonly trips = inject(TripsService);
   private readonly router = inject(Router);
   private readonly toast = inject(IsumiToastService);
 
   readonly roomId = input.required<string>();
   readonly joining = signal(false);
+  readonly roomTitle = signal<string | null>(null);
   readonly shortRoomId = computed(() => {
     const roomId = this.roomId();
     return roomId.length > 12 ? `${roomId.slice(0, 8)}...${roomId.slice(-4)}` : roomId;
   });
+
+  ngOnInit(): void {
+    this.trips.invitePreview(this.roomId()).subscribe({
+      next: ({ title }) => this.roomTitle.set(title)
+    });
+  }
 
   acceptInvite(): void {
     if (this.joining()) return;

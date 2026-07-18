@@ -215,6 +215,13 @@ export async function getExpenseRoomDetail(db: Client, user: AuthUser, roomId: s
   return buildExpenseRoomDetail(db, roomId);
 }
 
+export async function getExpenseInvitePreview(db: Client, roomId: string): Promise<{ name: string }> {
+  const room = await findExpenseRoom(db, roomId);
+  if (!room) throw new HttpError(404, "not_found");
+
+  return { name: room.name };
+}
+
 export async function deleteExpenseRoom(db: Client, userId: string, roomId: string): Promise<void> {
   await assertExpenseRoomOwner(db, roomId, userId);
 

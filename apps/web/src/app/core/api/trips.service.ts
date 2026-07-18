@@ -9,6 +9,7 @@ import {
   PublicTripSnapshot,
   TripRoomSummary,
   TripSnapshot,
+  TripInvitePreview,
   UpdateTripLodgingRequest,
   UpdateTripDayItemOrderRequest,
   UpsertTripDayItemRequest,
@@ -99,6 +100,10 @@ export class TripsService {
 
   acceptRoom(roomId: string): Observable<TripSnapshot> {
     return this.http.get<TripSnapshot>(`${this.baseUrl}/${roomId}?accept=1`);
+  }
+
+  invitePreview(roomId: string): Observable<TripInvitePreview> {
+    return this.http.get<TripInvitePreview>(`${this.baseUrl}/${roomId}/invite`);
   }
 
   realtimeTicket(roomId: string): Observable<{ token: string; expiresInSeconds: number }> {

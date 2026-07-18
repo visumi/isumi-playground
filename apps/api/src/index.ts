@@ -21,6 +21,7 @@ import {
   deleteExpenseParticipant,
   deleteExpenseRoom,
   getExpenseRoomDetail,
+  getExpenseInvitePreview,
   listExpenseRooms,
   optimizeSettlements,
   updateExpenseItem,
@@ -318,6 +319,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         const room = await createExpenseRoom(db, user, payload);
         return json(room, 201, corsHeaders);
       }
+    }
+
+    const expenseInviteMatch = url.pathname.match(/^\/tools\/expenses\/rooms\/([^/]+)\/invite$/);
+    if (expenseInviteMatch && request.method === "GET") {
+      return json(await getExpenseInvitePreview(db, expenseInviteMatch[1]), 200, corsHeaders);
     }
 
     const expenseRoomMatch = url.pathname.match(/^\/tools\/expenses\/rooms\/([^/]+)$/);

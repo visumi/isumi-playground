@@ -274,6 +274,17 @@ export async function getTripSnapshot(db: Client, userId: string, roomId: string
   };
 }
 
+export async function getTripInvitePreview(db: Client, roomId: string): Promise<{ title: string }> {
+  const result = await db.execute({
+    sql: "SELECT title FROM trip_rooms WHERE id = ? LIMIT 1",
+    args: [roomId]
+  });
+  const room = result.rows[0] as Pick<TripRoomRow, "title"> | undefined;
+  if (!room) throw new HttpError(404, "not_found");
+
+  return { title: room.title };
+}
+
 export async function getPublicTripSnapshot(db: Client, publicShareToken: string) {
   const token = requiredText(publicShareToken, "not_found", 96);
   const roomResult = await db.execute({

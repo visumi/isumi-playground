@@ -133,6 +133,13 @@ describe("TripsService", () => {
     request.flush({});
   });
 
+  it("loads the trip name before accepting an invite", () => {
+    service.invitePreview("trip-1").subscribe();
+    const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/invite");
+    expect(request.request.method).toBe("GET");
+    request.flush({ title: "Férias em Recife" });
+  });
+
   it("ensures a public share token for a trip", () => {
     service.ensurePublicShareToken("trip-1").subscribe();
     const request = http.expectOne("http://localhost:8787/tools/trips/trip-1/public-share-token");

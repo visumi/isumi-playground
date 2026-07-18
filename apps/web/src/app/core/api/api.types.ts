@@ -98,6 +98,10 @@ export interface ExpenseRoomDetail {
   settlements: ExpenseSettlement[];
 }
 
+export interface ExpenseInvitePreview {
+  name: string;
+}
+
 export interface CreateExpenseRoomRequest {
   name: string;
 }
@@ -345,6 +349,10 @@ export interface TripSnapshot {
   items: TripDayItem[];
   routes: TripRoute[];
   lodgings: TripLodging[];
+}
+
+export interface TripInvitePreview {
+  title: string;
 }
 
 export interface PublicTripRoom {

@@ -18,6 +18,7 @@ import {
   deleteTripRoute,
   deleteTripRoom,
   ensureTripPublicShareToken,
+  getTripInvitePreview,
   getPublicTripSnapshot,
   getTripSnapshot,
   listTripRooms,
@@ -130,6 +131,9 @@ const tripRoutes: HttpRoute<TripRouteContext>[] = [
     await notifyRoom(env, snapshot.room.id, snapshot, user.uid);
     return json(snapshot, 201, corsHeaders);
   }),
+  route("GET", /^\/tools\/trips\/(?<roomId>[^/]+)\/invite$/, async ({ db, corsHeaders, params }) =>
+    json(await getTripInvitePreview(db, routeParam(params, "roomId")), 200, corsHeaders)
+  ),
   route("GET", /^\/tools\/trips\/(?<roomId>[^/]+)$/, async ({ url, env, db, user, corsHeaders, params }) => {
     const roomId = routeParam(params, "roomId");
     const accepting = url.searchParams.get("accept") === "1";

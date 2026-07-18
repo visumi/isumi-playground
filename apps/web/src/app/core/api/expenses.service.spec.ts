@@ -58,6 +58,14 @@ describe("ExpensesService", () => {
     request.flush({});
   });
 
+  it("loads the expense room name before accepting an invite", () => {
+    service.invitePreview("room-1").subscribe();
+
+    const request = http.expectOne("http://localhost:8787/tools/expenses/rooms/room-1/invite");
+    expect(request.request.method).toBe("GET");
+    request.flush({ name: "Apartamento" });
+  });
+
   it("updates a settlement paid state", () => {
     service.updateSettlement("room-1", {
       fromParticipantId: "ana",
