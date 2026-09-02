@@ -503,6 +503,7 @@ export class MonthlyExpensesComponent implements OnInit {
         installmentTotal: payload.installmentTotal,
         expenseType: payload.expenseType
       }));
+      this.pendingItems.update((items) => items.filter((item) => item.id !== pending.id));
       this.setDetail(updated);
       this.reloadMonthsOnly();
       this.toast.success("Compra aprovada.", { id: "monthly-expense-pending-approved" });
@@ -521,7 +522,7 @@ export class MonthlyExpensesComponent implements OnInit {
     }
 
     this.saving.set(true);
-    this.api.dismissPendingItem(detail.month.id, pending.id).pipe(
+    this.api.dismissPendingItem(pending.monthId, pending.id).pipe(
       finalize(() => this.saving.set(false))
     ).subscribe({
       next: () => {

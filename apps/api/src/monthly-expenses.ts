@@ -583,10 +583,10 @@ export async function listMonthlyExpensePendingItems(db: Client, userId: string,
       SELECT id, user_id, month_id, description, amount_cents, transaction_date, merchant_name, raw_source,
         source_id, status, approved_item_id, created_at, updated_at
       FROM monthly_expense_pending_items
-      WHERE user_id = ? AND month_id = ? AND status = 'PENDING'
+      WHERE user_id = ? AND status = 'PENDING'
       ORDER BY transaction_date DESC, created_at DESC, id DESC
     `,
-    args: [userId, monthId]
+    args: [userId]
   });
 
   return (result.rows as unknown as MonthlyExpensePendingItemRow[]).map(mapMonthlyExpensePendingItem);
@@ -600,7 +600,7 @@ export async function approveMonthlyExpensePendingItem(
   payload: MonthlyExpensePendingApproveInput
 ) {
   await assertMonthlyExpenseMonth(db, userId, monthId);
-  const pending = await findMonthlyExpensePendingItem(db, userId, monthId, pendingId);
+  const pending = await findMonthlyExpensePendingById(db, userId, pendingId);
   if (!pending) {
     throw new HttpError(404, "not_found");
   }
@@ -622,9 +622,9 @@ export async function approveMonthlyExpensePendingItem(
       sql: `
         UPDATE monthly_expense_pending_items
         SET status = 'APPROVED', updated_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND user_id = ? AND month_id = ? AND status = 'PENDING'
+        WHERE id = ? AND user_id = ? AND status = 'PENDING'
       `,
-      args: [pendingId, userId, monthId]
+      args: [pendingId, userId]
     }
   ]);
 
@@ -716,6 +716,25 @@ async function findMonthlyExpensePendingItem(
       LIMIT 1
     `,
     args: [pendingId, userId, monthId]
+  });
+
+  return (result.rows[0] as unknown as MonthlyExpensePendingItemRow | undefined) || null;
+}
+
+async function findMonthlyExpensePendingById(
+  db: Client,
+  userId: string,
+  pendingId: string
+): Promise<MonthlyExpensePendingItemRow | null> {
+  const result = await db.execute({
+    sql: `
+      SELECT id, user_id, month_id, description, amount_cents, transaction_date, merchant_name, raw_source,
+        source_id, status, approved_item_id, created_at, updated_at
+      FROM monthly_expense_pending_items
+      WHERE id = ? AND user_id = ? AND status = 'PENDING'
+      LIMIT 1
+    `,
+    args: [pendingId, userId]
   });
 
   return (result.rows[0] as unknown as MonthlyExpensePendingItemRow | undefined) || null;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { approveMonthlyExpensePendingItem, listMonthlyExpensePendingItems } from "../src/monthly-expenses";
 import {
   calculateMonthlyExpenseSummary,
   migrateMonthlyFixedExpensesToNextMonth,
@@ -338,5 +339,155 @@ describe("monthly expense shortcut payload", () => {
   it("rejects invalid money strings", () => {
     expect(() => parseShortcutMoneyAmount("R$ 0,00")).toThrow("invalid_amount");
     expect(() => parseShortcutMoneyAmount("sem valor")).toThrow("invalid_amount");
+  });
+});
+
+describe("monthly expense pending items", () => {
+  it("lists pending purchases from every month for the authenticated user", async () => {
+    const selectedMonth = monthlyExpenseMonth({ id: "june-2026" });
+    const pendingRows = [
+      {
+        id: "pending-july",
+        user_id: "user-1",
+        month_id: "july-2026",
+        description: "Mercado",
+        amount_cents: 4590,
+        transaction_date: "2026-07-03",
+        merchant_name: "Mercado",
+        raw_source: null,
+        source_id: null,
+        status: "PENDING",
+        approved_item_id: null,
+        created_at: "2026-07-03 00:00:00",
+        updated_at: "2026-07-03 00:00:00"
+      },
+      {
+        id: "pending-may",
+        user_id: "user-1",
+        month_id: "may-2026",
+        description: "Farmácia",
+        amount_cents: 1990,
+        transaction_date: "2026-05-20",
+        merchant_name: "Farmácia",
+        raw_source: null,
+        source_id: null,
+        status: "PENDING",
+        approved_item_id: null,
+        created_at: "2026-05-20 00:00:00",
+        updated_at: "2026-05-20 00:00:00"
+      }
+    ];
+    const calls: Array<{ sql: string; args: unknown[] }> = [];
+    const db = {
+      execute: async ({ sql, args }: { sql: string; args: unknown[] }) => {
+        calls.push({ sql, args });
+        if (sql.includes("FROM monthly_expense_months")) {
+          return { rows: [selectedMonth] };
+        }
+
+        if (sql.includes("FROM monthly_expense_pending_items")) {
+          return { rows: pendingRows };
+        }
+
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }
+    };
+
+    const result = await listMonthlyExpensePendingItems(db as never, "user-1", selectedMonth.id);
+
+    expect(result.map((item) => item.monthId)).toEqual(["july-2026", "may-2026"]);
+    expect(calls.at(-1)?.args).toEqual(["user-1"]);
+    expect(calls.at(-1)?.sql).not.toContain("month_id = ?");
+  });
+
+  it("approves a pending purchase into the selected month", async () => {
+    const activeMonth = monthlyExpenseMonth({ id: "june-2026", month: 6 });
+    const pendingRow = {
+      id: "pending-may",
+      user_id: "user-1",
+      month_id: "may-2026",
+      description: "Mercado",
+      amount_cents: 4590,
+      transaction_date: "2026-05-20",
+      merchant_name: "Mercado",
+      raw_source: null,
+      source_id: null,
+      status: "PENDING",
+      approved_item_id: null,
+      created_at: "2026-05-20 00:00:00",
+      updated_at: "2026-05-20 00:00:00"
+    };
+    const items: Array<Record<string, unknown>> = [];
+    const batchStatements: Array<{ sql: string; args: unknown[] }> = [];
+    const db = {
+      execute: async ({ sql, args }: { sql: string; args: unknown[] }) => {
+        if (sql.includes("FROM monthly_expense_months")) {
+          return { rows: [activeMonth] };
+        }
+
+        if (sql.includes("FROM monthly_expense_pending_items")) {
+          return { rows: [pendingRow] };
+        }
+
+        if (sql.includes("FROM monthly_expense_categories") && sql.includes("WHERE id = ?")) {
+          return { rows: [{ archived_at: null }] };
+        }
+
+        if (sql.includes("FROM monthly_expense_payment_methods") && sql.includes("WHERE id = ?")) {
+          return { rows: [{ archived_at: null }] };
+        }
+
+        if (sql.includes("FROM monthly_expense_categories")) {
+          return { rows: [{ id: "category-1", name: "Mercado", color: "#22c55e", archived_at: null, created_at: "2026-06-01 00:00:00", updated_at: "2026-06-01 00:00:00" }] };
+        }
+
+        if (sql.includes("FROM monthly_expense_payment_methods")) {
+          return { rows: [{ id: "payment-1", name: "PIX", color: "#2563eb", archived_at: null, created_at: "2026-06-01 00:00:00", updated_at: "2026-06-01 00:00:00" }] };
+        }
+
+        if (sql.includes("FROM monthly_expense_items")) {
+          return { rows: items };
+        }
+
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+      batch: async (statements: Array<{ sql: string; args: unknown[] }>) => {
+        batchStatements.push(...statements);
+        const insert = statements.find((statement) => statement.sql.includes("INSERT INTO monthly_expense_items"));
+        if (insert) {
+          const [, userId, monthId, categoryId, paymentMethodId, description, amountCents, totalPurchaseCents, installmentNumber, installmentTotal, expenseType, installmentGroupId] = insert.args;
+          items.push({
+            id: insert.args[0],
+            user_id: userId,
+            month_id: monthId,
+            category_id: categoryId,
+            payment_method_id: paymentMethodId,
+            description,
+            amount_cents: amountCents,
+            total_purchase_cents: totalPurchaseCents,
+            installment_number: installmentNumber,
+            installment_total: installmentTotal,
+            expense_type: expenseType,
+            installment_group_id: installmentGroupId,
+            created_at: "2026-06-01 00:00:00",
+            updated_at: "2026-06-01 00:00:00"
+          });
+        }
+        pendingRow.status = "APPROVED";
+        return [];
+      }
+    };
+
+    const result = await approveMonthlyExpensePendingItem(db as never, "user-1", activeMonth.id, pendingRow.id, {
+      categoryId: "category-1",
+      paymentMethodId: "payment-1",
+      installmentTotal: 1,
+      expenseType: "VARIAVEL"
+    });
+
+    expect(result.month.id).toBe(activeMonth.id);
+    expect(result.items[0]?.monthId).toBe(activeMonth.id);
+    expect(pendingRow.status).toBe("APPROVED");
+    expect(batchStatements.at(-1)?.sql).not.toContain("month_id = ?");
   });
 });
