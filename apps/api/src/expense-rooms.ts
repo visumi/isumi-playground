@@ -38,11 +38,9 @@ interface ExpenseSplitRow {
   share_units: number;
 }
 
-interface ExpensePaidSettlementRow {
-  room_id: string;
-  from_participant_id: string;
-  to_participant_id: string;
-  amount_cents: number;
+interface ExpenseItemPaymentRow {
+  item_id: string;
+  participant_id: string;
   paid_at: string;
   paid_by_user_id: string;
 }
@@ -63,9 +61,9 @@ export interface ExpenseParticipantInput {
   name?: string;
 }
 
-export interface ExpensePaidSettlementInput {
-  fromParticipantId?: string;
-  toParticipantId?: string;
+export interface ExpenseItemPaymentInput {
+  itemId?: string;
+  participantId?: string;
   paid?: boolean;
 }
 
@@ -73,15 +71,15 @@ interface CalculatedSplit {
   participantId: string;
   shareUnits: number;
   amountCents: number;
+  paid?: boolean;
+  paidAt?: string;
+  paidByUserId?: string;
 }
 
 interface Settlement {
   fromParticipantId: string;
   toParticipantId: string;
   amountCents: number;
-  paid?: boolean;
-  paidAt?: string;
-  paidByUserId?: string;
 }
 
 interface ParticipantTotal {
@@ -156,48 +154,73 @@ export async function createExpenseRoom(db: Client, user: AuthUser, payload: { n
   return buildExpenseRoomDetail(db, roomId);
 }
 
-export async function updateExpensePaidSettlement(db: Client, userId: string, roomId: string, payload: ExpensePaidSettlementInput) {
+export async function updateExpenseItemPayment(db: Client, userId: string, roomId: string, payload: ExpenseItemPaymentInput) {
   await assertExpenseRoomMember(db, roomId, userId);
-  const fromParticipantId = sanitizeRequiredId(payload.fromParticipantId, "missing_from_participant");
-  const toParticipantId = sanitizeRequiredId(payload.toParticipantId, "missing_to_participant");
+  const itemId = sanitizeRequiredId(payload.itemId, "missing_item");
+  const participantId = sanitizeRequiredId(payload.participantId, "missing_participant");
+  const item = await findExpenseItem(db, roomId, itemId);
 
-  if (fromParticipantId === toParticipantId) {
-    throw new HttpError(400, "invalid_settlement_pair");
+  if (!item) {
+    throw new HttpError(404, "not_found");
+  }
+
+  const participant = await findExpenseParticipant(db, roomId, participantId);
+  if (!participant) {
+    throw new HttpError(404, "not_found");
+  }
+
+  const splitResult = await db.execute({
+    sql: "SELECT 1 FROM expense_item_splits WHERE item_id = ? AND participant_id = ? LIMIT 1",
+    args: [itemId, participantId]
+  });
+
+  if (splitResult.rows.length === 0) {
+    throw new HttpError(400, "invalid_item_payment");
+  }
+
+  assertExpenseItemPaymentCanBeUpdated(userId, participant, item.payer_participant_id);
+
+  if (typeof payload.paid !== "boolean") {
+    throw new HttpError(400, "invalid_paid_state");
   }
 
   if (!payload.paid) {
     await db.execute({
       sql: `
-        DELETE FROM expense_paid_settlements
-        WHERE room_id = ? AND from_participant_id = ? AND to_participant_id = ?
+        DELETE FROM expense_item_payments
+        WHERE item_id = ? AND participant_id = ?
       `,
-      args: [roomId, fromParticipantId, toParticipantId]
+      args: [itemId, participantId]
     });
     return buildExpenseRoomDetail(db, roomId);
   }
 
-  const detail = await buildExpenseRoomDetail(db, roomId);
-  const settlement = detail.settlements.find((item) =>
-    item.fromParticipantId === fromParticipantId && item.toParticipantId === toParticipantId
-  );
-
-  if (!settlement) {
-    throw new HttpError(400, "invalid_settlement_pair");
-  }
-
   await db.execute({
     sql: `
-      INSERT INTO expense_paid_settlements (room_id, from_participant_id, to_participant_id, amount_cents, paid_at, paid_by_user_id)
-      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-      ON CONFLICT(room_id, from_participant_id, to_participant_id) DO UPDATE SET
-        amount_cents = excluded.amount_cents,
+      INSERT INTO expense_item_payments (item_id, participant_id, paid_at, paid_by_user_id)
+      VALUES (?, ?, CURRENT_TIMESTAMP, ?)
+      ON CONFLICT(item_id, participant_id) DO UPDATE SET
         paid_at = CURRENT_TIMESTAMP,
         paid_by_user_id = excluded.paid_by_user_id
     `,
-    args: [roomId, fromParticipantId, toParticipantId, settlement.amountCents, userId]
+    args: [itemId, participantId, userId]
   });
 
   return buildExpenseRoomDetail(db, roomId);
+}
+
+export function assertExpenseItemPaymentCanBeUpdated(
+  userId: string,
+  participant: Pick<ExpenseParticipantRow, "id" | "user_id">,
+  payerParticipantId: string
+): void {
+  if (participant.id === payerParticipantId) {
+    throw new HttpError(400, "payer_payment_automatic");
+  }
+
+  if (participant.user_id && participant.user_id !== userId) {
+    throw new HttpError(403, "participant_payment_owner_required");
+  }
 }
 
 export async function getExpenseRoomDetail(db: Client, user: AuthUser, roomId: string, acceptInvite = false) {
@@ -226,13 +249,6 @@ export async function deleteExpenseRoom(db: Client, userId: string, roomId: stri
   await assertExpenseRoomOwner(db, roomId, userId);
 
   await executeStatementsAtomically(db, [
-    {
-      sql: `
-        DELETE FROM expense_paid_settlements
-        WHERE room_id = ?
-      `,
-      args: [roomId]
-    },
     {
       sql: `
         DELETE FROM expense_item_splits
@@ -319,7 +335,6 @@ export async function deleteExpenseParticipant(db: Client, userId: string, roomI
       sql: "DELETE FROM expense_participants WHERE id = ? AND room_id = ?",
       args: [participantId, roomId]
     },
-    clearPaidSettlementsStatement(roomId),
     touchExpenseRoomStatement(roomId)
   ]);
 }
@@ -343,13 +358,9 @@ export async function assertExpenseParticipantCanBeDeleted(
       FROM expense_item_splits s
       INNER JOIN expense_items i ON i.id = s.item_id
       WHERE i.room_id = ? AND s.participant_id = ?
-      UNION ALL
-      SELECT 1
-      FROM expense_paid_settlements
-      WHERE room_id = ? AND (from_participant_id = ? OR to_participant_id = ?)
       LIMIT 1
     `,
-    args: [roomId, participant.id, roomId, participant.id, roomId, participant.id, participant.id]
+    args: [roomId, participant.id, roomId, participant.id]
   });
 
   if (linkedResult.rows.length > 0) {
@@ -371,7 +382,6 @@ export async function createExpenseItem(db: Client, userId: string, roomId: stri
       args: [itemId, roomId, item.payerParticipantId, item.description, item.amountCents, userId]
     },
     ...replaceExpenseItemSplitsStatements(itemId, item.splits),
-    clearPaidSettlementsStatement(roomId),
     touchExpenseRoomStatement(roomId)
   ]);
 
@@ -393,7 +403,7 @@ export async function updateExpenseItem(db: Client, userId: string, roomId: stri
       args: [item.payerParticipantId, item.description, item.amountCents, itemId, roomId]
     },
     ...replaceExpenseItemSplitsStatements(itemId, item.splits),
-    clearPaidSettlementsStatement(roomId),
+    clearItemPaymentsStatement(itemId),
     touchExpenseRoomStatement(roomId)
   ]);
 
@@ -409,7 +419,6 @@ export async function deleteExpenseItem(db: Client, userId: string, roomId: stri
       sql: "DELETE FROM expense_items WHERE id = ? AND room_id = ?",
       args: [itemId, roomId]
     },
-    clearPaidSettlementsStatement(roomId),
     touchExpenseRoomStatement(roomId)
   ]);
 }
@@ -423,8 +432,12 @@ async function buildExpenseRoomDetail(db: Client, roomId: string) {
   const participants = await listExpenseParticipants(db, roomId);
   const items = await listExpenseItems(db, roomId);
   const splits = await listExpenseSplits(db, roomId);
-  const paidSettlements = await listExpensePaidSettlements(db, roomId);
+  const itemPayments = await listExpenseItemPayments(db, roomId);
   const splitsByItem = groupSplitsByItem(splits);
+  const paymentsByKey = new Map(itemPayments.map((payment) => [
+    itemPaymentKey(payment.item_id, payment.participant_id),
+    payment
+  ]));
   const detailedItems = items.map((item) => {
     const calculatedSplits = calculateItemSplits(
       item.amount_cents,
@@ -432,27 +445,24 @@ async function buildExpenseRoomDetail(db: Client, roomId: string) {
         participantId: split.participant_id,
         shareUnits: split.share_units
       }))
-    );
+    ).map((split) => {
+      const payment = paymentsByKey.get(itemPaymentKey(item.id, split.participantId));
+      const paid = split.participantId === item.payer_participant_id || Boolean(payment);
+
+      return {
+        ...split,
+        paid,
+        paidAt: payment?.paid_at ? toUtcIsoTimestamp(payment.paid_at) : undefined,
+        paidByUserId: payment?.paid_by_user_id
+      };
+    });
 
     return mapExpenseItem(item, calculatedSplits);
   });
   const participantIds = participants.map((participant) => participant.id);
   const participantTotals = calculateParticipantTotals(participantIds, detailedItems);
   const balances = calculateBalances(participantIds, detailedItems);
-  const paidByKey = new Map(paidSettlements.map((settlement) => [
-    settlementKey(settlement.from_participant_id, settlement.to_participant_id),
-    settlement
-  ]));
-  const settlements = optimizeSettlements(balances).map((settlement) => {
-    const paid = paidByKey.get(settlementKey(settlement.fromParticipantId, settlement.toParticipantId));
-
-    return {
-      ...settlement,
-      paid: Boolean(paid && paid.amount_cents === settlement.amountCents),
-      paidAt: paid?.paid_at ? toUtcIsoTimestamp(paid.paid_at) : undefined,
-      paidByUserId: paid?.paid_by_user_id
-    };
-  });
+  const settlements = optimizeSettlements(balances);
   const subtotalCents = detailedItems.reduce((sum, item) => sum + item.amountCents, 0);
 
   return {
@@ -533,14 +543,23 @@ async function assertExpenseRoomMember(db: Client, roomId: string, userId: strin
 }
 
 async function assertExpenseItemExists(db: Client, roomId: string, itemId: string): Promise<void> {
+  if (!(await findExpenseItem(db, roomId, itemId))) {
+    throw new HttpError(404, "not_found");
+  }
+}
+
+async function findExpenseItem(db: Client, roomId: string, itemId: string): Promise<ExpenseItemRow | null> {
   const result = await db.execute({
-    sql: "SELECT id FROM expense_items WHERE id = ? AND room_id = ? LIMIT 1",
+    sql: `
+      SELECT id, room_id, payer_participant_id, description, amount_cents, created_by_user_id, created_at, updated_at
+      FROM expense_items
+      WHERE id = ? AND room_id = ?
+      LIMIT 1
+    `,
     args: [itemId, roomId]
   });
 
-  if (result.rows.length === 0) {
-    throw new HttpError(404, "not_found");
-  }
+  return (result.rows[0] as unknown as ExpenseItemRow | undefined) || null;
 }
 
 async function findExpenseParticipant(db: Client, roomId: string, participantId: string): Promise<ExpenseParticipantRow | null> {
@@ -587,17 +606,18 @@ async function listExpenseItems(db: Client, roomId: string): Promise<ExpenseItem
   return result.rows as unknown as ExpenseItemRow[];
 }
 
-async function listExpensePaidSettlements(db: Client, roomId: string): Promise<ExpensePaidSettlementRow[]> {
+async function listExpenseItemPayments(db: Client, roomId: string): Promise<ExpenseItemPaymentRow[]> {
   const result = await db.execute({
     sql: `
-      SELECT room_id, from_participant_id, to_participant_id, amount_cents, paid_at, paid_by_user_id
-      FROM expense_paid_settlements
-      WHERE room_id = ?
+      SELECT p.item_id, p.participant_id, p.paid_at, p.paid_by_user_id
+      FROM expense_item_payments p
+      INNER JOIN expense_items i ON i.id = p.item_id
+      WHERE i.room_id = ?
     `,
     args: [roomId]
   });
 
-  return result.rows as unknown as ExpensePaidSettlementRow[];
+  return result.rows as unknown as ExpenseItemPaymentRow[];
 }
 
 async function listExpenseSplits(db: Client, roomId: string): Promise<ExpenseSplitRow[]> {
@@ -663,14 +683,10 @@ function touchExpenseRoomStatement(roomId: string): InStatement {
   };
 }
 
-async function clearPaidSettlements(db: Client, roomId: string): Promise<void> {
-  await db.execute(clearPaidSettlementsStatement(roomId));
-}
-
-function clearPaidSettlementsStatement(roomId: string): InStatement {
+function clearItemPaymentsStatement(itemId: string): InStatement {
   return {
-    sql: "DELETE FROM expense_paid_settlements WHERE room_id = ?",
-    args: [roomId]
+    sql: "DELETE FROM expense_item_payments WHERE item_id = ?",
+    args: [itemId]
   };
 }
 
@@ -750,12 +766,13 @@ export function calculateBalances(participantIds: string[], items: Array<{ payer
   const byParticipant = new Map(balances.map((balance) => [balance.participantId, balance]));
 
   for (const item of items) {
+    const unpaidSplits = item.splits.filter((split) => !split.paid);
     const payer = byParticipant.get(item.payerParticipantId);
     if (payer) {
-      payer.balanceCents += item.amountCents;
+      payer.balanceCents += unpaidSplits.reduce((total, split) => total + split.amountCents, 0);
     }
 
-    for (const split of item.splits) {
+    for (const split of unpaidSplits) {
       const participant = byParticipant.get(split.participantId);
       if (participant) {
         participant.balanceCents -= split.amountCents;
@@ -766,8 +783,8 @@ export function calculateBalances(participantIds: string[], items: Array<{ payer
   return balances.filter((balance) => balance.balanceCents !== 0);
 }
 
-function settlementKey(fromParticipantId: string, toParticipantId: string): string {
-  return `${fromParticipantId}->${toParticipantId}`;
+function itemPaymentKey(itemId: string, participantId: string): string {
+  return `${itemId}:${participantId}`;
 }
 
 export function optimizeSettlements(balances: Array<{ participantId: string; balanceCents: number }>): Settlement[] {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertExpenseParticipantCanBeDeleted, calculateBalances, calculateItemSplits, calculateParticipantTotals, optimizeSettlements } from "../src/index";
+import { assertExpenseItemPaymentCanBeUpdated, assertExpenseParticipantCanBeDeleted, calculateBalances, calculateItemSplits, calculateParticipantTotals, optimizeSettlements } from "../src/index";
 
 describe("expense calculations", () => {
   it("splits cents by share units with deterministic remainder distribution", () => {
@@ -66,6 +66,68 @@ describe("expense calculations", () => {
       { participantId: "ana", subtotalCents: 500, totalCents: 500 },
       { participantId: "bruno", subtotalCents: 500, totalCents: 500 }
     ]);
+  });
+
+  it("removes only paid participant shares from balances", () => {
+    expect(calculateBalances(["payer", "ana", "bruno"], [{
+      payerParticipantId: "payer",
+      amountCents: 3000,
+      splits: [
+        { participantId: "payer", shareUnits: 1, amountCents: 1000, paid: true },
+        { participantId: "ana", shareUnits: 1, amountCents: 1000, paid: true },
+        { participantId: "bruno", shareUnits: 1, amountCents: 1000, paid: false }
+      ]
+    }])).toEqual([
+      { participantId: "payer", balanceCents: 1000 },
+      { participantId: "bruno", balanceCents: -1000 }
+    ]);
+  });
+
+  it("clears all balances when every non-payer share is paid", () => {
+    expect(calculateBalances(["payer", "ana"], [{
+      payerParticipantId: "payer",
+      amountCents: 2000,
+      splits: [
+        { participantId: "payer", shareUnits: 1, amountCents: 1000, paid: true },
+        { participantId: "ana", shareUnits: 1, amountCents: 1000, paid: true }
+      ]
+    }])).toEqual([]);
+  });
+});
+
+describe("expense item payment permissions", () => {
+  it("allows a participant to update their own share", () => {
+    expect(() => assertExpenseItemPaymentCanBeUpdated("ana-user", {
+      id: "ana",
+      user_id: "ana-user"
+    }, "payer")).not.toThrow();
+  });
+
+  it("allows any room member to update a guest share", () => {
+    expect(() => assertExpenseItemPaymentCanBeUpdated("member-user", {
+      id: "guest",
+      user_id: null
+    }, "payer")).not.toThrow();
+  });
+
+  it("rejects updating another authenticated participant share", () => {
+    expect(() => assertExpenseItemPaymentCanBeUpdated("other-user", {
+      id: "ana",
+      user_id: "ana-user"
+    }, "payer")).toThrowError(expect.objectContaining({
+      status: 403,
+      message: "participant_payment_owner_required"
+    }));
+  });
+
+  it("rejects manually updating the payer share", () => {
+    expect(() => assertExpenseItemPaymentCanBeUpdated("payer-user", {
+      id: "payer",
+      user_id: "payer-user"
+    }, "payer")).toThrowError(expect.objectContaining({
+      status: 400,
+      message: "payer_payment_automatic"
+    }));
   });
 });
 

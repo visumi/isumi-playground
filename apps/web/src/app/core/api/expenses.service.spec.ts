@@ -66,14 +66,14 @@ describe("ExpensesService", () => {
     request.flush({ name: "Apartamento" });
   });
 
-  it("updates a settlement paid state", () => {
-    service.updateSettlement("room-1", {
-      fromParticipantId: "ana",
-      toParticipantId: "bruno",
+  it("updates an item participant payment state", () => {
+    service.updateItemPayment("room-1", {
+      itemId: "item-1",
+      participantId: "ana",
       paid: true
     }).subscribe();
 
-    const request = http.expectOne("http://localhost:8787/tools/expenses/rooms/room-1/settlements");
+    const request = http.expectOne("http://localhost:8787/tools/expenses/rooms/room-1/item-payments");
     expect(request.request.method).toBe("PATCH");
     expect(request.request.body.paid).toBeTrue();
     request.flush({});

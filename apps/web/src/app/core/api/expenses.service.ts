@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable, inject } from "@angular/core";
 import { Observable } from "rxjs";
 import { environment } from "../../../environments/environment";
-import { CreateExpenseRoomRequest, ExpenseInvitePreview, ExpenseRoomDetail, ExpenseRoomSummary, UpdateExpenseSettlementRequest, UpsertExpenseItemRequest, UpsertExpenseParticipantRequest } from "./api.types";
+import { CreateExpenseRoomRequest, ExpenseInvitePreview, ExpenseRoomDetail, ExpenseRoomSummary, UpdateExpenseItemPaymentRequest, UpsertExpenseItemRequest, UpsertExpenseParticipantRequest } from "./api.types";
 
 @Injectable({ providedIn: "root" })
 export class ExpensesService {
@@ -33,8 +33,8 @@ export class ExpensesService {
     return this.http.get<ExpenseInvitePreview>(`${this.baseUrl}/${roomId}/invite`);
   }
 
-  updateSettlement(roomId: string, payload: UpdateExpenseSettlementRequest): Observable<ExpenseRoomDetail> {
-    return this.http.patch<ExpenseRoomDetail>(`${this.baseUrl}/${roomId}/settlements`, payload);
+  updateItemPayment(roomId: string, payload: UpdateExpenseItemPaymentRequest): Observable<ExpenseRoomDetail> {
+    return this.http.patch<ExpenseRoomDetail>(`${this.baseUrl}/${roomId}/item-payments`, payload);
   }
 
   createGuest(roomId: string, payload: UpsertExpenseParticipantRequest): Observable<ExpenseRoomDetail> {

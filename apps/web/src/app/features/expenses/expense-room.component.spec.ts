@@ -34,7 +34,8 @@ describe("ExpenseRoomComponent", () => {
           useValue: {
             getRoom: () => of(roomDetail()),
             deleteRoom: () => of(undefined),
-            deleteParticipant: () => of(undefined)
+            deleteParticipant: () => of(undefined),
+            updateItemPayment: () => of(roomDetail())
           }
         },
         {
@@ -47,12 +48,35 @@ describe("ExpenseRoomComponent", () => {
     });
   });
 
-  it("calculates the unpaid settlement total from unchecked settlements", () => {
+  it("calculates the pending settlement total from derived settlements", () => {
     const fixture = TestBed.createComponent(ExpenseRoomComponent);
     fixture.componentRef.setInput("roomId", "room-1");
     fixture.componentInstance.detail.set(roomDetail());
 
-    expect(fixture.componentInstance.unpaidSettlementCents()).toBe(1250);
+    expect(fixture.componentInstance.unpaidSettlementCents()).toBe(1750);
+  });
+
+  it("shows an item as paid only after every non-payer part is paid", () => {
+    const fixture = TestBed.createComponent(ExpenseRoomComponent);
+    fixture.componentRef.setInput("roomId", "room-1");
+    fixture.componentInstance.detail.set(itemRoomDetail());
+    const item = fixture.componentInstance.detail()!.items[0];
+
+    expect(fixture.componentInstance.isItemPaid(item)).toBeFalse();
+    item.splits[1].paid = true;
+    item.splits[2].paid = true;
+    expect(fixture.componentInstance.isItemPaid(item)).toBeTrue();
+  });
+
+  it("allows the current member to update their own item part and guests", () => {
+    const fixture = TestBed.createComponent(ExpenseRoomComponent);
+    fixture.componentRef.setInput("roomId", "room-1");
+    fixture.componentInstance.detail.set(itemRoomDetail());
+    const item = fixture.componentInstance.detail()!.items[0];
+
+    expect(fixture.componentInstance.canUpdateItemSplitPayment(item, item.splits[0])).toBeFalse();
+    expect(fixture.componentInstance.canUpdateItemSplitPayment(item, item.splits[1])).toBeFalse();
+    expect(fixture.componentInstance.canUpdateItemSplitPayment(item, item.splits[2])).toBeTrue();
   });
 
   it("uses a toast instead of the page alert when participant removal fails", () => {
@@ -141,11 +165,36 @@ function roomDetail(): ExpenseRoomDetail {
     participantTotals: [],
     balances: [],
     settlements: [
-      { fromParticipantId: "ana", toParticipantId: "bruno", amountCents: 1000, paid: false },
-      { fromParticipantId: "caio", toParticipantId: "bruno", amountCents: 500, paid: true },
-      { fromParticipantId: "dani", toParticipantId: "bruno", amountCents: 250, paid: false }
+      { fromParticipantId: "ana", toParticipantId: "bruno", amountCents: 1000 },
+      { fromParticipantId: "caio", toParticipantId: "bruno", amountCents: 500 },
+      { fromParticipantId: "dani", toParticipantId: "bruno", amountCents: 250 }
     ]
   };
+}
+
+function itemRoomDetail(): ExpenseRoomDetail {
+  const detail = roomDetail();
+  detail.participants = [
+    participant("owner", "Owner", { userId: "owner-user", kind: "user", role: "owner" }),
+    participant("member", "Member", { userId: "member-user", kind: "user", role: "member" }),
+    participant("guest", "Guest")
+  ];
+  detail.items = [{
+    id: "item-1",
+    roomId: "room-1",
+    payerParticipantId: "owner",
+    description: "Jantar",
+    amountCents: 3000,
+    createdByUserId: "owner-user",
+    splits: [
+      { participantId: "owner", shareUnits: 1, amountCents: 1000, paid: true },
+      { participantId: "member", shareUnits: 1, amountCents: 1000, paid: false },
+      { participantId: "guest", shareUnits: 1, amountCents: 1000, paid: false }
+    ],
+    createdAt: "2026-06-05T00:00:00Z",
+    updatedAt: "2026-06-05T00:00:00Z"
+  }];
+  return detail;
 }
 
 function participant(

@@ -53,6 +53,9 @@ export interface ExpenseItemSplit {
   participantId: string;
   shareUnits: number;
   amountCents: number;
+  paid: boolean;
+  paidAt?: string;
+  paidByUserId?: string;
 }
 
 export interface ExpenseItem {
@@ -76,9 +79,6 @@ export interface ExpenseSettlement {
   fromParticipantId: string;
   toParticipantId: string;
   amountCents: number;
-  paid: boolean;
-  paidAt?: string;
-  paidByUserId?: string;
 }
 
 export interface ExpenseParticipantTotal {
@@ -120,9 +120,9 @@ export interface UpsertExpenseItemRequest {
   }>;
 }
 
-export interface UpdateExpenseSettlementRequest {
-  fromParticipantId: string;
-  toParticipantId: string;
+export interface UpdateExpenseItemPaymentRequest {
+  itemId: string;
+  participantId: string;
   paid: boolean;
 }
 

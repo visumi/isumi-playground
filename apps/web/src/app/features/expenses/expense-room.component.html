@@ -70,13 +70,15 @@
               <svg lucideScale class="size-4" aria-hidden="true"></svg>
               Quem paga quem
             </h2>
-            @if (pendingSettlements()) {
+            @if (pendingSettlements().length > 0) {
             <isumi-tag tone="secondary">{{ pendingSettlements().length }} pendente(s)</isumi-tag>
-            } @else {
+            } @else if (allItemsPaid()) {
             <span
               class="inline-flex w-fit items-center rounded-full bg-emerald-500/10 px-2.5 py-1.5 text-xs font-black text-emerald-200">
-              Tudo pago
+              PAGO
             </span>
+            } @else {
+            <isumi-tag tone="secondary">Sem pendências</isumi-tag>
             }
           </div>
 
@@ -86,31 +88,22 @@
               <strong class="text-lg text-red-200">{{ money(unpaidSettlementCents()) }}</strong>
             </div>
             <div class="grid gap-1 bg-emerald-500/10 p-3">
-              <span class="text-xs font-bold text-emerald-100/80">Pago</span>
-              <strong class="text-lg text-emerald-200">{{ money(paidSettlementCents()) }}</strong>
+              <span class="text-xs font-bold text-emerald-100/80">Partes pagas</span>
+              <strong class="text-lg text-emerald-200">{{ money(paidItemShareCents()) }}</strong>
             </div>
           </div>
         </div>
 
         @if (state.settlements.length === 0) {
-        <p class="m-0 rounded-md bg-secondary p-3 text-sm leading-6 text-muted-foreground">Tudo acertado por enquanto.
+        <p class="m-0 rounded-md bg-secondary p-3 text-sm leading-6 text-muted-foreground">
+          {{ allItemsPaid() ? "Todas as partes dos itens já foram pagas." : "Tudo acertado por enquanto." }}
         </p>
         } @else {
         <div class="grid gap-2">
           @for (settlement of state.settlements; track settlement.fromParticipantId + settlement.toParticipantId) {
-          <div class="grid gap-2 rounded-md bg-secondary p-3 text-sm transition-colors"
-            [class.opacity-70]="settlement.paid">
+          <div class="grid gap-2 rounded-md bg-secondary p-3 text-sm transition-colors">
             <div class="flex items-start justify-between gap-3">
-              <isumi-checkbox variant="secondary" [checked]="settlement.paid"
-                [disabled]="saving() && !isSettlementSaving(settlement)" [loading]="isSettlementSaving(settlement)"
-                ariaLabel="Marcar acerto como pago" (checkedChange)="updateSettlementPaid(settlement, $event)">
-                <span class="sr-only">Marcar acerto como pago</span>
-              </isumi-checkbox>
-
-              <strong class="text-base" [class.text-yellow-200]="!settlement.paid"
-                [class.text-emerald-200]="settlement.paid">
-                {{ money(settlement.amountCents) }}
-              </strong>
+              <strong class="text-base text-yellow-200">{{ money(settlement.amountCents) }}</strong>
             </div>
 
             <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
@@ -123,9 +116,7 @@
 
             <div class="flex items-center justify-between gap-3 text-xs font-bold">
               <span class="text-muted-foreground">Acerto entre pessoas</span>
-              <span [class.text-yellow-100]="!settlement.paid" [class.text-emerald-200]="settlement.paid">
-                {{ isSettlementSaving(settlement) ? "Salvando..." : settlement.paid ? "Pago" : "Pendente" }}
-              </span>
+              <span class="text-yellow-100">Pendente</span>
             </div>
           </div>
           }
@@ -243,7 +234,14 @@
             [attr.aria-busy]="deletingItemId() === item.id ? true : null">
             <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
               <div class="min-w-0">
-                <h3 class="m-0 truncate font-sans text-sm font-black">{{ item.description }}</h3>
+                <div class="flex min-w-0 items-center gap-2">
+                  <h3 class="m-0 truncate font-sans text-sm font-black">{{ item.description }}</h3>
+                  @if (isItemPaid(item)) {
+                  <span class="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 font-sans text-[0.68rem] font-black tracking-wide text-emerald-200">
+                    PAGO
+                  </span>
+                  }
+                </div>
                 <p class="m-0 min-w-0 text-muted-foreground">
                   <span class="block truncate sm:inline">Pago por {{ participantName(item.payerParticipantId) }}</span>
                   <span class="hidden sm:inline"> em </span>
@@ -257,10 +255,28 @@
 
             <div class="grid gap-1 text-muted-foreground">
               @for (split of item.splits; track split.participantId) {
-              <div class="grid grid-cols-[minmax(0,1fr)_60px_90px] gap-2 max-sm:grid-cols-[minmax(0,1fr)_auto]">
+              <div class="grid grid-cols-[minmax(0,1fr)_60px_minmax(100px,auto)] items-center gap-2 max-sm:grid-cols-[minmax(0,1fr)_auto]"
+                [class.opacity-60]="split.paid">
                 <span class="truncate">{{ participantName(split.participantId) }}</span>
                 <span class="text-right max-sm:hidden">{{ split.shareUnits }}x</span>
-                <span class="text-right">{{ money(split.amountCents) }}</span>
+                <div class="flex items-center justify-end gap-2">
+                  <span class="text-right">{{ money(split.amountCents) }}</span>
+                  @if (isItemSplitAutomaticallyPaid(item, split)) {
+                  <span class="text-[0.68rem] font-bold text-emerald-200">Pago automático</span>
+                  } @else if (canUpdateItemSplitPayment(item, split)) {
+                  <isumi-checkbox variant="secondary" [checked]="split.paid"
+                    [disabled]="saving() && !isItemPaymentSaving(item, split)" [loading]="isItemPaymentSaving(item, split)"
+                    [ariaLabel]="(split.paid ? 'Desmarcar' : 'Marcar') + ' parte de ' + participantName(split.participantId) + ' como paga'"
+                    (checkedChange)="updateItemSplitPaid(item, split, $event)">
+                    <span class="sr-only">{{ split.paid ? "Desmarcar" : "Marcar" }} parte de {{ participantName(split.participantId) }} como paga</span>
+                  </isumi-checkbox>
+                  } @else {
+                  <span class="text-[0.68rem] font-bold" [class.text-emerald-200]="split.paid"
+                    [class.text-yellow-100]="!split.paid">
+                    {{ split.paid ? "Pago" : "Pendente" }}
+                  </span>
+                  }
+                </div>
               </div>
               }
             </div>

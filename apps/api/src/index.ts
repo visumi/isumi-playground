@@ -10,6 +10,7 @@
   type AccessGrantPatchInput
 } from "./access";
 import {
+  assertExpenseItemPaymentCanBeUpdated,
   assertExpenseParticipantCanBeDeleted,
   calculateBalances,
   calculateItemSplits,
@@ -25,10 +26,10 @@ import {
   listExpenseRooms,
   optimizeSettlements,
   updateExpenseItem,
-  updateExpensePaidSettlement,
+  updateExpenseItemPayment,
   updateGuestParticipant,
   type ExpenseItemInput,
-  type ExpensePaidSettlementInput,
+  type ExpenseItemPaymentInput,
   type ExpenseParticipantInput
 } from "./expense-rooms";
 import {
@@ -69,6 +70,7 @@ export { TripRoom } from "./trip-room";
 
 export { isEmailAllowed, normalizeEmail, resolveAccessDecision } from "./access";
 export {
+  assertExpenseItemPaymentCanBeUpdated,
   assertExpenseParticipantCanBeDeleted,
   calculateBalances,
   calculateItemSplits,
@@ -340,11 +342,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       }
     }
 
-    const expensePaidSettlementMatch = url.pathname.match(/^\/tools\/expenses\/rooms\/([^/]+)\/settlements$/);
-    if (expensePaidSettlementMatch && request.method === "PATCH") {
-      const roomId = expensePaidSettlementMatch[1];
-      const payload = await readJson<ExpensePaidSettlementInput>(request);
-      return json(await updateExpensePaidSettlement(db, user.uid, roomId, payload), 200, corsHeaders);
+    const expenseItemPaymentMatch = url.pathname.match(/^\/tools\/expenses\/rooms\/([^/]+)\/item-payments$/);
+    if (expenseItemPaymentMatch && request.method === "PATCH") {
+      const roomId = expenseItemPaymentMatch[1];
+      const payload = await readJson<ExpenseItemPaymentInput>(request);
+      return json(await updateExpenseItemPayment(db, user.uid, roomId, payload), 200, corsHeaders);
     }
 
     const expenseParticipantMatch = url.pathname.match(/^\/tools\/expenses\/rooms\/([^/]+)\/participants(?:\/([^/]+))?$/);

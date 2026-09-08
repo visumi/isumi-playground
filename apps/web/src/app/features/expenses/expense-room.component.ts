@@ -6,7 +6,7 @@ import { Router } from "@angular/router";
 import { firstValueFrom } from "rxjs";
 import { LucideArrowRight, LucideConciergeBell, LucideDollarSign, LucideMinus, LucidePencil, LucidePlus, LucideFiles, LucideReceiptText, LucideSave, LucideScale, LucideTrash2, LucideUserPlus, LucideUserRound, LucideUsers, LucideX, LucideFrown } from "@lucide/angular";
 import { ExpensesService } from "../../core/api/expenses.service";
-import { ExpenseItem, ExpenseParticipant, ExpenseParticipantTotal, ExpenseRoomDetail, ExpenseSettlement, UpsertExpenseItemRequest } from "../../core/api/api.types";
+import { ExpenseItem, ExpenseItemSplit, ExpenseParticipant, ExpenseParticipantTotal, ExpenseRoomDetail, UpsertExpenseItemRequest } from "../../core/api/api.types";
 import { AuthService } from "../../core/auth/auth.service";
 import { IsumiBreadcrumbComponent } from "../../shared/ui/breadcrumb.component";
 import { IsumiAvatarComponent, IsumiButtonComponent, IsumiCheckboxComponent, IsumiClipboardService, IsumiEmptyStateComponent, IsumiInputDirective, IsumiModalService, IsumiSelectDirective, IsumiTagComponent, IsumiToastService, IsumiTooltipComponent, injectIsumiModalData, injectIsumiModalRef } from "../../shared/ui";
@@ -324,36 +324,27 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
   readonly copiedInviteUrl = signal(false);
   readonly error = signal<string | null>(null);
   readonly guestName = signal("");
-  readonly savingSettlementKey = signal<string | null>(null);
+  readonly savingItemPaymentKey = signal<string | null>(null);
   readonly participants = computed(() => this.detail()?.participants || []);
   readonly isOwner = computed(() => this.detail()?.room.ownerUserId === this.auth.profile()?.uid);
   readonly unpaidSettlementCents = computed(() =>
     (this.detail()?.settlements || [])
-      .filter((settlement) => !settlement.paid)
       .reduce((total, settlement) => total + settlement.amountCents, 0)
   );
-  readonly paidSettlementCents = computed(() =>
-    (this.detail()?.settlements || [])
-      .filter((settlement) => settlement.paid)
-      .reduce((total, settlement) => total + settlement.amountCents, 0)
+  readonly paidItemShareCents = computed(() =>
+    (this.detail()?.items || []).reduce((total, item) => total + item.splits
+      .filter((split) => split.participantId !== item.payerParticipantId && split.paid)
+      .reduce((itemTotal, split) => itemTotal + split.amountCents, 0), 0)
   );
-  readonly pendingSettlements = computed(() =>
-    (this.detail()?.settlements || []).filter((settlement) => !settlement.paid)
-  );
-  readonly paidSettlements = computed(() =>
-    (this.detail()?.settlements || []).filter((settlement) => settlement.paid)
-  );
+  readonly pendingSettlements = computed(() => this.detail()?.settlements || []);
+  readonly allItemsPaid = computed(() => {
+    const items = this.detail()?.items || [];
+    return items.length > 0 && items.every((item) => this.isItemPaid(item));
+  });
   readonly breadcrumbItems = computed(() => [
     { label: "Salas", link: "/tools/expenses" },
     { label: "Sala" }
   ]);
-  readonly settlementProgressLabel = computed(() => {
-    const total = this.detail()?.settlements.length || 0;
-    const paid = this.paidSettlements().length;
-
-    return `${paid} de ${total} quitados`;
-  });
-
   ngOnInit(): void {
     this.loadRoom();
     document.addEventListener("visibilitychange", this.handleVisibilityChange);
@@ -500,27 +491,50 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     }
   }
 
-  updateSettlementPaid(settlement: ExpenseSettlement, paid: boolean): void {
-    const key = this.settlementKey(settlement);
+  updateItemSplitPaid(item: ExpenseItem, split: ExpenseItemSplit, paid: boolean): void {
+    if (!this.canUpdateItemSplitPayment(item, split)) {
+      return;
+    }
+
+    const key = this.itemPaymentKey(item, split);
     this.saving.set(true);
-    this.savingSettlementKey.set(key);
+    this.savingItemPaymentKey.set(key);
     this.error.set(null);
-    this.expenses.updateSettlement(this.roomId(), {
-      fromParticipantId: settlement.fromParticipantId,
-      toParticipantId: settlement.toParticipantId,
+    this.expenses.updateItemPayment(this.roomId(), {
+      itemId: item.id,
+      participantId: split.participantId,
       paid
     }).subscribe({
       next: (updated) => this.setDetail(updated),
       error: () => {
-        this.toast.error("Não foi possível atualizar o acerto.", { id: "expense-settlement-update-error" });
-        this.finishSavingSettlement();
+        this.toast.error("Não foi possível atualizar o pagamento da parte.", { id: "expense-item-payment-update-error" });
+        this.finishSavingItemPayment();
       },
-      complete: () => this.finishSavingSettlement()
+      complete: () => this.finishSavingItemPayment()
     });
   }
 
-  isSettlementSaving(settlement: ExpenseSettlement): boolean {
-    return this.savingSettlementKey() === this.settlementKey(settlement);
+  isItemPaid(item: ExpenseItem): boolean {
+    const payableSplits = item.splits.filter((split) => !this.isItemSplitAutomaticallyPaid(item, split));
+    return payableSplits.length === 0 || payableSplits.every((split) => split.paid);
+  }
+
+  isItemSplitAutomaticallyPaid(item: ExpenseItem, split: ExpenseItemSplit): boolean {
+    return split.participantId === item.payerParticipantId;
+  }
+
+  canUpdateItemSplitPayment(item: ExpenseItem, split: ExpenseItemSplit): boolean {
+    if (this.isItemSplitAutomaticallyPaid(item, split)) {
+      return false;
+    }
+
+    const participant = this.participants().find((item) => item.id === split.participantId);
+    const userId = this.auth.profile()?.uid;
+    return Boolean(participant && (participant.kind === "guest" || participant.userId === userId));
+  }
+
+  isItemPaymentSaving(item: ExpenseItem, split: ExpenseItemSplit): boolean {
+    return this.savingItemPaymentKey() === this.itemPaymentKey(item, split);
   }
 
   participantName(participantId: string): string {
@@ -576,13 +590,13 @@ export class ExpenseRoomComponent implements OnInit, OnDestroy {
     this.refreshingRoom = false;
   }
 
-  private settlementKey(settlement: ExpenseSettlement): string {
-    return `${settlement.fromParticipantId}:${settlement.toParticipantId}`;
+  private itemPaymentKey(item: ExpenseItem, split: ExpenseItemSplit): string {
+    return `${item.id}:${split.participantId}`;
   }
 
-  private finishSavingSettlement(): void {
+  private finishSavingItemPayment(): void {
     this.saving.set(false);
-    this.savingSettlementKey.set(null);
+    this.savingItemPaymentKey.set(null);
   }
 
   private async deleteRoom(): Promise<void> {
