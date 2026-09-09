@@ -585,47 +585,47 @@
       </isumi-tag>
     </div>
 
-    @if (state.items.length === 0 || categoryInsights().length === 0) {
-    <isumi-empty-state title="Nenhum gasto para analisar" description="Adicione gastos ao mês para ver a distribuição por categoria.">
+    @if (state.items.length === 0 || insights().length === 0) {
+    <isumi-empty-state title="Nenhum gasto para analisar" description="Adicione gastos ao mês para ver a distribuição por categoria ou tipo.">
       <svg icon lucideBrushCleaning class="size-5" aria-hidden="true"></svg>
     </isumi-empty-state>
     } @else {
     <section
       class="grid grid-cols-[minmax(15rem,0.9fr)_minmax(0,1.1fr)] gap-5 rounded-lg bg-background/35 p-5 max-lg:grid-cols-1 max-sm:p-4"
-      aria-label="Gastos por categoria">
+      [attr.aria-label]="insightMode() === 'category' ? 'Gastos por categoria' : 'Gastos por tipo de gasto'">
       <div class="grid place-items-center gap-4">
         <div class="group/chart relative grid aspect-square w-full max-w-[18rem] place-items-center">
           <svg class="size-full overflow-visible" viewBox="0 0 100 100" role="img"
             aria-labelledby="monthly-expense-chart-title monthly-expense-chart-description">
-            <title id="monthly-expense-chart-title">Gastos por categoria</title>
-            <desc id="monthly-expense-chart-description">Distribuição do total do mês entre as principais categorias.</desc>
-            @for (category of categoryInsights(); track category.categoryId) {
-            <circle cx="50" cy="50" [attr.r]="chartRadius" fill="none" [attr.stroke]="category.color"
+            <title id="monthly-expense-chart-title">{{ insightMode() === 'category' ? 'Gastos por categoria' : 'Gastos por tipo de gasto' }}</title>
+            <desc id="monthly-expense-chart-description">Distribuição do total do mês entre {{ insightMode() === 'category' ? 'as principais categorias' : 'os tipos de gasto' }}.</desc>
+            @for (insight of insights(); track insight.id) {
+            <circle cx="50" cy="50" [attr.r]="chartRadius" fill="none" [attr.stroke]="insight.color"
               stroke-width="9" stroke-linecap="round"
               class="monthly-expense-category-segment origin-center -rotate-90 cursor-pointer opacity-90 transition-[opacity,stroke-width] duration-200 ease-out hover:opacity-100 hover:[stroke-width:10.5] focus:opacity-100 focus:[stroke-width:10.5] focus:outline-none motion-reduce:transition-none"
-              [class.opacity-35]="activeCategoryInsightId() !== null && activeCategoryInsightId() !== category.categoryId"
-              [attr.stroke-dasharray]="category.strokeDasharray"
-              [attr.stroke-dashoffset]="category.strokeDashoffset"
-              [style.--monthly-expense-chart-dasharray]="category.strokeDasharray"
-              [style.animationDelay.ms]="category.delayMs"
-              [attr.aria-label]="category.name + ': ' + category.percent + '% do total, ' + money(category.amountCents)"
+              [class.opacity-35]="activeInsightId() !== null && activeInsightId() !== insight.id"
+              [attr.stroke-dasharray]="insight.strokeDasharray"
+              [attr.stroke-dashoffset]="insight.strokeDashoffset"
+              [style.--monthly-expense-chart-dasharray]="insight.strokeDasharray"
+              [style.animationDelay.ms]="insight.delayMs"
+              [attr.aria-label]="insight.name + ': ' + insight.percent + '% do total, ' + money(insight.amountCents)"
               tabindex="0"
-              (mouseenter)="setActiveCategoryInsight(category.categoryId)"
-              (mouseleave)="setActiveCategoryInsight(null)"
-              (focus)="setActiveCategoryInsight(category.categoryId)"
-              (blur)="setActiveCategoryInsight(null)" />
+              (mouseenter)="setActiveInsight(insight.id)"
+              (mouseleave)="setActiveInsight(null)"
+              (focus)="setActiveInsight(insight.id)"
+              (blur)="setActiveInsight(null)" />
             }
           </svg>
 
           <div
             class="monthly-expense-chart-center pointer-events-none absolute inset-[21%] grid place-items-center rounded-full bg-card/95 text-center transition-[transform,background-color] duration-200 ease-out group-hover/chart:bg-card motion-reduce:transition-none">
-            @if (activeCategoryInsight(); as activeCategory) {
+            @if (activeInsight(); as active) {
             <span class="grid max-w-[9rem] justify-items-center gap-1.5 px-3">
-              <span class="size-2.5 rounded-sm" [style.background]="activeCategory.color" aria-hidden="true"></span>
-              <span class="max-w-full truncate text-xs font-extrabold text-muted-foreground">{{ activeCategory.name }}</span>
+              <span class="size-2.5 rounded-sm" [style.background]="active.color" aria-hidden="true"></span>
+              <span class="max-w-full truncate text-xs font-extrabold text-muted-foreground">{{ active.name }}</span>
               <strong class="grid max-w-full justify-items-center gap-1 text-[1.12rem] leading-none tabular-nums">
-                <span class="max-w-full truncate">{{ money(activeCategory.amountCents) }}</span>
-                <span class="text-xs font-black text-muted-foreground">{{ activeCategory.percent }}%</span>
+                <span class="max-w-full truncate">{{ money(active.amountCents) }}</span>
+                <span class="text-xs font-black text-muted-foreground">{{ active.percent }}%</span>
               </strong>
             </span>
             } @else {
@@ -639,28 +639,33 @@
       </div>
 
       <div class="grid content-center gap-3">
-        <div class="flex items-end justify-between gap-3">
+        <div class="flex items-end justify-between gap-3 max-sm:items-start max-sm:flex-col">
           <div>
-            <h3 class="m-0 text-base font-black">Gastos por categoria</h3>
-            <p class="m-0 mt-1 text-sm text-muted-foreground">{{ categoryInsights().length }} categoria(s)</p>
+            <h3 class="m-0 text-base font-black">{{ insightMode() === 'category' ? 'Gastos por categoria' : 'Gastos por tipo de gasto' }}</h3>
+            <p class="m-0 mt-1 text-sm text-muted-foreground">{{ insights().length }} {{ insightMode() === 'category' ? 'categoria(s)' : 'tipo(s)' }}</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1 rounded-md bg-card p-1" role="tablist" aria-label="Agrupar gráfico de insights">
+            <isumi-tab fullWidth [selected]="insightMode() === 'category'" (click)="setInsightMode('category')">Categorias</isumi-tab>
+            <isumi-tab fullWidth [selected]="insightMode() === 'type'" (click)="setInsightMode('type')">Tipos de gasto</isumi-tab>
           </div>
         </div>
 
         <div class="grid gap-2">
-          @for (category of categoryInsights(); track category.categoryId) {
+          @for (insight of insights(); track insight.id) {
           <article
             class="grid grid-cols-[auto_minmax(0,1fr)_8.5rem] items-center gap-3 rounded-md px-3 py-2.5 transition-[background,opacity] duration-200 max-sm:grid-cols-[auto_minmax(0,1fr)] motion-reduce:transition-none"
-            [class.opacity-45]="activeCategoryInsightId() !== null && activeCategoryInsightId() !== category.categoryId"
-            [style.background]="categoryInsightRowBackground(category.color)"
-            (mouseenter)="setActiveCategoryInsight(category.categoryId)"
-            (mouseleave)="setActiveCategoryInsight(null)">
+            [class.opacity-45]="activeInsightId() !== null && activeInsightId() !== insight.id"
+            [style.background]="insightRowBackground(insight.color)"
+            (mouseenter)="setActiveInsight(insight.id)"
+            (mouseleave)="setActiveInsight(null)">
             <span class="grid size-6 place-items-center rounded-md bg-background/55" aria-hidden="true">
-              <span class="size-3 rounded-sm" [style.background]="category.color"></span>
+              <span class="size-3 rounded-sm" [style.background]="insight.color"></span>
             </span>
-            <strong class="min-w-0 truncate">{{ category.name }}</strong>
+            <strong class="min-w-0 truncate">{{ insight.name }}</strong>
             <strong class="grid justify-items-end gap-0.5 text-right tabular-nums max-sm:col-span-2 max-sm:justify-items-start max-sm:text-left">
-              <span>{{ money(category.amountCents) }}</span>
-              <span class="text-sm font-extrabold text-muted-foreground">{{ category.percent }}%</span>
+              <span>{{ money(insight.amountCents) }}</span>
+              <span class="text-sm font-extrabold text-muted-foreground">{{ insight.percent }}%</span>
             </strong>
           </article>
           }

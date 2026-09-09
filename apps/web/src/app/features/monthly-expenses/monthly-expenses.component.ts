@@ -59,14 +59,14 @@ const MOBILE_SWIPE_THRESHOLD_PX = 56;
 const MOBILE_SWIPE_AXIS_LOCK_PX = 8;
 const CATEGORY_INSIGHT_LIMIT = 5;
 const CATEGORY_OTHER_COLOR = "#71717a";
-const CATEGORY_CHART_PALETTE = ["#a78bfa", "#34d399", "#38bdf8", "#fbbf24", "#fb7185"];
 const CATEGORY_CHART_RADIUS = 42;
 const CATEGORY_CHART_CIRCUMFERENCE = 2 * Math.PI * CATEGORY_CHART_RADIUS;
 
 type MonthlyExpenseView = "list" | "insights";
+type MonthlyExpenseInsightMode = "category" | "type";
 
-interface MonthlyExpenseCategoryInsight {
-  categoryId: string;
+interface MonthlyExpenseInsight {
+  id: string;
   name: string;
   color: string;
   amountCents: number;
@@ -144,6 +144,7 @@ export class MonthlyExpensesComponent implements OnInit {
   readonly variableLimit = signal("");
   readonly query = signal("");
   readonly selectedView = signal<MonthlyExpenseView>("list");
+  readonly insightMode = signal<MonthlyExpenseInsightMode>("category");
   readonly typeFilter = signal<MonthlyExpenseType | "ALL">("ALL");
   readonly categoryFilter = signal("ALL");
   readonly paymentFilter = signal("ALL");
@@ -151,7 +152,7 @@ export class MonthlyExpensesComponent implements OnInit {
   readonly mobileActionsOpen = signal(false);
   readonly mobileSwipeItemId = signal<string | null>(null);
   readonly mobileSwipeOffset = signal(0);
-  readonly activeCategoryInsightId = signal<string | null>(null);
+  readonly activeInsightId = signal<string | null>(null);
   readonly chartRadius = CATEGORY_CHART_RADIUS;
   readonly shortcutEndpointUrl = `${environment.apiBaseUrl}/tools/monthly-expenses/apple-pay/pending`;
   private mobileSwipeStart: { itemId: string; pointerId: number; x: number; y: number; lockedAxis: "x" | "y" | null } | null = null;
@@ -195,27 +196,28 @@ export class MonthlyExpensesComponent implements OnInit {
       return matchesSearch && matchesType && matchesCategory && matchesPayment;
     });
   });
-  readonly categoryInsights = computed<MonthlyExpenseCategoryInsight[]>(() => {
+  readonly insights = computed<MonthlyExpenseInsight[]>(() => {
     const detail = this.detail();
     const totalCents = detail?.summary.monthTotalCents || 0;
     if (!detail || totalCents <= 0) {
       return [];
     }
 
-    const categoryMap = new Map<string, { name: string; color: string; amountCents: number }>();
+    const insightMap = new Map<string, { name: string; color: string; amountCents: number }>();
     for (const item of detail.items) {
-      const current = categoryMap.get(item.categoryId) || {
-        name: item.categoryName || "Categoria",
-        color: item.categoryColor,
+      const id = this.insightMode() === "category" ? item.categoryId : item.expenseType;
+      const current = insightMap.get(id) || {
+        name: this.insightMode() === "category" ? item.categoryName || "Categoria" : this.typeLabel(item.expenseType),
+        color: this.insightMode() === "category" ? this.catalogColor(item.categoryColor) : this.typeChartColor(item.expenseType),
         amountCents: 0
       };
 
       current.amountCents += item.amountCents;
-      categoryMap.set(item.categoryId, current);
+      insightMap.set(id, current);
     }
 
-    const sorted = [...categoryMap.entries()]
-      .map(([categoryId, item]) => ({ categoryId, ...item }))
+    const sorted = [...insightMap.entries()]
+      .map(([id, item]) => ({ id, ...item }))
       .filter((item) => item.amountCents > 0)
       .sort((a, b) => b.amountCents - a.amountCents || a.name.localeCompare(b.name, "pt-BR"));
 
@@ -223,7 +225,7 @@ export class MonthlyExpensesComponent implements OnInit {
       ? [
           ...sorted.slice(0, CATEGORY_INSIGHT_LIMIT - 1),
           {
-            categoryId: "other",
+            id: "other",
             name: "OUTROS",
             color: CATEGORY_OTHER_COLOR,
             amountCents: sorted.slice(CATEGORY_INSIGHT_LIMIT - 1).reduce((total, item) => total + item.amountCents, 0)
@@ -242,7 +244,6 @@ export class MonthlyExpensesComponent implements OnInit {
 
       return {
         ...item,
-        color: item.categoryId === "other" ? CATEGORY_OTHER_COLOR : CATEGORY_CHART_PALETTE[index % CATEGORY_CHART_PALETTE.length],
         percent: Math.round(rawPercent),
         strokeDasharray: `${segmentLength} ${CATEGORY_CHART_CIRCUMFERENCE - segmentLength}`,
         strokeDashoffset: `${strokeDashoffset}`,
@@ -250,8 +251,8 @@ export class MonthlyExpensesComponent implements OnInit {
       };
     });
   });
-  readonly activeCategoryInsight = computed(() =>
-    this.categoryInsights().find((item) => item.categoryId === this.activeCategoryInsightId()) || null
+  readonly activeInsight = computed(() =>
+    this.insights().find((item) => item.id === this.activeInsightId()) || null
   );
   readonly hasMigratableFixedExpenses = computed(() =>
     (this.detail()?.items || []).some((item) =>
@@ -581,11 +582,20 @@ export class MonthlyExpensesComponent implements OnInit {
     this.closeMobileExpenseAction();
   }
 
-  setActiveCategoryInsight(categoryId: string | null): void {
-    this.activeCategoryInsightId.set(categoryId);
+  setInsightMode(mode: MonthlyExpenseInsightMode): void {
+    if (this.insightMode() === mode) {
+      return;
+    }
+
+    this.insightMode.set(mode);
+    this.activeInsightId.set(null);
   }
 
-  categoryInsightRowBackground(color: string): string {
+  setActiveInsight(id: string | null): void {
+    this.activeInsightId.set(id);
+  }
+
+  insightRowBackground(color: string): string {
     return `linear-gradient(90deg, color-mix(in srgb, ${color} 18%, transparent), rgb(255 255 255 / 0.03) 42%, rgb(255 255 255 / 0.015))`;
   }
 
@@ -766,6 +776,15 @@ export class MonthlyExpensesComponent implements OnInit {
 
   typeTagTone(type: MonthlyExpenseType): IsumiTagTone {
     return TYPE_TAG_TONES[type];
+  }
+
+  typeChartColor(type: MonthlyExpenseType): string {
+    return CATALOG_PALETTE.find((option) => option.tone === this.typeTagTone(type))?.color ?? CATEGORY_OTHER_COLOR;
+  }
+
+  catalogColor(color: string): string {
+    const normalized = color.trim().toLowerCase();
+    return CATALOG_PALETTE.find((option) => option.color === normalized)?.color ?? CATALOG_PALETTE[0].color;
   }
 
   tagTone(color: string): IsumiTagTone {
